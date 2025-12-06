@@ -1,5 +1,6 @@
 package com.nendo.argosy
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.WindowManager
@@ -43,6 +44,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent?): Boolean {
         if (event != null && gamepadInputHandler.handleKeyEvent(event)) {
             return true
