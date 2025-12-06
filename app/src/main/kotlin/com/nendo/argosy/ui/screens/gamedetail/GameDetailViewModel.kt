@@ -72,7 +72,9 @@ sealed class LaunchEvent {
 enum class GameDownloadStatus {
     NOT_DOWNLOADED,
     QUEUED,
+    WAITING_FOR_STORAGE,
     DOWNLOADING,
+    PAUSED,
     DOWNLOADED
 }
 
@@ -124,6 +126,8 @@ class GameDetailViewModel @Inject constructor(
     private var currentGameId: Long = 0
     private var lastActionTime: Long = 0
     private val actionDebounceMs = 300L
+    private var pageLoadTime: Long = 0
+    private val pageLoadDebounceMs = 500L
 
     init {
         viewModelScope.launch {
@@ -134,13 +138,19 @@ class GameDetailViewModel @Inject constructor(
                 val gameId = currentGameId
                 if (gameId == 0L) return@collect
 
-                val activeDownload = queueState.activeDownload
+                val activeDownload = queueState.activeDownloads.find { it.gameId == gameId }
                 val queued = queueState.queue.find { it.gameId == gameId }
                 val completed = queueState.completed.find { it.gameId == gameId }
 
                 val (status, progress) = when {
-                    activeDownload?.gameId == gameId -> {
+                    activeDownload != null -> {
                         GameDownloadStatus.DOWNLOADING to activeDownload.progressPercent
+                    }
+                    queued?.state == DownloadState.PAUSED -> {
+                        GameDownloadStatus.PAUSED to queued.progressPercent
+                    }
+                    queued?.state == DownloadState.WAITING_FOR_STORAGE -> {
+                        GameDownloadStatus.WAITING_FOR_STORAGE to 0f
                     }
                     queued != null -> {
                         GameDownloadStatus.QUEUED to 0f
@@ -169,6 +179,7 @@ class GameDetailViewModel @Inject constructor(
 
     fun loadGame(gameId: Long) {
         currentGameId = gameId
+        pageLoadTime = System.currentTimeMillis()
         viewModelScope.launch {
             val game = gameDao.getById(gameId) ?: return@launch
             val platform = platformDao.getById(game.platformId)
@@ -210,6 +221,8 @@ class GameDetailViewModel @Inject constructor(
     }
 
     fun downloadGame() {
+        val now = System.currentTimeMillis()
+        if (now - pageLoadTime < pageLoadDebounceMs) return
         viewModelScope.launch {
             when (val result = downloadGameUseCase(currentGameId)) {
                 is DownloadResult.Queued -> { }
@@ -227,8 +240,11 @@ class GameDetailViewModel @Inject constructor(
         when (state.downloadStatus) {
             GameDownloadStatus.DOWNLOADED -> playGame()
             GameDownloadStatus.NOT_DOWNLOADED -> downloadGame()
-            GameDownloadStatus.QUEUED, GameDownloadStatus.DOWNLOADING -> {
-                // Already in progress
+            GameDownloadStatus.QUEUED,
+            GameDownloadStatus.WAITING_FOR_STORAGE,
+            GameDownloadStatus.DOWNLOADING,
+            GameDownloadStatus.PAUSED -> {
+                // Already in progress or paused
             }
         }
     }

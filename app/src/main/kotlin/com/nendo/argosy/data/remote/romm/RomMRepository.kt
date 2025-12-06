@@ -495,16 +495,26 @@ class RomMRepository @Inject constructor(
         }
     }
 
-    suspend fun downloadRom(romId: Long, fileName: String): RomMResult<okhttp3.ResponseBody> {
+    data class DownloadResponse(
+        val body: okhttp3.ResponseBody,
+        val isPartialContent: Boolean
+    )
+
+    suspend fun downloadRom(
+        romId: Long,
+        fileName: String,
+        rangeHeader: String? = null
+    ): RomMResult<DownloadResponse> {
         val currentApi = api ?: return RomMResult.Error("Not connected")
         return try {
-            Log.d(TAG, "downloadRom: starting download for romId=$romId, fileName=$fileName")
-            val response = currentApi.downloadRom(romId, fileName)
+            Log.d(TAG, "downloadRom: starting download for romId=$romId, fileName=$fileName, range=$rangeHeader")
+            val response = currentApi.downloadRom(romId, fileName, rangeHeader)
             if (response.isSuccessful) {
                 val body = response.body()
                 if (body != null) {
-                    Log.d(TAG, "downloadRom: success, size=${body.contentLength()}")
-                    RomMResult.Success(body)
+                    val isPartial = response.code() == 206
+                    Log.d(TAG, "downloadRom: success, size=${body.contentLength()}, partial=$isPartial")
+                    RomMResult.Success(DownloadResponse(body, isPartial))
                 } else {
                     RomMResult.Error("Empty response body")
                 }

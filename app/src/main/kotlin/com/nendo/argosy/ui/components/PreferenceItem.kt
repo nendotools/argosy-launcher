@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Icon
@@ -134,6 +136,47 @@ fun CyclePreference(
             color = if (isFocused) MaterialTheme.colorScheme.onPrimaryContainer
                     else MaterialTheme.colorScheme.primary
         )
+    }
+}
+
+@Composable
+fun SliderPreference(
+    title: String,
+    value: Int,
+    minValue: Int,
+    maxValue: Int,
+    isFocused: Boolean
+) {
+    Row(
+        modifier = preferenceModifier(isFocused),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            color = preferenceContentColor(isFocused)
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            for (i in minValue..maxValue) {
+                val isSelected = i <= value
+                val dotColor = when {
+                    isFocused && isSelected -> MaterialTheme.colorScheme.onPrimaryContainer
+                    isSelected -> MaterialTheme.colorScheme.primary
+                    isFocused -> MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.3f)
+                    else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                }
+                Box(
+                    modifier = Modifier
+                        .size(if (i == value) 14.dp else 10.dp)
+                        .clip(CircleShape)
+                        .background(dotColor)
+                )
+            }
+        }
     }
 }
 

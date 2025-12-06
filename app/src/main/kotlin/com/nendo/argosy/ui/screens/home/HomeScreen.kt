@@ -198,6 +198,7 @@ fun HomeScreen(
                             focusedIndex = uiState.focusedGameIndex,
                             listState = listState,
                             rowKey = uiState.currentRow.toString(),
+                            downloadIndicatorFor = uiState::downloadIndicatorFor,
                             modifier = Modifier.align(Alignment.BottomStart)
                         )
                     }
@@ -346,6 +347,7 @@ private fun GameRail(
     focusedIndex: Int,
     listState: androidx.compose.foundation.lazy.LazyListState,
     rowKey: String,
+    downloadIndicatorFor: (Long) -> GameDownloadIndicator,
     modifier: Modifier = Modifier
 ) {
     LazyRow(
@@ -364,6 +366,7 @@ private fun GameRail(
                 isFocused = isFocused,
                 focusScale = 1.8f,
                 scaleFromBottom = true,
+                downloadIndicator = downloadIndicatorFor(game.id),
                 modifier = Modifier
                     .padding(horizontal = if (isFocused) 64.dp else 0.dp)
                     .width(120.dp)

@@ -6,10 +6,12 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.nendo.argosy.data.local.converter.Converters
+import com.nendo.argosy.data.local.dao.DownloadQueueDao
 import com.nendo.argosy.data.local.dao.EmulatorConfigDao
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.dao.PendingSyncDao
 import com.nendo.argosy.data.local.dao.PlatformDao
+import com.nendo.argosy.data.local.entity.DownloadQueueEntity
 import com.nendo.argosy.data.local.entity.EmulatorConfigEntity
 import com.nendo.argosy.data.local.entity.GameEntity
 import com.nendo.argosy.data.local.entity.PendingSyncEntity
@@ -20,9 +22,10 @@ import com.nendo.argosy.data.local.entity.PlatformEntity
         PlatformEntity::class,
         GameEntity::class,
         EmulatorConfigEntity::class,
-        PendingSyncEntity::class
+        PendingSyncEntity::class,
+        DownloadQueueEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -31,6 +34,7 @@ abstract class ALauncherDatabase : RoomDatabase() {
     abstract fun gameDao(): GameDao
     abstract fun emulatorConfigDao(): EmulatorConfigDao
     abstract fun pendingSyncDao(): PendingSyncDao
+    abstract fun downloadQueueDao(): DownloadQueueDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -99,6 +103,30 @@ abstract class ALauncherDatabase : RoomDatabase() {
                         createdAt INTEGER NOT NULL
                     )
                 """)
+            }
+        }
+
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS download_queue (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        gameId INTEGER NOT NULL,
+                        rommId INTEGER NOT NULL,
+                        fileName TEXT NOT NULL,
+                        gameTitle TEXT NOT NULL,
+                        platformSlug TEXT NOT NULL,
+                        coverPath TEXT,
+                        bytesDownloaded INTEGER NOT NULL,
+                        totalBytes INTEGER NOT NULL,
+                        state TEXT NOT NULL,
+                        errorReason TEXT,
+                        tempFilePath TEXT,
+                        createdAt INTEGER NOT NULL
+                    )
+                """)
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_download_queue_gameId ON download_queue(gameId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_download_queue_state ON download_queue(state)")
             }
         }
     }

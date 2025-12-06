@@ -3,6 +3,7 @@ package com.nendo.argosy.di
 import android.content.Context
 import androidx.room.Room
 import com.nendo.argosy.data.local.ALauncherDatabase
+import com.nendo.argosy.data.local.dao.DownloadQueueDao
 import com.nendo.argosy.data.local.dao.EmulatorConfigDao
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.dao.PendingSyncDao
@@ -32,7 +33,8 @@ object DatabaseModule {
                 ALauncherDatabase.MIGRATION_3_4,
                 ALauncherDatabase.MIGRATION_4_5,
                 ALauncherDatabase.MIGRATION_5_6,
-                ALauncherDatabase.MIGRATION_6_7
+                ALauncherDatabase.MIGRATION_6_7,
+                ALauncherDatabase.MIGRATION_7_8
             )
             .build()
     }
@@ -50,4 +52,8 @@ object DatabaseModule {
     @Provides
     fun providePendingSyncDao(database: ALauncherDatabase): PendingSyncDao =
         database.pendingSyncDao()
+
+    @Provides
+    fun provideDownloadQueueDao(database: ALauncherDatabase): DownloadQueueDao =
+        database.downloadQueueDao()
 }

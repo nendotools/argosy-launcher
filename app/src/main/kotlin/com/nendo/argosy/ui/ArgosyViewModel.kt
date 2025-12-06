@@ -51,7 +51,7 @@ class ArgosyViewModel @Inject constructor(
     downloadNotificationObserver: DownloadNotificationObserver,
     private val gameRepository: GameRepository,
     private val romMRepository: RomMRepository,
-    downloadManager: DownloadManager
+    private val downloadManager: DownloadManager
 ) : ViewModel() {
 
     init {
@@ -87,7 +87,7 @@ class ArgosyViewModel @Inject constructor(
         romMRepository.connectionState,
         downloadManager.state
     ) { connection, downloads ->
-        val downloadCount = (if (downloads.activeDownload != null) 1 else 0) + downloads.queue.size
+        val downloadCount = downloads.activeDownloads.size + downloads.queue.size
         DrawerState(
             rommConnected = connection is RomMRepository.ConnectionState.Connected,
             rommConnecting = connection is RomMRepository.ConnectionState.Connecting,
@@ -162,7 +162,9 @@ class ArgosyViewModel @Inject constructor(
             romMRepository.checkConnection()
             if (romMRepository.connectionState.value is RomMRepository.ConnectionState.Connected) {
                 romMRepository.processPendingSync()
+                downloadManager.retryFailedDownloads()
             }
+            downloadManager.recheckStorageAndResume()
         }
     }
 }

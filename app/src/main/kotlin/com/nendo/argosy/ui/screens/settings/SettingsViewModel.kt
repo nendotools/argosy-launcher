@@ -116,7 +116,8 @@ data class CollectionState(
     val totalPlatforms: Int = 0,
     val downloadedGamesSize: Long = 0,
     val downloadedGamesCount: Int = 0,
-    val platformBreakdowns: List<PlatformBreakdown> = emptyList()
+    val platformBreakdowns: List<PlatformBreakdown> = emptyList(),
+    val maxConcurrentDownloads: Int = 1
 )
 
 data class RomMState(
@@ -262,7 +263,8 @@ class SettingsViewModel @Inject constructor(
                         totalPlatforms = platforms.count { it.gameCount > 0 },
                         totalGames = platforms.sumOf { it.gameCount },
                         downloadedGamesSize = downloadedSize,
-                        downloadedGamesCount = downloadedCount
+                        downloadedGamesCount = downloadedCount,
+                        maxConcurrentDownloads = prefs.maxConcurrentDownloads
                     ),
                     romm = state.romm.copy(
                         connectionStatus = connectionStatus,
@@ -672,6 +674,26 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun cycleMaxConcurrentDownloads() {
+        viewModelScope.launch {
+            val current = _uiState.value.collection.maxConcurrentDownloads
+            val next = if (current >= 5) 1 else current + 1
+            preferencesRepository.setMaxConcurrentDownloads(next)
+            _uiState.update { it.copy(collection = it.collection.copy(maxConcurrentDownloads = next)) }
+        }
+    }
+
+    private fun adjustMaxConcurrentDownloads(delta: Int) {
+        viewModelScope.launch {
+            val current = _uiState.value.collection.maxConcurrentDownloads
+            val next = (current + delta).coerceIn(1, 5)
+            if (next != current) {
+                preferencesRepository.setMaxConcurrentDownloads(next)
+                _uiState.update { it.copy(collection = it.collection.copy(maxConcurrentDownloads = next)) }
+            }
+        }
+    }
+
     fun openFolderPicker() {
         _uiState.update { it.copy(launchFolderPicker = true) }
     }
@@ -1033,11 +1055,12 @@ class SettingsViewModel @Inject constructor(
                     else -> when (state.focusedIndex) {
                         0 -> navigateToSection(SettingsSection.LIBRARY_BREAKDOWN)
                         1 -> openFolderPicker()
-                        2 -> startRommConfig()
-                        3 -> navigateToSection(SettingsSection.SYNC_FILTERS)
-                        4 -> {}
-                        5 -> toggleSyncScreenshots()
-                        6 -> if (state.romm.connectionStatus == ConnectionStatus.ONLINE) syncRomm()
+                        2 -> {} // Max Active Downloads - handled by left/right
+                        3 -> startRommConfig()
+                        4 -> navigateToSection(SettingsSection.SYNC_FILTERS)
+                        5 -> {} // Sync Images - info only
+                        6 -> toggleSyncScreenshots()
+                        7 -> if (state.romm.connectionStatus == ConnectionStatus.ONLINE) syncRomm()
                     }
                 }
             }
@@ -1083,6 +1106,10 @@ class SettingsViewModel @Inject constructor(
                 moveColorFocus(-1)
                 return true
             }
+            if (state.currentSection == SettingsSection.COLLECTION && state.focusedIndex == 2 && !state.romm.rommConfiguring) {
+                adjustMaxConcurrentDownloads(-1)
+                return true
+            }
             return false
         }
 
@@ -1090,6 +1117,10 @@ class SettingsViewModel @Inject constructor(
             val state = _uiState.value
             if (state.currentSection == SettingsSection.APPEARANCE && state.focusedIndex == 1) {
                 moveColorFocus(1)
+                return true
+            }
+            if (state.currentSection == SettingsSection.COLLECTION && state.focusedIndex == 2 && !state.romm.rommConfiguring) {
+                adjustMaxConcurrentDownloads(1)
                 return true
             }
             return false

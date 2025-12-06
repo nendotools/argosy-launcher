@@ -6,6 +6,7 @@ import retrofit2.http.Body
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
@@ -55,7 +56,8 @@ interface RomMApi {
     @GET("api/roms/{id}/content/{fileName}")
     suspend fun downloadRom(
         @Path("id") romId: Long,
-        @Path("fileName", encoded = true) fileName: String
+        @Path("fileName", encoded = true) fileName: String,
+        @Header("Range") range: String? = null
     ): Response<ResponseBody>
 
     @PUT("api/roms/{id}/props")

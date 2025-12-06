@@ -1,17 +1,26 @@
 package com.nendo.argosy.ui.components
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.Icon
 import androidx.compose.foundation.shape.CircleShape
@@ -43,6 +52,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.nendo.argosy.ui.screens.home.GameDownloadIndicator
 import com.nendo.argosy.ui.screens.home.HomeGameUi
 import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.LocalLauncherTheme
@@ -54,7 +64,8 @@ fun GameCard(
     isFocused: Boolean,
     modifier: Modifier = Modifier,
     focusScale: Float = Motion.scaleFocused,
-    scaleFromBottom: Boolean = false
+    scaleFromBottom: Boolean = false,
+    downloadIndicator: GameDownloadIndicator = GameDownloadIndicator.NONE
 ) {
     val themeConfig = LocalLauncherTheme.current
 
@@ -165,48 +176,129 @@ fun GameCard(
             }
         }
 
-        if (game.isFavorite || game.isDownloaded) {
-            Row(
+        if (downloadIndicator.isActive) {
+            Box(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .padding(Dimens.spacingSm),
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .align(Alignment.TopEnd)
+                    .padding(Dimens.spacingSm)
+                    .size(22.dp)
+                    .background(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
             ) {
-                if (game.isFavorite) {
-                    Box(
-                        modifier = Modifier
-                            .size(20.dp)
-                            .background(Color.Black.copy(alpha = 0.35f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Favorite,
-                            contentDescription = "Favorite",
-                            tint = Color.White,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
-                } else {
-                    Box(modifier = Modifier.size(20.dp))
-                }
+                Icon(
+                    imageVector = Icons.Default.Download,
+                    contentDescription = "Downloading",
+                    tint = Color.White,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+        }
 
-                if (game.isDownloaded) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+        ) {
+            if (game.isFavorite || game.isDownloaded) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Dimens.spacingSm)
+                        .padding(bottom = Dimens.spacingXs),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    if (game.isFavorite) {
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .background(Color.Black.copy(alpha = 0.35f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Favorite,
+                                contentDescription = "Favorite",
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    } else {
+                        Box(modifier = Modifier.size(20.dp))
+                    }
+
+                    if (game.isDownloaded) {
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .background(Color.Black.copy(alpha = 0.35f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "Downloaded",
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    } else {
+                        Box(modifier = Modifier.size(20.dp))
+                    }
+                }
+            }
+
+            if (downloadIndicator.isActive) {
+                val primaryColor = MaterialTheme.colorScheme.primary
+                val progressColor = if (downloadIndicator.isPaused || downloadIndicator.isQueued) {
+                    primaryColor.copy(alpha = 0.5f)
+                } else {
+                    primaryColor
+                }
+                val progressBarHeight = 6.dp
+
+                val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
+                val shimmerOffset by infiniteTransition.animateFloat(
+                    initialValue = -0.3f,
+                    targetValue = 1.8f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1300, easing = LinearEasing),
+                        repeatMode = RepeatMode.Restart
+                    ),
+                    label = "shimmer"
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(progressBarHeight)
+                        .background(Color.Gray.copy(alpha = 0.6f))
+                        .then(
+                            if (downloadIndicator.isDownloading) {
+                                Modifier.drawBehind {
+                                    val shimmerWidth = size.width * 0.25f
+                                    val shimmerX = shimmerOffset * size.width
+                                    drawRect(
+                                        brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                            colors = listOf(
+                                                Color.Transparent,
+                                                Color.White.copy(alpha = 0.4f),
+                                                Color.Transparent
+                                            ),
+                                            startX = shimmerX - shimmerWidth / 2,
+                                            endX = shimmerX + shimmerWidth / 2
+                                        )
+                                    )
+                                }
+                            } else Modifier
+                        )
+                ) {
                     Box(
                         modifier = Modifier
-                            .size(20.dp)
-                            .background(Color.Black.copy(alpha = 0.35f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Downloaded",
-                            tint = Color.White,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
-                } else {
-                    Box(modifier = Modifier.size(20.dp))
+                            .fillMaxWidth(downloadIndicator.progress.coerceIn(0f, 1f))
+                            .height(progressBarHeight)
+                            .background(progressColor)
+                    )
                 }
             }
         }

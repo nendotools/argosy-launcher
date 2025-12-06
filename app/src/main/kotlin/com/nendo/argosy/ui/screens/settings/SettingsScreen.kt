@@ -83,6 +83,7 @@ import com.nendo.argosy.ui.components.InfoPreference
 import com.nendo.argosy.ui.components.NavigationPreference
 import com.nendo.argosy.ui.components.PlatformPreference
 import com.nendo.argosy.ui.components.PlatformStatsPreference
+import com.nendo.argosy.ui.components.SliderPreference
 import com.nendo.argosy.ui.components.SwitchPreference
 import com.nendo.argosy.ui.input.LocalInputDispatcher
 import com.nendo.argosy.ui.theme.Dimens
@@ -482,8 +483,8 @@ private fun CollectionSection(
 
         val maxIndex = when {
             uiState.romm.connectionStatus == ConnectionStatus.ONLINE ||
-            uiState.romm.connectionStatus == ConnectionStatus.OFFLINE -> 6
-            else -> 2
+            uiState.romm.connectionStatus == ConnectionStatus.OFFLINE -> 7
+            else -> 3
         }
 
         LaunchedEffect(uiState.focusedIndex) {
@@ -519,6 +520,15 @@ private fun CollectionSection(
                 )
             }
             item {
+                SliderPreference(
+                    title = "Max Active Downloads",
+                    value = uiState.collection.maxConcurrentDownloads,
+                    minValue = 1,
+                    maxValue = 5,
+                    isFocused = uiState.focusedIndex == 2
+                )
+            }
+            item {
                 NavigationPreference(
                     icon = Icons.Default.Dns,
                     title = "Rom Manager",
@@ -528,7 +538,7 @@ private fun CollectionSection(
                         ConnectionStatus.OFFLINE -> "${uiState.romm.rommUrl} (offline)"
                         ConnectionStatus.NOT_CONFIGURED -> "Not configured"
                     },
-                    isFocused = uiState.focusedIndex == 2,
+                    isFocused = uiState.focusedIndex == 3,
                     onClick = { viewModel.startRommConfig() }
                 )
             }
@@ -547,7 +557,7 @@ private fun CollectionSection(
                         icon = Icons.Default.Tune,
                         title = "Sync Filters",
                         subtitle = regionsText,
-                        isFocused = uiState.focusedIndex == 3,
+                        isFocused = uiState.focusedIndex == 4,
                         onClick = { viewModel.navigateToSection(SettingsSection.SYNC_FILTERS) }
                     )
                 }
@@ -555,7 +565,7 @@ private fun CollectionSection(
                     InfoPreference(
                         title = "Sync Images",
                         value = "Background images sync automatically",
-                        isFocused = uiState.focusedIndex == 4,
+                        isFocused = uiState.focusedIndex == 5,
                         icon = Icons.Outlined.Image
                     )
                 }
@@ -565,7 +575,7 @@ private fun CollectionSection(
                         subtitle = "Cache screenshots for faster loading",
                         icon = Icons.Outlined.PhotoLibrary,
                         isEnabled = uiState.syncFilter.syncScreenshotsEnabled,
-                        isFocused = uiState.focusedIndex == 5,
+                        isFocused = uiState.focusedIndex == 6,
                         onToggle = { viewModel.toggleSyncScreenshots() }
                     )
                 }
@@ -581,7 +591,7 @@ private fun CollectionSection(
                         icon = Icons.Default.Sync,
                         title = "Sync Library",
                         subtitle = "Last sync: $lastSyncText",
-                        isFocused = uiState.focusedIndex == 6,
+                        isFocused = uiState.focusedIndex == 7,
                         isEnabled = uiState.romm.connectionStatus == ConnectionStatus.ONLINE,
                         onClick = { viewModel.syncRomm() }
                     )

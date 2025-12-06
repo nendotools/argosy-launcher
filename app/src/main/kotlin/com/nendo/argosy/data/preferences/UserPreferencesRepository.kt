@@ -48,6 +48,7 @@ class UserPreferencesRepository @Inject constructor(
         val HIDDEN_APPS = stringPreferencesKey("hidden_apps")
         val VISIBLE_SYSTEM_APPS = stringPreferencesKey("visible_system_apps")
         val APP_ORDER = stringPreferencesKey("app_order")
+        val MAX_CONCURRENT_DOWNLOADS = intPreferencesKey("max_concurrent_downloads")
     }
 
     val userPreferences: Flow<UserPreferences> = dataStore.data.map { prefs ->
@@ -98,7 +99,8 @@ class UserPreferencesRepository @Inject constructor(
             appOrder = prefs[Keys.APP_ORDER]
                 ?.split(",")
                 ?.filter { it.isNotBlank() }
-                ?: emptyList()
+                ?: emptyList(),
+            maxConcurrentDownloads = prefs[Keys.MAX_CONCURRENT_DOWNLOADS] ?: 1
         )
     }
 
@@ -258,6 +260,12 @@ class UserPreferencesRepository @Inject constructor(
             }
         }
     }
+
+    suspend fun setMaxConcurrentDownloads(count: Int) {
+        dataStore.edit { prefs ->
+            prefs[Keys.MAX_CONCURRENT_DOWNLOADS] = count.coerceIn(1, 5)
+        }
+    }
 }
 
 data class UserPreferences(
@@ -279,7 +287,8 @@ data class UserPreferences(
     val syncScreenshotsEnabled: Boolean = false,
     val hiddenApps: Set<String> = emptySet(),
     val visibleSystemApps: Set<String> = emptySet(),
-    val appOrder: List<String> = emptyList()
+    val appOrder: List<String> = emptyList(),
+    val maxConcurrentDownloads: Int = 1
 )
 
 enum class ThemeMode {

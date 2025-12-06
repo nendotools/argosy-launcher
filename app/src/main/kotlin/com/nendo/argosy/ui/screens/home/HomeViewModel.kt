@@ -2,6 +2,8 @@ package com.nendo.argosy.ui.screens.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nendo.argosy.data.download.DownloadManager
+import com.nendo.argosy.data.download.DownloadState
 import com.nendo.argosy.data.emulator.LaunchResult
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.dao.PlatformDao
@@ -41,6 +43,19 @@ import javax.inject.Inject
 
 private const val TAG = "HomeViewModel"
 
+data class GameDownloadIndicator(
+    val isDownloading: Boolean = false,
+    val isPaused: Boolean = false,
+    val isQueued: Boolean = false,
+    val progress: Float = 0f
+) {
+    val isActive: Boolean get() = isDownloading || isPaused || isQueued
+
+    companion object {
+        val NONE = GameDownloadIndicator()
+    }
+}
+
 data class HomeGameUi(
     val id: Long,
     val title: String,
@@ -50,7 +65,8 @@ data class HomeGameUi(
     val releaseYear: Int?,
     val genre: String?,
     val isFavorite: Boolean,
-    val isDownloaded: Boolean
+    val isDownloaded: Boolean,
+    val downloadIndicator: GameDownloadIndicator = GameDownloadIndicator.NONE
 )
 
 data class HomePlatformUi(
@@ -76,7 +92,8 @@ data class HomeUiState(
     val isLoading: Boolean = true,
     val isRommConfigured: Boolean = false,
     val showGameMenu: Boolean = false,
-    val gameMenuFocusIndex: Int = 0
+    val gameMenuFocusIndex: Int = 0,
+    val downloadIndicators: Map<Long, GameDownloadIndicator> = emptyMap()
 ) {
     val availableRows: List<HomeRow>
         get() = buildList {
@@ -104,6 +121,9 @@ data class HomeUiState(
             is HomeRow.Platform -> currentPlatform?.name ?: "Unknown"
             HomeRow.Continue -> "Continue Playing"
         }
+
+    fun downloadIndicatorFor(gameId: Long): GameDownloadIndicator =
+        downloadIndicators[gameId] ?: GameDownloadIndicator.NONE
 }
 
 sealed class HomeLaunchEvent {
@@ -121,7 +141,8 @@ class HomeViewModel @Inject constructor(
     private val syncLibraryUseCase: SyncLibraryUseCase,
     private val downloadGameUseCase: DownloadGameUseCase,
     private val launchGameUseCase: LaunchGameUseCase,
-    private val deleteGameUseCase: DeleteGameUseCase
+    private val deleteGameUseCase: DeleteGameUseCase,
+    private val downloadManager: DownloadManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -167,6 +188,35 @@ class HomeViewModel @Inject constructor(
             launch { loadRecentGames() }
             launch { loadFavorites() }
             launch { loadPlatforms() }
+            launch { observeDownloadState() }
+        }
+    }
+
+    private suspend fun observeDownloadState() {
+        downloadManager.state.collect { downloadState ->
+            val indicators = mutableMapOf<Long, GameDownloadIndicator>()
+
+            downloadState.activeDownloads.forEach { download ->
+                indicators[download.gameId] = GameDownloadIndicator(
+                    isDownloading = true,
+                    progress = download.progressPercent
+                )
+            }
+
+            downloadState.queue.forEach { download ->
+                val isPaused = download.state == DownloadState.PAUSED
+                val isQueued = download.state == DownloadState.QUEUED
+                if (isPaused || isQueued) {
+                    indicators[download.gameId] = GameDownloadIndicator(
+                        isDownloading = false,
+                        isPaused = isPaused,
+                        isQueued = isQueued,
+                        progress = download.progressPercent
+                    )
+                }
+            }
+
+            _uiState.update { it.copy(downloadIndicators = indicators) }
         }
     }
 
@@ -383,13 +433,24 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    private var lastDownloadQueueTime = 0L
+    private val downloadQueueDebounceMs = 300L
+
     private fun queueDownload(gameId: Long) {
+        val now = System.currentTimeMillis()
+        if (now - lastDownloadQueueTime < downloadQueueDebounceMs) return
+        lastDownloadQueueTime = now
+
         viewModelScope.launch {
             when (val result = downloadGameUseCase(gameId)) {
                 is DownloadResult.Queued -> { }
                 is DownloadResult.Error -> notificationManager.showError(result.message)
             }
         }
+    }
+
+    private fun resumeDownload(gameId: Long) {
+        downloadManager.resumeDownload(gameId)
     }
 
     fun launchGame(gameId: Long) {
@@ -485,10 +546,11 @@ class HomeViewModel @Inject constructor(
                 confirmGameMenuSelection(onGameSelect)
             } else {
                 _uiState.value.focusedGame?.let { game ->
-                    if (game.isDownloaded) {
-                        launchGame(game.id)
-                    } else {
-                        queueDownload(game.id)
+                    val indicator = _uiState.value.downloadIndicatorFor(game.id)
+                    when {
+                        game.isDownloaded -> launchGame(game.id)
+                        indicator.isPaused || indicator.isQueued -> resumeDownload(game.id)
+                        else -> queueDownload(game.id)
                     }
                 }
             }

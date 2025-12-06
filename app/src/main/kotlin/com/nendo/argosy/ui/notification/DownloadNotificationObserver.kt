@@ -20,6 +20,7 @@ class DownloadNotificationObserver @Inject constructor(
     private val notificationManager: NotificationManager
 ) {
     private var previousState: DownloadQueueState? = null
+    private var isInitialLoad = true
 
     fun observe(scope: CoroutineScope) {
         Log.d(TAG, "observe: starting observation")
@@ -32,11 +33,15 @@ class DownloadNotificationObserver @Inject constructor(
                     val current = downloadManager.state.value
                     previousState = current
 
-                    Log.d(TAG, "collect: previous=${previous?.toNotificationState()}, current=${current.toNotificationState()}")
+                    Log.d(TAG, "collect: previous=${previous?.toNotificationState()}, current=${current.toNotificationState()}, isInitialLoad=$isInitialLoad")
 
-                    if (previous == null) return@collect
+                    if (previous == null) {
+                        isInitialLoad = true
+                        return@collect
+                    }
 
                     detectStateChanges(previous, current)
+                    isInitialLoad = false
                 }
         }
     }
@@ -68,9 +73,17 @@ class DownloadNotificationObserver @Inject constructor(
     }
 
     private fun showNotificationFor(progress: DownloadProgress) {
+        // On initial load, only show completion/failure notifications
+        if (isInitialLoad && progress.state != DownloadState.COMPLETED && progress.state != DownloadState.FAILED) {
+            Log.d(TAG, "showNotificationFor: skipping ${progress.gameTitle} (${progress.state}) during initial load")
+            return
+        }
+
         val (title, type, immediate) = when (progress.state) {
             DownloadState.QUEUED -> Triple("Queued", NotificationType.INFO, false)
+            DownloadState.WAITING_FOR_STORAGE -> Triple("Waiting for Storage", NotificationType.WARNING, true)
             DownloadState.DOWNLOADING -> Triple("Downloading", NotificationType.INFO, false)
+            DownloadState.PAUSED -> Triple("Paused", NotificationType.INFO, false)
             DownloadState.COMPLETED -> Triple("Completed", NotificationType.SUCCESS, true)
             DownloadState.FAILED -> Triple("Failed", NotificationType.ERROR, true)
             DownloadState.CANCELLED -> return
@@ -97,14 +110,14 @@ class DownloadNotificationObserver @Inject constructor(
 
     private fun DownloadQueueState.allGameIds(): Set<Long> {
         val ids = mutableSetOf<Long>()
-        activeDownload?.let { ids.add(it.gameId) }
+        activeDownloads.forEach { ids.add(it.gameId) }
         queue.forEach { ids.add(it.gameId) }
         completed.forEach { ids.add(it.gameId) }
         return ids
     }
 
     private fun DownloadQueueState.statusFor(gameId: Long): DownloadProgress? {
-        if (activeDownload?.gameId == gameId) return activeDownload
+        activeDownloads.find { it.gameId == gameId }?.let { return it }
         queue.find { it.gameId == gameId }?.let { return it }
         completed.find { it.gameId == gameId }?.let { return it }
         return null
@@ -112,7 +125,7 @@ class DownloadNotificationObserver @Inject constructor(
 
     private fun DownloadQueueState.toNotificationState(): List<Pair<Long, DownloadState>> {
         val result = mutableListOf<Pair<Long, DownloadState>>()
-        activeDownload?.let { result.add(it.gameId to it.state) }
+        activeDownloads.forEach { result.add(it.gameId to it.state) }
         queue.forEach { result.add(it.gameId to it.state) }
         completed.forEach { result.add(it.gameId to it.state) }
         return result
