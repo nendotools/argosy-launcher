@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarOutline
@@ -207,7 +208,7 @@ private fun GameDetailContent(
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.Top
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = game.platformName,
@@ -231,26 +232,27 @@ private fun GameDetailContent(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         game.developer?.let { dev ->
                             Text(
                                 text = dev,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = Color.White.copy(alpha = 0.7f)
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.6f)
                             )
                         }
                         game.genre?.let { genre ->
                             if (game.developer != null) {
                                 Text(
                                     text = "|",
-                                    color = Color.White.copy(alpha = 0.5f)
+                                    color = Color.White.copy(alpha = 0.4f)
                                 )
                             }
                             Text(
                                 text = genre,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = Color.White.copy(alpha = 0.7f)
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.6f)
                             )
                         }
                     }
@@ -258,10 +260,13 @@ private fun GameDetailContent(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         game.players?.let { players ->
                             MetadataChip(label = "Players", value = players)
+                        }
+                        game.rating?.let { rating ->
+                            CommunityRatingChip(rating = rating)
                         }
                         if (game.userRating > 0) {
                             RatingChip(
@@ -308,8 +313,14 @@ private fun GameDetailContent(
                                 GameDownloadStatus.QUEUED -> {
                                     Text("QUEUED...")
                                 }
+                                GameDownloadStatus.WAITING_FOR_STORAGE -> {
+                                    Text("NO SPACE")
+                                }
                                 GameDownloadStatus.DOWNLOADING -> {
                                     Text("${(uiState.downloadProgress * 100).toInt()}%")
+                                }
+                                GameDownloadStatus.PAUSED -> {
+                                    Text("PAUSED ${(uiState.downloadProgress * 100).toInt()}%")
                                 }
                             }
                         }
@@ -474,7 +485,9 @@ private fun GameDetailContent(
                         GameDownloadStatus.DOWNLOADED -> "Play"
                         GameDownloadStatus.NOT_DOWNLOADED -> "Download"
                         GameDownloadStatus.QUEUED -> "Queued"
+                        GameDownloadStatus.WAITING_FOR_STORAGE -> "No Space"
                         GameDownloadStatus.DOWNLOADING -> "Downloading"
+                        GameDownloadStatus.PAUSED -> "Paused"
                     },
                     InputButton.B to "Back",
                     InputButton.Y to "Favorite"
@@ -520,9 +533,9 @@ private fun RatingChip(
         modifier = Modifier
             .background(
                 Color.White.copy(alpha = 0.1f),
-                RoundedCornerShape(8.dp)
+                RoundedCornerShape(6.dp)
             )
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -532,16 +545,51 @@ private fun RatingChip(
                 imageVector = icon,
                 contentDescription = null,
                 tint = iconColor,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(14.dp)
             )
             Text(
                 text = "$value/10",
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.bodyLarge,
                 color = Color.White
             )
         }
         Text(
             text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = Color.White.copy(alpha = 0.6f)
+        )
+    }
+}
+
+@Composable
+private fun CommunityRatingChip(rating: Float) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .background(
+                Color.White.copy(alpha = 0.1f),
+                RoundedCornerShape(6.dp)
+            )
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.People,
+                contentDescription = null,
+                tint = Color(0xFF64B5F6),
+                modifier = Modifier.size(14.dp)
+            )
+            Text(
+                text = "${rating.toInt()}%",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White
+            )
+        }
+        Text(
+            text = "Rating",
             style = MaterialTheme.typography.labelSmall,
             color = Color.White.copy(alpha = 0.6f)
         )

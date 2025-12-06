@@ -383,6 +383,7 @@ class RomMRepository @Inject constructor(
             },
             genre = rom.genres?.firstOrNull(),
             developer = rom.companies?.firstOrNull(),
+            rating = rom.metadatum?.averageRating,
             regions = rom.regions?.joinToString(","),
             languages = rom.languages?.joinToString(","),
             gameModes = rom.metadatum?.gameModes?.joinToString(","),

@@ -68,7 +68,8 @@ data class RomMMetadatum(
     @Json(name = "companies") val companies: List<String>? = null,
     @Json(name = "first_release_date") val firstReleaseDate: Long? = null,
     @Json(name = "franchises") val franchises: List<String>? = null,
-    @Json(name = "game_modes") val gameModes: List<String>? = null
+    @Json(name = "game_modes") val gameModes: List<String>? = null,
+    @Json(name = "average_rating") val averageRating: Float? = null
 )
 
 @JsonClass(generateAdapter = true)
