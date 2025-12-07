@@ -169,12 +169,13 @@ fun LibraryScreen(
                 }
                 else -> {
                     key(uiState.currentPlatformIndex) {
+                        val gridSpacing = uiState.gridSpacingDp.dp
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(uiState.columnsCount),
                             state = gridState,
-                            contentPadding = PaddingValues(Dimens.spacingMd),
-                            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd),
-                            verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd),
+                            contentPadding = PaddingValues(gridSpacing),
+                            horizontalArrangement = Arrangement.spacedBy(gridSpacing),
+                            verticalArrangement = Arrangement.spacedBy(gridSpacing),
                             modifier = Modifier.weight(1f)
                         ) {
                             itemsIndexed(
@@ -183,7 +184,8 @@ fun LibraryScreen(
                             ) { index, game ->
                                 LibraryGameCard(
                                     game = game,
-                                    isFocused = index == uiState.focusedIndex
+                                    isFocused = index == uiState.focusedIndex,
+                                    cardHeightDp = uiState.cardHeightDp
                                 )
                             }
                         }
@@ -287,7 +289,8 @@ private fun LibraryHeader(
 @Composable
 private fun LibraryGameCard(
     game: LibraryGameUi,
-    isFocused: Boolean
+    isFocused: Boolean,
+    cardHeightDp: Int
 ) {
     GameCard(
         game = HomeGameUi(
@@ -304,7 +307,7 @@ private fun LibraryGameCard(
         isFocused = isFocused,
         modifier = Modifier
             .fillMaxWidth()
-            .height(180.dp)
+            .height(cardHeightDp.dp)
     )
 }
 

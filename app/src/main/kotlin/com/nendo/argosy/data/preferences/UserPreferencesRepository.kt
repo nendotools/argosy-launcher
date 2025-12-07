@@ -49,6 +49,7 @@ class UserPreferencesRepository @Inject constructor(
         val VISIBLE_SYSTEM_APPS = stringPreferencesKey("visible_system_apps")
         val APP_ORDER = stringPreferencesKey("app_order")
         val MAX_CONCURRENT_DOWNLOADS = intPreferencesKey("max_concurrent_downloads")
+        val UI_DENSITY = stringPreferencesKey("ui_density")
     }
 
     val userPreferences: Flow<UserPreferences> = dataStore.data.map { prefs ->
@@ -100,7 +101,8 @@ class UserPreferencesRepository @Inject constructor(
                 ?.split(",")
                 ?.filter { it.isNotBlank() }
                 ?: emptyList(),
-            maxConcurrentDownloads = prefs[Keys.MAX_CONCURRENT_DOWNLOADS] ?: 1
+            maxConcurrentDownloads = prefs[Keys.MAX_CONCURRENT_DOWNLOADS] ?: 1,
+            uiDensity = UiDensity.fromString(prefs[Keys.UI_DENSITY])
         )
     }
 
@@ -266,6 +268,12 @@ class UserPreferencesRepository @Inject constructor(
             prefs[Keys.MAX_CONCURRENT_DOWNLOADS] = count.coerceIn(1, 5)
         }
     }
+
+    suspend fun setUiDensity(density: UiDensity) {
+        dataStore.edit { prefs ->
+            prefs[Keys.UI_DENSITY] = density.name
+        }
+    }
 }
 
 data class UserPreferences(
@@ -288,7 +296,8 @@ data class UserPreferences(
     val hiddenApps: Set<String> = emptySet(),
     val visibleSystemApps: Set<String> = emptySet(),
     val appOrder: List<String> = emptyList(),
-    val maxConcurrentDownloads: Int = 1
+    val maxConcurrentDownloads: Int = 1,
+    val uiDensity: UiDensity = UiDensity.NORMAL
 )
 
 enum class ThemeMode {
@@ -305,6 +314,15 @@ enum class AnimationSpeed {
 
     companion object {
         fun fromString(value: String?): AnimationSpeed =
+            entries.find { it.name == value } ?: NORMAL
+    }
+}
+
+enum class UiDensity {
+    COMPACT, NORMAL, SPACIOUS;
+
+    companion object {
+        fun fromString(value: String?): UiDensity =
             entries.find { it.name == value } ?: NORMAL
     }
 }

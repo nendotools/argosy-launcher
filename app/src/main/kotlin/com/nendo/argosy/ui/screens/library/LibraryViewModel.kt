@@ -13,6 +13,8 @@ import com.nendo.argosy.data.local.dao.PlatformDao
 import com.nendo.argosy.data.local.entity.GameEntity
 import com.nendo.argosy.data.local.entity.PlatformEntity
 import com.nendo.argosy.data.model.GameSource
+import com.nendo.argosy.data.preferences.UiDensity
+import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.domain.usecase.game.DeleteGameUseCase
 import com.nendo.argosy.ui.input.InputHandler
 import com.nendo.argosy.ui.notification.NotificationManager
@@ -114,13 +116,34 @@ data class LibraryUiState(
     val showFilterMenu: Boolean = false,
     val showQuickMenu: Boolean = false,
     val quickMenuFocusIndex: Int = 0,
-    val columnsCount: Int = 4,
+    val uiDensity: UiDensity = UiDensity.NORMAL,
     val isLoading: Boolean = true,
     val activeFilters: ActiveFilters = ActiveFilters(),
     val filterOptions: FilterOptions = FilterOptions(),
     val filterCategoryIndex: Int = 0,
     val filterOptionIndex: Int = 0
 ) {
+    val columnsCount: Int
+        get() = when (uiDensity) {
+            UiDensity.COMPACT -> 5
+            UiDensity.NORMAL -> 4
+            UiDensity.SPACIOUS -> 3
+        }
+
+    val cardHeightDp: Int
+        get() = when (uiDensity) {
+            UiDensity.COMPACT -> 150
+            UiDensity.NORMAL -> 180
+            UiDensity.SPACIOUS -> 220
+        }
+
+    val gridSpacingDp: Int
+        get() = when (uiDensity) {
+            UiDensity.COMPACT -> 12
+            UiDensity.NORMAL -> 16
+            UiDensity.SPACIOUS -> 20
+        }
+
     val currentPlatform: HomePlatformUi?
         get() = if (currentPlatformIndex >= 0) platforms.getOrNull(currentPlatformIndex) else null
 
@@ -179,7 +202,8 @@ class LibraryViewModel @Inject constructor(
     private val gameDao: GameDao,
     private val gameNavigationContext: GameNavigationContext,
     private val deleteGameUseCase: DeleteGameUseCase,
-    private val notificationManager: NotificationManager
+    private val notificationManager: NotificationManager,
+    private val preferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LibraryUiState())
@@ -190,6 +214,15 @@ class LibraryViewModel @Inject constructor(
     init {
         loadPlatforms()
         loadFilterOptions()
+        observeUiDensity()
+    }
+
+    private fun observeUiDensity() {
+        viewModelScope.launch {
+            preferencesRepository.userPreferences.collectLatest { prefs ->
+                _uiState.update { it.copy(uiDensity = prefs.uiDensity) }
+            }
+        }
     }
 
     private fun loadPlatforms() {

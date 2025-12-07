@@ -37,7 +37,10 @@ data class ImageCacheProgress(
     val totalCount: Int = 0
 ) {
     val progressPercent: Int
-        get() = if (totalCount > 0) (cachedCount * 100 / totalCount) else 0
+        get() = if (totalCount > 0) {
+            val percent = cachedCount * 100 / totalCount
+            if (isProcessing && percent == 100) 99 else percent
+        } else 0
 }
 
 data class ScreenshotCacheRequest(

@@ -7,6 +7,7 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nendo.argosy.data.preferences.UiDensity
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.repository.AppsRepository
 import com.nendo.argosy.data.repository.InstalledApp
@@ -41,13 +42,20 @@ enum class AppContextMenuItem {
 data class AppsUiState(
     val apps: List<AppUi> = emptyList(),
     val focusedIndex: Int = 0,
-    val columnsCount: Int = 5,
+    val uiDensity: UiDensity = UiDensity.NORMAL,
     val isLoading: Boolean = true,
     val showHiddenApps: Boolean = false,
     val showContextMenu: Boolean = false,
     val contextMenuFocusIndex: Int = 0,
     val isReorderMode: Boolean = false
 ) {
+    val columnsCount: Int
+        get() = when (uiDensity) {
+            UiDensity.COMPACT -> 6
+            UiDensity.NORMAL -> 5
+            UiDensity.SPACIOUS -> 4
+        }
+
     val focusedApp: AppUi?
         get() = apps.getOrNull(focusedIndex)
 
@@ -86,12 +94,21 @@ class AppsViewModel @Inject constructor(
     init {
         loadApps()
         observePackageChanges()
+        observeUiDensity()
     }
 
     private fun observePackageChanges() {
         viewModelScope.launch {
             appsRepository.packageChanges.collect {
                 loadApps()
+            }
+        }
+    }
+
+    private fun observeUiDensity() {
+        viewModelScope.launch {
+            preferencesRepository.preferences.collect { prefs ->
+                _uiState.update { it.copy(uiDensity = prefs.uiDensity) }
             }
         }
     }

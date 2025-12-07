@@ -34,9 +34,11 @@ import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Gamepad
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.PhotoLibrary
@@ -74,6 +76,7 @@ import com.nendo.argosy.data.preferences.AnimationSpeed
 import com.nendo.argosy.data.preferences.RegionFilterMode
 import com.nendo.argosy.data.preferences.SyncFilterPreferences
 import com.nendo.argosy.data.preferences.ThemeMode
+import com.nendo.argosy.data.preferences.UiDensity
 import com.nendo.argosy.ui.components.ActionPreference
 import com.nendo.argosy.ui.components.ColorPickerPreference
 import com.nendo.argosy.ui.components.CyclePreference
@@ -82,7 +85,6 @@ import com.nendo.argosy.ui.components.InputButton
 import com.nendo.argosy.ui.components.InfoPreference
 import com.nendo.argosy.ui.components.NavigationPreference
 import com.nendo.argosy.ui.components.PlatformPreference
-import com.nendo.argosy.ui.components.PlatformStatsPreference
 import com.nendo.argosy.ui.components.SliderPreference
 import com.nendo.argosy.ui.components.SwitchPreference
 import com.nendo.argosy.ui.input.LocalInputDispatcher
@@ -165,22 +167,24 @@ fun SettingsScreen(
         SettingsHeader(
             title = when (uiState.currentSection) {
                 SettingsSection.MAIN -> "SETTINGS"
-                SettingsSection.APPEARANCE -> "APPEARANCE"
+                SettingsSection.SERVER -> "SERVER"
+                SettingsSection.SYNC_SETTINGS -> "SYNC SETTINGS"
+                SettingsSection.STORAGE -> "STORAGE"
+                SettingsSection.DISPLAY -> "DISPLAY"
+                SettingsSection.CONTROLS -> "CONTROLS"
                 SettingsSection.EMULATORS -> "EMULATORS"
-                SettingsSection.COLLECTION -> "COLLECTION"
-                SettingsSection.SYNC_FILTERS -> "SYNC FILTERS"
-                SettingsSection.LIBRARY_BREAKDOWN -> "LIBRARY"
                 SettingsSection.ABOUT -> "ABOUT"
             }
         )
 
         when (uiState.currentSection) {
             SettingsSection.MAIN -> MainSettingsSection(uiState, viewModel)
-            SettingsSection.APPEARANCE -> AppearanceSection(uiState, viewModel)
+            SettingsSection.SERVER -> ServerSection(uiState, viewModel, imageCacheProgress)
+            SettingsSection.SYNC_SETTINGS -> SyncSettingsSection(uiState, viewModel)
+            SettingsSection.STORAGE -> StorageSection(uiState, viewModel)
+            SettingsSection.DISPLAY -> DisplaySection(uiState, viewModel)
+            SettingsSection.CONTROLS -> ControlsSection(uiState, viewModel)
             SettingsSection.EMULATORS -> EmulatorsSection(uiState, viewModel)
-            SettingsSection.COLLECTION -> CollectionSection(uiState, viewModel, imageCacheProgress)
-            SettingsSection.SYNC_FILTERS -> SyncFiltersSection(uiState, viewModel)
-            SettingsSection.LIBRARY_BREAKDOWN -> LibraryBreakdownSection(uiState)
             SettingsSection.ABOUT -> AboutSection(uiState, viewModel)
         }
 
@@ -190,12 +194,12 @@ fun SettingsScreen(
     }
 
     if (uiState.showMigrationDialog) {
-        val sizeText = formatFileSize(uiState.collection.downloadedGamesSize)
+        val sizeText = formatFileSize(uiState.storage.downloadedGamesSize)
         AlertDialog(
             onDismissRequest = { viewModel.cancelMigration() },
             title = { Text("Migrate Downloads?") },
             text = {
-                Text("Move ${uiState.collection.downloadedGamesCount} games ($sizeText) to the new location?")
+                Text("Move ${uiState.storage.downloadedGamesCount} games ($sizeText) to the new location?")
             },
             confirmButton = {
                 Button(onClick = { viewModel.confirmMigration() }) {
@@ -235,17 +239,69 @@ private fun SettingsHeader(title: String) {
 
 @Composable
 private fun MainSettingsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(uiState.focusedIndex) {
+        if (uiState.focusedIndex in 0..5) {
+            val viewportHeight = listState.layoutInfo.viewportSize.height
+            val itemHeight = listState.layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 0
+            val centerOffset = if (itemHeight > 0) (viewportHeight - itemHeight) / 2 else 0
+            listState.animateScrollToItem(uiState.focusedIndex, -centerOffset)
+        }
+    }
+
     LazyColumn(
-        modifier = Modifier.padding(Dimens.spacingMd),
+        state = listState,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(Dimens.spacingMd),
         verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
         item {
+            val serverSubtitle = when (uiState.server.connectionStatus) {
+                ConnectionStatus.ONLINE -> uiState.server.rommUrl ?: "Connected"
+                ConnectionStatus.OFFLINE -> "Offline"
+                ConnectionStatus.CHECKING -> "Checking..."
+                ConnectionStatus.NOT_CONFIGURED -> "Not configured"
+            }
+            NavigationPreference(
+                icon = Icons.Default.Dns,
+                title = "Server",
+                subtitle = serverSubtitle,
+                isFocused = uiState.focusedIndex == 0,
+                onClick = { viewModel.navigateToSection(SettingsSection.SERVER) }
+            )
+        }
+        item {
+            val downloadedText = if (uiState.storage.downloadedGamesCount > 0) {
+                "${uiState.storage.downloadedGamesCount} downloaded"
+            } else {
+                "No downloads"
+            }
+            NavigationPreference(
+                icon = Icons.Default.Storage,
+                title = "Storage",
+                subtitle = downloadedText,
+                isFocused = uiState.focusedIndex == 1,
+                onClick = { viewModel.navigateToSection(SettingsSection.STORAGE) }
+            )
+        }
+        item {
             NavigationPreference(
                 icon = Icons.Default.Palette,
-                title = "Appearance",
+                title = "Display",
                 subtitle = "Theme, colors, animations",
-                isFocused = uiState.focusedIndex == 0,
-                onClick = { viewModel.navigateToSection(SettingsSection.APPEARANCE) }
+                isFocused = uiState.focusedIndex == 2,
+                onClick = { viewModel.navigateToSection(SettingsSection.DISPLAY) }
+            )
+        }
+        item {
+            NavigationPreference(
+                icon = Icons.Default.TouchApp,
+                title = "Controls",
+                subtitle = "Button layout, haptic feedback",
+                isFocused = uiState.focusedIndex == 3,
+                onClick = { viewModel.navigateToSection(SettingsSection.CONTROLS) }
             )
         }
         item {
@@ -253,17 +309,8 @@ private fun MainSettingsSection(uiState: SettingsUiState, viewModel: SettingsVie
                 icon = Icons.Default.Gamepad,
                 title = "Emulators",
                 subtitle = "${uiState.emulators.installedEmulators.size} installed",
-                isFocused = uiState.focusedIndex == 1,
+                isFocused = uiState.focusedIndex == 4,
                 onClick = { viewModel.navigateToSection(SettingsSection.EMULATORS) }
-            )
-        }
-        item {
-            NavigationPreference(
-                icon = Icons.Default.Folder,
-                title = "Collection",
-                subtitle = "${uiState.collection.totalGames} games, ${uiState.collection.totalPlatforms} platforms",
-                isFocused = uiState.focusedIndex == 2,
-                onClick = { viewModel.navigateToSection(SettingsSection.COLLECTION) }
             )
         }
         item {
@@ -271,7 +318,7 @@ private fun MainSettingsSection(uiState: SettingsUiState, viewModel: SettingsVie
                 icon = Icons.Default.Info,
                 title = "About",
                 subtitle = "Version ${uiState.appVersion}",
-                isFocused = uiState.focusedIndex == 3,
+                isFocused = uiState.focusedIndex == 5,
                 onClick = { viewModel.navigateToSection(SettingsSection.ABOUT) }
             )
         }
@@ -279,7 +326,7 @@ private fun MainSettingsSection(uiState: SettingsUiState, viewModel: SettingsVie
 }
 
 @Composable
-private fun AppearanceSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
+private fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
     val listState = rememberLazyListState()
     val presetColors = listOf(
         null to "Default",
@@ -292,7 +339,7 @@ private fun AppearanceSection(uiState: SettingsUiState, viewModel: SettingsViewM
     )
 
     LaunchedEffect(uiState.focusedIndex) {
-        if (uiState.focusedIndex in 0..5) {
+        if (uiState.focusedIndex in 0..3) {
             val viewportHeight = listState.layoutInfo.viewportSize.height
             val itemHeight = listState.layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 0
             val centerOffset = if (itemHeight > 0) (viewportHeight - itemHeight) / 2 else 0
@@ -308,10 +355,10 @@ private fun AppearanceSection(uiState: SettingsUiState, viewModel: SettingsViewM
         item {
             CyclePreference(
                 title = "Theme",
-                value = uiState.appearance.themeMode.name.lowercase().replaceFirstChar { it.uppercase() },
+                value = uiState.display.themeMode.name.lowercase().replaceFirstChar { it.uppercase() },
                 isFocused = uiState.focusedIndex == 0,
                 onClick = {
-                    val next = when (uiState.appearance.themeMode) {
+                    val next = when (uiState.display.themeMode) {
                         ThemeMode.SYSTEM -> ThemeMode.LIGHT
                         ThemeMode.LIGHT -> ThemeMode.DARK
                         ThemeMode.DARK -> ThemeMode.SYSTEM
@@ -324,7 +371,7 @@ private fun AppearanceSection(uiState: SettingsUiState, viewModel: SettingsViewM
             ColorPickerPreference(
                 title = "Accent Color",
                 presetColors = presetColors,
-                currentColor = uiState.appearance.primaryColor,
+                currentColor = uiState.display.primaryColor,
                 isFocused = uiState.focusedIndex == 1,
                 focusedColorIndex = uiState.colorFocusIndex,
                 onColorSelect = { viewModel.setPrimaryColor(it) },
@@ -338,38 +385,12 @@ private fun AppearanceSection(uiState: SettingsUiState, viewModel: SettingsViewM
             )
         }
         item {
-            SwitchPreference(
-                title = "Haptic Feedback",
-                isEnabled = uiState.appearance.hapticEnabled,
-                isFocused = uiState.focusedIndex == 2,
-                onToggle = { viewModel.setHapticEnabled(it) }
-            )
-        }
-        item {
-            SwitchPreference(
-                title = "Nintendo Button Layout",
-                subtitle = "Swap A/B button mappings",
-                isEnabled = uiState.appearance.nintendoButtonLayout,
-                isFocused = uiState.focusedIndex == 3,
-                onToggle = { viewModel.setNintendoButtonLayout(it) }
-            )
-        }
-        item {
-            SwitchPreference(
-                title = "Swap Start/Select",
-                subtitle = "Flip the Start and Select button functions",
-                isEnabled = uiState.appearance.swapStartSelect,
-                isFocused = uiState.focusedIndex == 4,
-                onToggle = { viewModel.setSwapStartSelect(it) }
-            )
-        }
-        item {
             CyclePreference(
                 title = "Animation Speed",
-                value = uiState.appearance.animationSpeed.name.lowercase().replaceFirstChar { it.uppercase() },
-                isFocused = uiState.focusedIndex == 5,
+                value = uiState.display.animationSpeed.name.lowercase().replaceFirstChar { it.uppercase() },
+                isFocused = uiState.focusedIndex == 2,
                 onClick = {
-                    val next = when (uiState.appearance.animationSpeed) {
+                    val next = when (uiState.display.animationSpeed) {
                         AnimationSpeed.SLOW -> AnimationSpeed.NORMAL
                         AnimationSpeed.NORMAL -> AnimationSpeed.FAST
                         AnimationSpeed.FAST -> AnimationSpeed.OFF
@@ -377,6 +398,68 @@ private fun AppearanceSection(uiState: SettingsUiState, viewModel: SettingsViewM
                     }
                     viewModel.setAnimationSpeed(next)
                 }
+            )
+        }
+        item {
+            CyclePreference(
+                title = "UI Density",
+                value = uiState.display.uiDensity.name.lowercase().replaceFirstChar { it.uppercase() },
+                isFocused = uiState.focusedIndex == 3,
+                onClick = {
+                    val next = when (uiState.display.uiDensity) {
+                        UiDensity.COMPACT -> UiDensity.NORMAL
+                        UiDensity.NORMAL -> UiDensity.SPACIOUS
+                        UiDensity.SPACIOUS -> UiDensity.COMPACT
+                    }
+                    viewModel.setUiDensity(next)
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ControlsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(uiState.focusedIndex) {
+        if (uiState.focusedIndex in 0..2) {
+            val viewportHeight = listState.layoutInfo.viewportSize.height
+            val itemHeight = listState.layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 0
+            val centerOffset = if (itemHeight > 0) (viewportHeight - itemHeight) / 2 else 0
+            listState.animateScrollToItem(uiState.focusedIndex, -centerOffset)
+        }
+    }
+
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.padding(Dimens.spacingMd),
+        verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
+    ) {
+        item {
+            SwitchPreference(
+                title = "Haptic Feedback",
+                isEnabled = uiState.controls.hapticEnabled,
+                isFocused = uiState.focusedIndex == 0,
+                onToggle = { viewModel.setHapticEnabled(it) }
+            )
+        }
+        item {
+            SwitchPreference(
+                title = "Nintendo Button Layout",
+                subtitle = "Swap A/B button mappings",
+                isEnabled = uiState.controls.nintendoButtonLayout,
+                isFocused = uiState.focusedIndex == 1,
+                onToggle = { viewModel.setNintendoButtonLayout(it) }
+            )
+        }
+        item {
+            SwitchPreference(
+                title = "Swap Start/Select",
+                subtitle = "Flip the Start and Select button functions",
+                isEnabled = uiState.controls.swapStartSelect,
+                isFocused = uiState.focusedIndex == 2,
+                onToggle = { viewModel.setSwapStartSelect(it) }
             )
         }
     }
@@ -465,26 +548,20 @@ private fun EmulatorsSection(uiState: SettingsUiState, viewModel: SettingsViewMo
 }
 
 @Composable
-private fun CollectionSection(
+private fun ServerSection(
     uiState: SettingsUiState,
     viewModel: SettingsViewModel,
     imageCacheProgress: ImageCacheProgress
 ) {
-    if (uiState.romm.rommConfiguring) {
+    if (uiState.server.rommConfiguring) {
         RomMConfigForm(uiState, viewModel)
     } else {
         val listState = rememberLazyListState()
-        val downloadedText = if (uiState.collection.downloadedGamesCount > 0) {
-            val sizeText = formatFileSize(uiState.collection.downloadedGamesSize)
-            "${uiState.collection.downloadedGamesCount} downloaded ($sizeText)"
-        } else {
-            "No games downloaded"
-        }
 
         val maxIndex = when {
-            uiState.romm.connectionStatus == ConnectionStatus.ONLINE ||
-            uiState.romm.connectionStatus == ConnectionStatus.OFFLINE -> 7
-            else -> 3
+            uiState.server.connectionStatus == ConnectionStatus.ONLINE ||
+            uiState.server.connectionStatus == ConnectionStatus.OFFLINE -> 2
+            else -> 0
         }
 
         LaunchedEffect(uiState.focusedIndex) {
@@ -503,84 +580,31 @@ private fun CollectionSection(
         ) {
             item {
                 NavigationPreference(
-                    icon = Icons.Default.Storage,
-                    title = "Library  \u2014  ${uiState.collection.totalGames} games",
-                    subtitle = downloadedText,
-                    isFocused = uiState.focusedIndex == 0,
-                    onClick = { viewModel.navigateToSection(SettingsSection.LIBRARY_BREAKDOWN) }
-                )
-            }
-            item {
-                ActionPreference(
-                    icon = Icons.Default.Folder,
-                    title = "Download Location",
-                    subtitle = formatStoragePath(uiState.collection.romStoragePath),
-                    isFocused = uiState.focusedIndex == 1,
-                    onClick = { viewModel.openFolderPicker() }
-                )
-            }
-            item {
-                SliderPreference(
-                    title = "Max Active Downloads",
-                    value = uiState.collection.maxConcurrentDownloads,
-                    minValue = 1,
-                    maxValue = 5,
-                    isFocused = uiState.focusedIndex == 2
-                )
-            }
-            item {
-                NavigationPreference(
                     icon = Icons.Default.Dns,
                     title = "Rom Manager",
-                    subtitle = when (uiState.romm.connectionStatus) {
+                    subtitle = when (uiState.server.connectionStatus) {
                         ConnectionStatus.CHECKING -> "Checking connection..."
-                        ConnectionStatus.ONLINE -> uiState.romm.rommUrl
-                        ConnectionStatus.OFFLINE -> "${uiState.romm.rommUrl} (offline)"
+                        ConnectionStatus.ONLINE -> uiState.server.rommUrl ?: "Connected"
+                        ConnectionStatus.OFFLINE -> "${uiState.server.rommUrl} (offline)"
                         ConnectionStatus.NOT_CONFIGURED -> "Not configured"
                     },
-                    isFocused = uiState.focusedIndex == 3,
+                    isFocused = uiState.focusedIndex == 0,
                     onClick = { viewModel.startRommConfig() }
                 )
             }
-            if (uiState.romm.connectionStatus == ConnectionStatus.ONLINE ||
-                uiState.romm.connectionStatus == ConnectionStatus.OFFLINE) {
+            if (uiState.server.connectionStatus == ConnectionStatus.ONLINE ||
+                uiState.server.connectionStatus == ConnectionStatus.OFFLINE) {
                 item {
-                    val enabledRegions = uiState.syncFilter.syncFilters.enabledRegions
-                    val regionsText = if (enabledRegions.isEmpty()) {
-                        "All regions"
-                    } else {
-                        enabledRegions.take(3).joinToString(", ") +
-                            if (enabledRegions.size > 3) " +${enabledRegions.size - 3}" else ""
-                    }
-
                     NavigationPreference(
                         icon = Icons.Default.Tune,
-                        title = "Sync Filters",
-                        subtitle = regionsText,
-                        isFocused = uiState.focusedIndex == 4,
-                        onClick = { viewModel.navigateToSection(SettingsSection.SYNC_FILTERS) }
+                        title = "Sync Settings",
+                        subtitle = "Images, screenshots, filters",
+                        isFocused = uiState.focusedIndex == 1,
+                        onClick = { viewModel.navigateToSection(SettingsSection.SYNC_SETTINGS) }
                     )
                 }
                 item {
-                    InfoPreference(
-                        title = "Sync Images",
-                        value = "Background images sync automatically",
-                        isFocused = uiState.focusedIndex == 5,
-                        icon = Icons.Outlined.Image
-                    )
-                }
-                item {
-                    SwitchPreference(
-                        title = "Sync Screenshots",
-                        subtitle = "Cache screenshots for faster loading",
-                        icon = Icons.Outlined.PhotoLibrary,
-                        isEnabled = uiState.syncFilter.syncScreenshotsEnabled,
-                        isFocused = uiState.focusedIndex == 6,
-                        onToggle = { viewModel.toggleSyncScreenshots() }
-                    )
-                }
-                item {
-                    val lastSyncText = uiState.romm.lastRommSync?.let { instant ->
+                    val lastSyncText = uiState.server.lastRommSync?.let { instant ->
                         val formatter = java.time.format.DateTimeFormatter
                             .ofPattern("MMM d, yyyy h:mm a")
                             .withZone(java.time.ZoneId.systemDefault())
@@ -591,8 +615,8 @@ private fun CollectionSection(
                         icon = Icons.Default.Sync,
                         title = "Sync Library",
                         subtitle = "Last sync: $lastSyncText",
-                        isFocused = uiState.focusedIndex == 7,
-                        isEnabled = uiState.romm.connectionStatus == ConnectionStatus.ONLINE,
+                        isFocused = uiState.focusedIndex == 2,
+                        isEnabled = uiState.server.connectionStatus == ConnectionStatus.ONLINE,
                         onClick = { viewModel.syncRomm() }
                     )
                 }
@@ -602,6 +626,60 @@ private fun CollectionSection(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun StorageSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
+    val listState = rememberLazyListState()
+
+    val downloadedText = if (uiState.storage.downloadedGamesCount > 0) {
+        val sizeText = formatFileSize(uiState.storage.downloadedGamesSize)
+        "${uiState.storage.downloadedGamesCount} games ($sizeText)"
+    } else {
+        "No games downloaded"
+    }
+
+    LaunchedEffect(uiState.focusedIndex) {
+        if (uiState.focusedIndex in 0..2) {
+            val viewportHeight = listState.layoutInfo.viewportSize.height
+            val itemHeight = listState.layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 0
+            val centerOffset = if (itemHeight > 0) (viewportHeight - itemHeight) / 2 else 0
+            listState.animateScrollToItem(uiState.focusedIndex, -centerOffset)
+        }
+    }
+
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.padding(Dimens.spacingMd),
+        verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
+    ) {
+        item {
+            ActionPreference(
+                icon = Icons.Default.Folder,
+                title = "Download Location",
+                subtitle = formatStoragePath(uiState.storage.romStoragePath),
+                isFocused = uiState.focusedIndex == 0,
+                onClick = { viewModel.openFolderPicker() }
+            )
+        }
+        item {
+            SliderPreference(
+                title = "Max Active Downloads",
+                value = uiState.storage.maxConcurrentDownloads,
+                minValue = 1,
+                maxValue = 5,
+                isFocused = uiState.focusedIndex == 1
+            )
+        }
+        item {
+            InfoPreference(
+                title = "Downloaded",
+                value = downloadedText,
+                isFocused = uiState.focusedIndex == 2,
+                icon = Icons.Default.Storage
+            )
         }
     }
 }
@@ -656,11 +734,11 @@ private fun ImageCacheProgressItem(progress: ImageCacheProgress) {
 }
 
 @Composable
-private fun SyncFiltersSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
+private fun SyncSettingsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
     val listState = rememberLazyListState()
 
     LaunchedEffect(uiState.focusedIndex) {
-        if (uiState.focusedIndex in 0..5) {
+        if (uiState.focusedIndex in 0..7) {
             val viewportHeight = listState.layoutInfo.viewportSize.height
             val itemHeight = listState.layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 0
             val centerOffset = if (itemHeight > 0) (viewportHeight - itemHeight) / 2 else 0
@@ -675,7 +753,22 @@ private fun SyncFiltersSection(uiState: SettingsUiState, viewModel: SettingsView
             verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
         ) {
             item {
-                val enabledRegions = uiState.syncFilter.syncFilters.enabledRegions
+                InfoPreference(
+                    title = "Sync Images",
+                    value = "Cover art and screenshots",
+                    isFocused = uiState.focusedIndex == 0
+                )
+            }
+            item {
+                SwitchPreference(
+                    title = "Sync Screenshots",
+                    isEnabled = uiState.server.syncScreenshotsEnabled,
+                    isFocused = uiState.focusedIndex == 1,
+                    onToggle = { viewModel.toggleSyncScreenshots() }
+                )
+            }
+            item {
+                val enabledRegions = uiState.syncSettings.syncFilters.enabledRegions
                 val regionsText = if (enabledRegions.isEmpty()) {
                     "None selected"
                 } else {
@@ -685,60 +778,60 @@ private fun SyncFiltersSection(uiState: SettingsUiState, viewModel: SettingsView
                 ActionPreference(
                     title = "Regions",
                     subtitle = regionsText,
-                    isFocused = uiState.focusedIndex == 0,
+                    isFocused = uiState.focusedIndex == 2,
                     onClick = { viewModel.showRegionPicker() }
                 )
             }
             item {
-                val modeText = when (uiState.syncFilter.syncFilters.regionMode) {
+                val modeText = when (uiState.syncSettings.syncFilters.regionMode) {
                     RegionFilterMode.INCLUDE -> "Include selected"
                     RegionFilterMode.EXCLUDE -> "Exclude selected"
                 }
                 CyclePreference(
                     title = "Region Mode",
                     value = modeText,
-                    isFocused = uiState.focusedIndex == 1,
+                    isFocused = uiState.focusedIndex == 3,
                     onClick = { viewModel.toggleRegionMode() }
                 )
             }
             item {
                 SwitchPreference(
                     title = "Exclude Beta",
-                    isEnabled = uiState.syncFilter.syncFilters.excludeBeta,
-                    isFocused = uiState.focusedIndex == 2,
+                    isEnabled = uiState.syncSettings.syncFilters.excludeBeta,
+                    isFocused = uiState.focusedIndex == 4,
                     onToggle = { viewModel.setExcludeBeta(it) }
                 )
             }
             item {
                 SwitchPreference(
                     title = "Exclude Prototype",
-                    isEnabled = uiState.syncFilter.syncFilters.excludePrototype,
-                    isFocused = uiState.focusedIndex == 3,
+                    isEnabled = uiState.syncSettings.syncFilters.excludePrototype,
+                    isFocused = uiState.focusedIndex == 5,
                     onToggle = { viewModel.setExcludePrototype(it) }
                 )
             }
             item {
                 SwitchPreference(
                     title = "Exclude Demo",
-                    isEnabled = uiState.syncFilter.syncFilters.excludeDemo,
-                    isFocused = uiState.focusedIndex == 4,
+                    isEnabled = uiState.syncSettings.syncFilters.excludeDemo,
+                    isFocused = uiState.focusedIndex == 6,
                     onToggle = { viewModel.setExcludeDemo(it) }
                 )
             }
             item {
                 SwitchPreference(
                     title = "Remove Orphaned Entries",
-                    isEnabled = uiState.syncFilter.syncFilters.deleteOrphans,
-                    isFocused = uiState.focusedIndex == 5,
+                    isEnabled = uiState.syncSettings.syncFilters.deleteOrphans,
+                    isFocused = uiState.focusedIndex == 7,
                     onToggle = { viewModel.setDeleteOrphans(it) }
                 )
             }
         }
 
-        if (uiState.syncFilter.showRegionPicker) {
+        if (uiState.syncSettings.showRegionPicker) {
             RegionPickerPopup(
-                enabledRegions = uiState.syncFilter.syncFilters.enabledRegions,
-                focusIndex = uiState.syncFilter.regionPickerFocusIndex,
+                enabledRegions = uiState.syncSettings.syncFilters.enabledRegions,
+                focusIndex = uiState.syncSettings.regionPickerFocusIndex,
                 onToggle = { viewModel.toggleRegion(it) },
                 onDismiss = { viewModel.dismissRegionPicker() }
             )
@@ -860,42 +953,6 @@ private fun RegionPickerItem(
     }
 }
 
-@Composable
-private fun LibraryBreakdownSection(uiState: SettingsUiState) {
-    val listState = rememberLazyListState()
-
-    LaunchedEffect(uiState.focusedIndex) {
-        if (uiState.collection.platformBreakdowns.isNotEmpty() && uiState.focusedIndex in uiState.collection.platformBreakdowns.indices) {
-            val viewportHeight = listState.layoutInfo.viewportSize.height
-            val itemHeight = listState.layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 0
-            val centerOffset = if (itemHeight > 0) (viewportHeight - itemHeight) / 2 else 0
-            listState.animateScrollToItem(uiState.focusedIndex, -centerOffset)
-        }
-    }
-
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.padding(Dimens.spacingMd),
-        verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
-    ) {
-        itemsIndexed(uiState.collection.platformBreakdowns) { index, breakdown ->
-            val downloadedText = if (breakdown.downloadedGames > 0) {
-                val sizeText = formatFileSize(breakdown.downloadedSize)
-                "${breakdown.downloadedGames} downloaded ($sizeText)"
-            } else {
-                "None downloaded"
-            }
-
-            PlatformStatsPreference(
-                platformName = breakdown.platformName,
-                gamesCount = "${breakdown.totalGames} games",
-                downloadedText = downloadedText,
-                isFocused = uiState.focusedIndex == index
-            )
-        }
-    }
-}
-
 private fun formatFileSize(bytes: Long): String {
     return when {
         bytes < 1024 -> "$bytes B"
@@ -970,13 +1027,13 @@ private fun RomMConfigForm(uiState: SettingsUiState, viewModel: SettingsViewMode
     val usernameFocusRequester = remember { FocusRequester() }
     val passwordFocusRequester = remember { FocusRequester() }
 
-    LaunchedEffect(uiState.romm.rommFocusField) {
-        when (uiState.romm.rommFocusField) {
+    LaunchedEffect(uiState.server.rommFocusField) {
+        when (uiState.server.rommFocusField) {
             0 -> urlFocusRequester.requestFocus()
             1 -> usernameFocusRequester.requestFocus()
             2 -> passwordFocusRequester.requestFocus()
         }
-        if (uiState.romm.rommFocusField != null) {
+        if (uiState.server.rommFocusField != null) {
             viewModel.clearRommFocusField()
         }
     }
@@ -988,7 +1045,7 @@ private fun RomMConfigForm(uiState: SettingsUiState, viewModel: SettingsViewMode
         verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
         OutlinedTextField(
-            value = uiState.romm.rommConfigUrl,
+            value = uiState.server.rommConfigUrl,
             onValueChange = { viewModel.setRommConfigUrl(it) },
             label = { Text("Server URL") },
             placeholder = { Text("https://romm.example.com") },
@@ -1005,7 +1062,7 @@ private fun RomMConfigForm(uiState: SettingsUiState, viewModel: SettingsViewMode
         )
 
         OutlinedTextField(
-            value = uiState.romm.rommConfigUsername,
+            value = uiState.server.rommConfigUsername,
             onValueChange = { viewModel.setRommConfigUsername(it) },
             label = { Text("Username") },
             singleLine = true,
@@ -1021,7 +1078,7 @@ private fun RomMConfigForm(uiState: SettingsUiState, viewModel: SettingsViewMode
         )
 
         OutlinedTextField(
-            value = uiState.romm.rommConfigPassword,
+            value = uiState.server.rommConfigPassword,
             onValueChange = { viewModel.setRommConfigPassword(it) },
             label = { Text("Password") },
             singleLine = true,
@@ -1038,9 +1095,9 @@ private fun RomMConfigForm(uiState: SettingsUiState, viewModel: SettingsViewMode
                 )
         )
 
-        if (uiState.romm.rommConfigError != null) {
+        if (uiState.server.rommConfigError != null) {
             Text(
-                text = uiState.romm.rommConfigError,
+                text = uiState.server.rommConfigError,
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(start = Dimens.spacingSm)
@@ -1054,7 +1111,7 @@ private fun RomMConfigForm(uiState: SettingsUiState, viewModel: SettingsViewMode
             modifier = Modifier.fillMaxWidth()
         ) {
             ActionPreference(
-                title = if (uiState.romm.rommConnecting) "Connecting..." else "Connect",
+                title = if (uiState.server.rommConnecting) "Connecting..." else "Connect",
                 subtitle = "Connect to RomM server",
                 isFocused = uiState.focusedIndex == 3,
                 onClick = { viewModel.connectToRomm() }
@@ -1063,7 +1120,7 @@ private fun RomMConfigForm(uiState: SettingsUiState, viewModel: SettingsViewMode
 
         ActionPreference(
             title = "Cancel",
-            subtitle = "Return to RomM settings",
+            subtitle = "Return to Server settings",
             isFocused = uiState.focusedIndex == 4,
             onClick = { viewModel.cancelRommConfig() }
         )
