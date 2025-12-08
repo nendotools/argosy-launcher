@@ -10,9 +10,12 @@ class InputDispatcher(
 ) {
     private var activeHandler: InputHandler? = null
     private var drawerHandler: InputHandler? = null
-    private var isDrawerOpen: Boolean = false
+    private var drawerOpenProvider: (() -> Boolean)? = null
     private var pendingEvent: GamepadEvent? = null
     private var inputBlockedUntil: Long = 0L
+
+    private val isDrawerOpen: Boolean
+        get() = drawerOpenProvider?.invoke() ?: false
 
     fun setActiveScreen(handler: InputHandler?) {
         activeHandler = handler
@@ -34,8 +37,8 @@ class InputDispatcher(
         }
     }
 
-    fun setDrawerOpen(open: Boolean) {
-        isDrawerOpen = open
+    fun setDrawerOpenProvider(provider: () -> Boolean) {
+        drawerOpenProvider = provider
     }
 
     fun blockInputFor(durationMs: Long) {

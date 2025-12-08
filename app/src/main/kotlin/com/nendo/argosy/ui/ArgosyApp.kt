@@ -53,11 +53,11 @@ fun ArgosyApp(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    val inputDispatcher = remember {
+    val inputDispatcher = remember(drawerState) {
         InputDispatcher(
             hapticManager = viewModel.hapticManager,
             soundManager = viewModel.soundManager
-        )
+        ).also { it.setDrawerOpenProvider { drawerState.isOpen } }
     }
 
     val startDestination = if (uiState.isFirstRun) {
@@ -74,12 +74,9 @@ fun ArgosyApp(
 
     var isFirstDrawerEffect by remember { mutableStateOf(true) }
     LaunchedEffect(drawerState) {
-        inputDispatcher.setDrawerOpen(drawerState.isOpen)
-
         snapshotFlow { drawerState.isOpen }
             .collect { isOpen ->
                 inputDispatcher.blockInputFor(Motion.transitionDebounceMs)
-                inputDispatcher.setDrawerOpen(isOpen)
                 if (isOpen) {
                     val parentRoute = navController.previousBackStackEntry?.destination?.route
                     viewModel.initDrawerFocus(currentRoute, parentRoute)
