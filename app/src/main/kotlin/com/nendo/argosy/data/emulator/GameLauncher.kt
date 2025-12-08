@@ -124,17 +124,17 @@ class GameLauncher @Inject constructor(
 
         return Intent(emulator.launchAction).apply {
             component = ComponentName(retroArchPackage, config.activityClass)
-            addCategory(Intent.CATEGORY_LAUNCHER)
             putExtra("ROM", romFile.absolutePath)
             if (corePath != null) {
                 putExtra("LIBRETRO", corePath)
             }
             putExtra("CONFIGFILE", configPath)
-            // Clear existing task and top activities to ensure new ROM loads
+            putExtra("QUITFOCUS", "")
             addFlags(
                 Intent.FLAG_ACTIVITY_NEW_TASK or
                 Intent.FLAG_ACTIVITY_CLEAR_TASK or
-                Intent.FLAG_ACTIVITY_CLEAR_TOP
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_NO_HISTORY
             )
         }
     }
