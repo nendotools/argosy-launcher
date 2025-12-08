@@ -29,7 +29,7 @@ data class ImageCacheRequest(
     val gameTitle: String = ""
 )
 
-enum class ImageType { BACKGROUND, SCREENSHOT }
+enum class ImageType { BACKGROUND, SCREENSHOT, COVER }
 
 data class ImageCacheProgress(
     val isProcessing: Boolean = false,
@@ -69,12 +69,14 @@ class ImageCacheManager @Inject constructor(
     }
 
     private val logoQueue = Channel<PlatformLogoCacheRequest>(Channel.UNLIMITED)
+    private val coverQueue = Channel<ImageCacheRequest>(Channel.UNLIMITED)
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val queue = Channel<ImageCacheRequest>(Channel.UNLIMITED)
     private val screenshotQueue = Channel<ScreenshotCacheRequest>(Channel.UNLIMITED)
     private var isProcessing = false
     private var isProcessingScreenshots = false
+    private var isProcessingCovers = false
 
     private val _progress = kotlinx.coroutines.flow.MutableStateFlow(ImageCacheProgress())
     val progress: kotlinx.coroutines.flow.StateFlow<ImageCacheProgress> = _progress
@@ -418,6 +420,77 @@ class ImageCacheManager @Inject constructor(
             uncached.forEach { platform ->
                 val url = platform.logoPath ?: return@forEach
                 queuePlatformLogoCache(platform.id, url)
+            }
+        }
+    }
+
+    fun queueCoverCache(url: String, rommId: Long, gameTitle: String = "") {
+        scope.launch {
+            coverQueue.send(ImageCacheRequest(url, rommId, ImageType.COVER, gameTitle))
+            startCoverProcessingIfNeeded()
+        }
+    }
+
+    private fun startCoverProcessingIfNeeded() {
+        if (isProcessingCovers) return
+        isProcessingCovers = true
+
+        scope.launch {
+            Log.d(TAG, "Starting cover image cache processing")
+
+            for (request in coverQueue) {
+                try {
+                    _progress.value = _progress.value.copy(
+                        currentGameTitle = request.gameTitle,
+                        currentType = "cover"
+                    )
+                    processCoverRequest(request)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to process cover for ${request.rommId}: ${e.message}")
+                }
+
+                if (coverQueue.isEmpty) break
+            }
+            isProcessingCovers = false
+        }
+    }
+
+    private suspend fun processCoverRequest(request: ImageCacheRequest) {
+        val fileName = "cover_${request.rommId}_${request.url.md5Hash()}.jpg"
+        val cachedFile = File(cacheDir, fileName)
+
+        if (cachedFile.exists()) {
+            updateGameCover(request.rommId, cachedFile.absolutePath)
+            return
+        }
+
+        val bitmap = downloadAndResize(request.url, 400) ?: return
+
+        FileOutputStream(cachedFile).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
+        }
+        bitmap.recycle()
+
+        Log.d(TAG, "Cached cover for rommId ${request.rommId}: ${cachedFile.length() / 1024}KB")
+        updateGameCover(request.rommId, cachedFile.absolutePath)
+    }
+
+    private suspend fun updateGameCover(rommId: Long, localPath: String) {
+        val game = gameDao.getByRommId(rommId) ?: return
+        if (game.coverPath?.startsWith("/") == true) return
+        gameDao.updateCoverPath(game.id, localPath)
+    }
+
+    fun resumePendingCoverCache() {
+        scope.launch {
+            val uncached = gameDao.getGamesWithUncachedCovers()
+            if (uncached.isEmpty()) return@launch
+
+            Log.d(TAG, "Resuming cache for ${uncached.size} games with uncached covers")
+            uncached.forEach { game ->
+                val url = game.coverPath ?: return@forEach
+                val rommId = game.rommId ?: return@forEach
+                queueCoverCache(url, rommId, game.title)
             }
         }
     }

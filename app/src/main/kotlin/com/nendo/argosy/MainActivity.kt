@@ -34,6 +34,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         hideSystemUI()
         imageCacheManager.resumePendingCache()
+        imageCacheManager.resumePendingCoverCache()
         imageCacheManager.resumePendingLogoCache()
 
         setContent {

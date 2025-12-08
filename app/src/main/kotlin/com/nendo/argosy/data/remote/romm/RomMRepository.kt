@@ -270,6 +270,16 @@ class RomMRepository @Inject constructor(
             else -> null
         }
 
+        val coverUrl = rom.coverLarge?.let { buildMediaUrl(it) }
+        val cachedCover = when {
+            existing?.coverPath?.startsWith("/") == true -> existing.coverPath
+            coverUrl != null -> {
+                imageCacheManager.queueCoverCache(coverUrl, rom.id, rom.name)
+                coverUrl
+            }
+            else -> null
+        }
+
         val game = GameEntity(
             id = existing?.id ?: 0,
             platformId = platformSlug,
@@ -279,7 +289,7 @@ class RomMRepository @Inject constructor(
             rommId = rom.id,
             igdbId = rom.igdbId,
             source = if (existing?.localPath != null) GameSource.ROMM_SYNCED else GameSource.ROMM_REMOTE,
-            coverPath = rom.coverLarge?.let { buildMediaUrl(it) },
+            coverPath = cachedCover,
             backgroundPath = cachedBackground,
             screenshotPaths = screenshotUrls.joinToString(","),
             description = rom.summary,

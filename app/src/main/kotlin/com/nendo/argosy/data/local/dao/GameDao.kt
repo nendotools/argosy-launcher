@@ -128,6 +128,18 @@ interface GameDao {
     @Query("SELECT COUNT(*) FROM games WHERE backgroundPath LIKE '/%' AND rommId IS NOT NULL")
     suspend fun countGamesWithCachedBackgrounds(): Int
 
+    @Query("UPDATE games SET coverPath = :path WHERE id = :gameId")
+    suspend fun updateCoverPath(gameId: Long, path: String)
+
+    @Query("SELECT * FROM games WHERE coverPath LIKE 'http%' AND rommId IS NOT NULL")
+    suspend fun getGamesWithUncachedCovers(): List<GameEntity>
+
+    @Query("SELECT COUNT(*) FROM games WHERE coverPath IS NOT NULL AND rommId IS NOT NULL")
+    suspend fun countGamesWithCovers(): Int
+
+    @Query("SELECT COUNT(*) FROM games WHERE coverPath LIKE '/%' AND rommId IS NOT NULL")
+    suspend fun countGamesWithCachedCovers(): Int
+
     @Query("SELECT DISTINCT regions FROM games WHERE regions IS NOT NULL AND isHidden = 0")
     suspend fun getDistinctRegions(): List<String>
 
