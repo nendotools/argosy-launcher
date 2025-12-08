@@ -120,11 +120,11 @@ class GameLauncher @Inject constructor(
     ): Intent {
         val coreName = EmulatorRegistry.getRetroArchCores()[platformId]
         val retroArchPackage = emulator.packageName
+        val dataDir = "/data/data/$retroArchPackage"
+        val externalDir = "/storage/emulated/0/Android/data/$retroArchPackage/files"
 
-        val corePath = coreName?.let {
-            "/data/data/$retroArchPackage/cores/${it}_libretro_android.so"
-        }
-        val configPath = "/storage/emulated/0/Android/data/$retroArchPackage/files/retroarch.cfg"
+        val corePath = coreName?.let { "$dataDir/cores/${it}_libretro_android.so" }
+        val configPath = "$externalDir/retroarch.cfg"
 
         return Intent(emulator.launchAction).apply {
             component = ComponentName(retroArchPackage, config.activityClass)
@@ -133,12 +133,14 @@ class GameLauncher @Inject constructor(
                 putExtra("LIBRETRO", corePath)
             }
             putExtra("CONFIGFILE", configPath)
-            putExtra("QUITFOCUS", "")
+            putExtra("IME", "com.android.inputmethod.latin/.LatinIME")
+            putExtra("DATADIR", dataDir)
+            putExtra("SDCARD", "/storage/emulated/0")
+            putExtra("EXTERNAL", externalDir)
             addFlags(
                 Intent.FLAG_ACTIVITY_NEW_TASK or
                 Intent.FLAG_ACTIVITY_CLEAR_TASK or
-                Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                Intent.FLAG_ACTIVITY_NO_HISTORY
+                Intent.FLAG_ACTIVITY_CLEAR_TOP
             )
         }
     }
