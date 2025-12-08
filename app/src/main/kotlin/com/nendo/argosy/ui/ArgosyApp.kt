@@ -49,15 +49,9 @@ fun ArgosyApp(
     val isDrawerOpen by viewModel.isDrawerOpen.collectAsState()
     val scope = rememberCoroutineScope()
 
-    // Drawer state with synchronous ViewModel sync via confirmStateChange
-    // This ensures _isDrawerOpen is ALWAYS correct before any input is processed
+    // Drawer state - confirmStateChange handles swipe gestures synchronously
     val drawerState = rememberDrawerState(
-        initialValue = DrawerValue.Closed,
-        confirmStateChange = { newValue ->
-            val newOpen = newValue == DrawerValue.Open
-            viewModel.setDrawerOpen(newOpen)
-            true
-        }
+        initialValue = DrawerValue.Closed
     )
 
     val inputDispatcher = remember {
@@ -87,8 +81,30 @@ fun ArgosyApp(
                     }
                 }
             },
-            onDismiss = { viewModel.setDrawerOpen(false) }
+            onDismiss = {
+                inputDispatcher.unsubscribeDrawer()
+                viewModel.setDrawerOpen(false)
+            }
         )
+    }
+
+    // Synchronous drawer toggle - subscription must happen immediately, not via LaunchedEffect
+    val openDrawer = remember(drawerInputHandler) {
+        {
+            inputDispatcher.subscribeDrawer(drawerInputHandler)
+            viewModel.setDrawerOpen(true)
+            val parentRoute = navController.previousBackStackEntry?.destination?.route
+            viewModel.initDrawerFocus(currentRoute, parentRoute)
+            viewModel.onDrawerOpened()
+            viewModel.soundManager.play(SoundType.OPEN_MODAL)
+        }
+    }
+
+    val closeDrawer = remember {
+        {
+            inputDispatcher.unsubscribeDrawer()
+            viewModel.setDrawerOpen(false)
+        }
     }
 
     // Block input during route transitions
@@ -107,18 +123,9 @@ fun ArgosyApp(
         }
     }
 
-    // Handle drawer state change: subscribe/unsubscribe handler and side effects
+    // Block input during drawer transitions
     LaunchedEffect(isDrawerOpen) {
         inputDispatcher.blockInputFor(Motion.transitionDebounceMs)
-        if (isDrawerOpen) {
-            inputDispatcher.subscribeDrawer(drawerInputHandler)
-            val parentRoute = navController.previousBackStackEntry?.destination?.route
-            viewModel.initDrawerFocus(currentRoute, parentRoute)
-            viewModel.onDrawerOpened()
-            viewModel.soundManager.play(SoundType.OPEN_MODAL)
-        } else {
-            inputDispatcher.unsubscribeDrawer()
-        }
     }
 
     // Collect gamepad events (Menu opens drawer if unhandled)
@@ -126,7 +133,7 @@ fun ArgosyApp(
         viewModel.gamepadInputHandler.eventFlow().collect { event ->
             val handled = inputDispatcher.dispatch(event)
             if (!handled && event == GamepadEvent.Menu) {
-                viewModel.setDrawerOpen(true)
+                openDrawer()
             }
         }
     }
@@ -172,7 +179,7 @@ fun ArgosyApp(
                 NavGraph(
                     navController = navController,
                     startDestination = startDestination,
-                    onDrawerToggle = { viewModel.setDrawerOpen(!isDrawerOpen) },
+                    onDrawerToggle = { if (isDrawerOpen) closeDrawer() else openDrawer() },
                     modifier = Modifier.blur(contentBlur)
                 )
             }
