@@ -71,6 +71,8 @@ fun ArgosyApp(
     val drawerInputHandler = remember {
         viewModel.createDrawerInputHandler(
             onNavigate = { route ->
+                inputDispatcher.unsubscribeDrawer()
+                viewModel.setDrawerOpen(false)
                 scope.launch { drawerState.close() }
                 val current = navController.currentDestination?.route
                 if (route != current) {

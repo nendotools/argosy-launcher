@@ -200,7 +200,8 @@ data class SettingsUiState(
     val pendingStoragePath: String? = null,
     val isMigrating: Boolean = false,
     val appVersion: String = BuildConfig.VERSION_NAME,
-    val updateCheck: UpdateCheckState = UpdateCheckState()
+    val updateCheck: UpdateCheckState = UpdateCheckState(),
+    val betaUpdatesEnabled: Boolean = false
 )
 
 @HiltViewModel
@@ -319,7 +320,8 @@ class SettingsViewModel @Inject constructor(
                         syncFilters = prefs.syncFilters,
                         totalPlatforms = platforms.count { it.gameCount > 0 },
                         totalGames = platforms.sumOf { it.gameCount }
-                    )
+                    ),
+                    betaUpdatesEnabled = prefs.betaUpdatesEnabled
                 )
             }
 
@@ -637,6 +639,13 @@ class SettingsViewModel @Inject constructor(
             preferencesRepository.setSoundEnabled(enabled)
             soundManager.setEnabled(enabled)
             _uiState.update { it.copy(sounds = it.sounds.copy(enabled = enabled)) }
+        }
+    }
+
+    fun setBetaUpdatesEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.setBetaUpdatesEnabled(enabled)
+            _uiState.update { it.copy(betaUpdatesEnabled = enabled) }
         }
     }
 

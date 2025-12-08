@@ -2,10 +2,12 @@ package com.nendo.argosy.data.remote.github
 
 import android.util.Log
 import com.nendo.argosy.BuildConfig
+import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.squareup.moshi.Moshi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
@@ -24,24 +26,37 @@ sealed class UpdateState {
 data class VersionInfo(
     val major: Int,
     val minor: Int,
-    val patch: Int
+    val patch: Int,
+    val prerelease: String? = null
 ) : Comparable<VersionInfo> {
     override fun compareTo(other: VersionInfo): Int {
         if (major != other.major) return major.compareTo(other.major)
         if (minor != other.minor) return minor.compareTo(other.minor)
-        return patch.compareTo(other.patch)
+        if (patch != other.patch) return patch.compareTo(other.patch)
+        return when {
+            prerelease == null && other.prerelease == null -> 0
+            prerelease == null -> 1
+            other.prerelease == null -> -1
+            else -> prerelease.compareTo(other.prerelease)
+        }
     }
 
     companion object {
         fun parse(version: String): VersionInfo? {
             val cleaned = version.removePrefix("v").trim()
-            val parts = cleaned.split(".")
+            val (versionPart, prereleasePart) = if (cleaned.contains("-")) {
+                cleaned.substringBefore("-") to cleaned.substringAfter("-")
+            } else {
+                cleaned to null
+            }
+            val parts = versionPart.split(".")
             if (parts.size < 2) return null
             return try {
                 VersionInfo(
                     major = parts[0].toInt(),
                     minor = parts[1].toInt(),
-                    patch = parts.getOrNull(2)?.toInt() ?: 0
+                    patch = parts.getOrNull(2)?.toInt() ?: 0,
+                    prerelease = prereleasePart
                 )
             } catch (e: NumberFormatException) {
                 null
@@ -51,7 +66,9 @@ data class VersionInfo(
 }
 
 @Singleton
-class UpdateRepository @Inject constructor() {
+class UpdateRepository @Inject constructor(
+    private val userPreferencesRepository: UserPreferencesRepository
+) {
 
     companion object {
         private const val TAG = "UpdateRepository"
@@ -83,10 +100,11 @@ class UpdateRepository @Inject constructor() {
 
     suspend fun checkForUpdates(): UpdateState {
         _updateState.value = UpdateState.Checking
-        Log.d(TAG, "Checking for updates, current version: $currentVersion")
+        val betaEnabled = userPreferencesRepository.userPreferences.first().betaUpdatesEnabled
+        Log.d(TAG, "Checking for updates, current version: $currentVersion, beta enabled: $betaEnabled")
 
         return try {
-            val response = api.getLatestRelease()
+            val response = api.getReleases()
 
             if (!response.isSuccessful) {
                 val error = UpdateState.Error("GitHub API returned ${response.code()}")
@@ -94,29 +112,45 @@ class UpdateRepository @Inject constructor() {
                 return error
             }
 
-            val release = response.body()
-            if (release == null) {
-                val error = UpdateState.Error("Empty response from GitHub")
+            val releases = response.body()
+            if (releases.isNullOrEmpty()) {
+                val error = UpdateState.Error("No releases found")
                 _updateState.value = error
                 return error
             }
 
-            if (release.prerelease || release.draft) {
-                Log.d(TAG, "Latest release is prerelease/draft, skipping")
+            val candidates = releases.filter { release ->
+                !release.draft && (betaEnabled || !release.prerelease)
+            }
+
+            if (candidates.isEmpty()) {
+                Log.d(TAG, "No suitable releases found")
                 _updateState.value = UpdateState.UpToDate
                 return UpdateState.UpToDate
             }
 
-            val latestVersion = VersionInfo.parse(release.tagName)
             val currentVersionInfo = VersionInfo.parse(currentVersion)
-
-            if (latestVersion == null || currentVersionInfo == null) {
-                Log.e(TAG, "Failed to parse versions: latest=${release.tagName}, current=$currentVersion")
-                val error = UpdateState.Error("Invalid version format")
+            if (currentVersionInfo == null) {
+                Log.e(TAG, "Failed to parse current version: $currentVersion")
+                val error = UpdateState.Error("Invalid current version format")
                 _updateState.value = error
                 return error
             }
 
+            val latestCandidate = candidates
+                .mapNotNull { release ->
+                    VersionInfo.parse(release.tagName)?.let { version -> release to version }
+                }
+                .maxByOrNull { it.second }
+
+            if (latestCandidate == null) {
+                Log.e(TAG, "Failed to parse any release versions")
+                val error = UpdateState.Error("Invalid version format in releases")
+                _updateState.value = error
+                return error
+            }
+
+            val (release, latestVersion) = latestCandidate
             Log.d(TAG, "Version comparison: current=$currentVersionInfo, latest=$latestVersion")
 
             if (latestVersion > currentVersionInfo) {

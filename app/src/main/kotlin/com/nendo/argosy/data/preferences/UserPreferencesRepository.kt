@@ -53,6 +53,7 @@ class UserPreferencesRepository @Inject constructor(
         val MAX_CONCURRENT_DOWNLOADS = intPreferencesKey("max_concurrent_downloads")
         val UI_DENSITY = stringPreferencesKey("ui_density")
         val SOUND_CONFIGS = stringPreferencesKey("sound_configs")
+        val BETA_UPDATES_ENABLED = booleanPreferencesKey("beta_updates_enabled")
     }
 
     val userPreferences: Flow<UserPreferences> = dataStore.data.map { prefs ->
@@ -105,7 +106,8 @@ class UserPreferencesRepository @Inject constructor(
                 ?: emptyList(),
             maxConcurrentDownloads = prefs[Keys.MAX_CONCURRENT_DOWNLOADS] ?: 1,
             uiDensity = UiDensity.fromString(prefs[Keys.UI_DENSITY]),
-            soundConfigs = parseSoundConfigs(prefs[Keys.SOUND_CONFIGS])
+            soundConfigs = parseSoundConfigs(prefs[Keys.SOUND_CONFIGS]),
+            betaUpdatesEnabled = prefs[Keys.BETA_UPDATES_ENABLED] ?: false
         )
     }
 
@@ -345,6 +347,12 @@ class UserPreferencesRepository @Inject constructor(
             }
         }
     }
+
+    suspend fun setBetaUpdatesEnabled(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.BETA_UPDATES_ENABLED] = enabled
+        }
+    }
 }
 
 data class UserPreferences(
@@ -372,7 +380,8 @@ data class UserPreferences(
     val appOrder: List<String> = emptyList(),
     val maxConcurrentDownloads: Int = 1,
     val uiDensity: UiDensity = UiDensity.NORMAL,
-    val soundConfigs: Map<SoundType, SoundConfig> = emptyMap()
+    val soundConfigs: Map<SoundType, SoundConfig> = emptyMap(),
+    val betaUpdatesEnabled: Boolean = false
 )
 
 enum class ThemeMode {

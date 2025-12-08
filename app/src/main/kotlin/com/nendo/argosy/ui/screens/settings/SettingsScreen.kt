@@ -1455,6 +1455,7 @@ private fun RomMConfigForm(uiState: SettingsUiState, viewModel: SettingsViewMode
 private fun AboutSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
     val updateCheck = uiState.updateCheck
     val isDebug = com.nendo.argosy.BuildConfig.DEBUG
+    val isOnBetaVersion = com.nendo.argosy.BuildConfig.VERSION_NAME.contains("-")
     val context = LocalContext.current
 
     LazyColumn(
@@ -1489,7 +1490,9 @@ private fun AboutSection(uiState: SettingsUiState, viewModel: SettingsViewModel)
                 updateCheck.isChecking -> "Check for Updates" to "Checking..."
                 updateCheck.error != null -> "Check for Updates" to "Error: ${updateCheck.error}"
                 updateCheck.updateAvailable -> "Install Update" to "Tap to download ${updateCheck.latestVersion}"
+                updateCheck.hasChecked && isOnBetaVersion -> "Check for Updates" to "Up to date (pre-release)"
                 updateCheck.hasChecked -> "Check for Updates" to "Up to date"
+                isOnBetaVersion -> "Check for Updates" to "Running pre-release build"
                 else -> "Check for Updates" to "Check for new versions"
             }
             ActionPreference(
@@ -1505,6 +1508,18 @@ private fun AboutSection(uiState: SettingsUiState, viewModel: SettingsViewModel)
                         viewModel.checkForUpdates()
                     }
                 }
+            )
+        }
+        item {
+            SwitchPreference(
+                title = "Beta Updates",
+                subtitle = if (uiState.betaUpdatesEnabled)
+                    "Receiving pre-release builds"
+                else
+                    "Stable releases only",
+                isEnabled = uiState.betaUpdatesEnabled,
+                isFocused = uiState.focusedIndex == 4,
+                onToggle = { viewModel.setBetaUpdatesEnabled(it) }
             )
         }
     }
