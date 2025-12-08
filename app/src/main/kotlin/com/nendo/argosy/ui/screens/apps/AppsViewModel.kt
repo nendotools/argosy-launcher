@@ -129,19 +129,9 @@ class AppsViewModel @Inject constructor(
             val showHidden = _uiState.value.showHiddenApps
             val allApps = appsRepository.getInstalledApps(includeSystemApps = true)
 
-            val apps = allApps.filter { app ->
-                val isExplicitlyHidden = app.packageName in hiddenApps
-                val isSystemAppVisible = app.isSystemApp && app.packageName in visibleSystemApps
-                val isSystemAppHidden = app.isSystemApp && app.packageName !in visibleSystemApps
-
-                if (showHidden) {
-                    // Show: explicitly hidden apps + system apps that aren't explicitly shown
-                    isExplicitlyHidden || isSystemAppHidden
-                } else {
-                    // Show: non-hidden non-system apps + system apps explicitly shown
-                    (!isExplicitlyHidden && !app.isSystemApp) || isSystemAppVisible
-                }
-            }.let { appList -> sortApps(appList) }
+            val apps = allApps
+                .filter { app -> shouldShowApp(app, showHidden) }
+                .let { appList -> sortApps(appList) }
 
             _uiState.update { state ->
                 state.copy(
@@ -154,6 +144,18 @@ class AppsViewModel @Inject constructor(
                     focusedIndex = 0
                 )
             }
+        }
+    }
+
+    private fun shouldShowApp(app: InstalledApp, showHidden: Boolean): Boolean {
+        val isExplicitlyHidden = app.packageName in hiddenApps
+        val isSystemAppVisible = app.isSystemApp && app.packageName in visibleSystemApps
+        val isSystemAppHidden = app.isSystemApp && app.packageName !in visibleSystemApps
+
+        return if (showHidden) {
+            isExplicitlyHidden || isSystemAppHidden
+        } else {
+            (!isExplicitlyHidden && !app.isSystemApp) || isSystemAppVisible
         }
     }
 
@@ -217,7 +219,6 @@ class AppsViewModel @Inject constructor(
     private fun toggleAppVisibility(packageName: String, isCurrentlyHidden: Boolean, isSystemApp: Boolean) {
         viewModelScope.launch {
             if (isSystemApp) {
-                // For system apps, toggle visibility via visibleSystemApps
                 val newVisible = if (isCurrentlyHidden) {
                     visibleSystemApps + packageName
                 } else {
@@ -226,7 +227,6 @@ class AppsViewModel @Inject constructor(
                 preferencesRepository.setVisibleSystemApps(newVisible)
                 visibleSystemApps = newVisible
             } else {
-                // For regular apps, toggle via hiddenApps
                 val newHidden = if (isCurrentlyHidden) {
                     hiddenApps - packageName
                 } else {

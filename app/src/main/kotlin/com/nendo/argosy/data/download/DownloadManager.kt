@@ -2,7 +2,6 @@ package com.nendo.argosy.data.download
 
 import android.content.Context
 import android.os.StatFs
-import android.util.Log
 import com.nendo.argosy.data.local.dao.DownloadQueueDao
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.entity.DownloadQueueEntity
@@ -32,8 +31,10 @@ import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private const val TAG = "DownloadManager"
 private const val STORAGE_BUFFER_BYTES = 50 * 1024 * 1024L
+private const val DOWNLOAD_BUFFER_SIZE = 64 * 1024
+private const val UI_UPDATE_INTERVAL_MS = 500L
+private const val DB_UPDATE_INTERVAL_MS = 5000L
 
 data class DownloadProgress(
     val id: Long = 0,
@@ -114,8 +115,6 @@ class DownloadManager @Inject constructor(
             return
         }
 
-        Log.d(TAG, "restoreQueueFromDatabase: restoring ${pending.size} downloads")
-
         val restored = pending.map { it.toDownloadProgress() }
         _state.value = DownloadQueueState(
             queue = restored,
@@ -141,8 +140,7 @@ class DownloadManager @Inject constructor(
                 val downloadDir = getDownloadDir()
                 val stat = StatFs(downloadDir.absolutePath)
                 stat.availableBytes
-            } catch (e: Exception) {
-                Log.e(TAG, "getAvailableStorageBytes: error", e)
+            } catch (_: Exception) {
                 0L
             }
         }
@@ -167,22 +165,11 @@ class DownloadManager @Inject constructor(
         expectedSizeBytes: Long = 0
     ) {
         val currentState = _state.value
-        if (currentState.activeDownloads.any { it.gameId == gameId }) {
-            Log.d(TAG, "enqueueDownload: game $gameId already downloading, skipping")
-            return
-        }
-        if (currentState.queue.any { it.gameId == gameId }) {
-            Log.d(TAG, "enqueueDownload: game $gameId already queued, skipping")
-            return
-        }
+        if (currentState.activeDownloads.any { it.gameId == gameId }) return
+        if (currentState.queue.any { it.gameId == gameId }) return
 
         val existing = downloadQueueDao.getByGameId(gameId)
-        if (existing != null) {
-            Log.d(TAG, "enqueueDownload: game $gameId exists in database, skipping")
-            return
-        }
-
-        Log.d(TAG, "enqueueDownload: $gameTitle ($platformSlug), expectedSize=$expectedSizeBytes")
+        if (existing != null) return
 
         val downloadDir = getDownloadDir()
         val platformDir = File(downloadDir, platformSlug)
@@ -246,7 +233,6 @@ class DownloadManager @Inject constructor(
             val requiredBytes = next.totalBytes - next.bytesDownloaded
 
             if (!hasEnoughStorage(requiredBytes, availableStorage)) {
-                Log.w(TAG, "processQueue: insufficient storage for ${next.gameTitle}")
                 downloadQueueDao.updateState(next.id, DownloadState.WAITING_FOR_STORAGE.name)
                 _state.value = _state.value.copy(
                     queue = _state.value.queue.map {
@@ -257,7 +243,6 @@ class DownloadManager @Inject constructor(
                 continue
             }
 
-            Log.d(TAG, "processQueue: starting ${next.gameTitle}")
             soundManager.play(SoundType.DOWNLOAD_START)
 
             _state.value = _state.value.copy(
@@ -309,8 +294,6 @@ class DownloadManager @Inject constructor(
     private suspend fun downloadRom(progress: DownloadProgress): DownloadResult =
         withContext(Dispatchers.IO) {
             try {
-                Log.d(TAG, "downloadRom: starting download for ${progress.fileName}")
-
                 val downloadDir = getDownloadDir()
                 val platformDir = File(downloadDir, progress.platformSlug).also { it.mkdirs() }
                 val tempFile = File(platformDir, "${progress.fileName}.tmp")
@@ -319,8 +302,6 @@ class DownloadManager @Inject constructor(
                 val existingBytes = if (tempFile.exists()) tempFile.length() else 0L
                 val rangeHeader = if (existingBytes > 0) "bytes=$existingBytes-" else null
 
-                Log.d(TAG, "downloadRom: existingBytes=$existingBytes, rangeHeader=$rangeHeader")
-
                 when (val result = romMRepository.downloadRom(progress.rommId, progress.fileName, rangeHeader)) {
                     is RomMResult.Success -> {
                         val response = result.data
@@ -328,15 +309,11 @@ class DownloadManager @Inject constructor(
                         val contentType = body.contentType()?.toString() ?: ""
                         val contentLength = body.contentLength()
 
-                        Log.d(TAG, "downloadRom: contentType=$contentType, contentLength=$contentLength, partial=${response.isPartialContent}")
-
                         if (INVALID_CONTENT_TYPES.any { contentType.startsWith(it) }) {
-                            Log.e(TAG, "downloadRom: invalid content type: $contentType")
                             return@withContext DownloadResult.Failure("Invalid file type: $contentType")
                         }
 
                         if (!response.isPartialContent && existingBytes > 0) {
-                            Log.w(TAG, "downloadRom: server doesn't support Range, starting fresh")
                             tempFile.delete()
                         }
 
@@ -348,7 +325,6 @@ class DownloadManager @Inject constructor(
                         }
 
                         if (totalSize > 0 && totalSize < MIN_ROM_SIZE_BYTES) {
-                            Log.w(TAG, "downloadRom: file too small ($totalSize bytes)")
                             return@withContext DownloadResult.Failure("File too small to be a ROM")
                         }
 
@@ -360,22 +336,8 @@ class DownloadManager @Inject constructor(
                         val startOffset = if (response.isPartialContent) existingBytes else 0L
 
                         body.byteStream().use { input ->
-                            val outputStream = if (response.isPartialContent && tempFile.exists()) {
-                                RandomAccessFile(tempFile, "rw").apply {
-                                    seek(tempFile.length())
-                                }.let { raf ->
-                                    object : java.io.OutputStream() {
-                                        override fun write(b: Int) = raf.write(b)
-                                        override fun write(b: ByteArray, off: Int, len: Int) = raf.write(b, off, len)
-                                        override fun close() = raf.close()
-                                    }
-                                }
-                            } else {
-                                FileOutputStream(tempFile)
-                            }
-
-                            outputStream.use { output ->
-                                val buffer = ByteArray(65536)
+                            createOutputStream(tempFile, response.isPartialContent).use { output ->
+                                val buffer = ByteArray(DOWNLOAD_BUFFER_SIZE)
                                 var bytesRead: Long = startOffset
                                 var lastUpdateTime = System.currentTimeMillis()
                                 var lastDbUpdateTime = System.currentTimeMillis()
@@ -389,8 +351,7 @@ class DownloadManager @Inject constructor(
                                     bytesRead += read
 
                                     val now = System.currentTimeMillis()
-                                    if (now - lastUpdateTime > 500) {
-                                        Log.d(TAG, "downloadRom: progress $bytesRead / $totalSize")
+                                    if (now - lastUpdateTime > UI_UPDATE_INTERVAL_MS) {
                                         updateProgress(
                                             progress.copy(
                                                 bytesDownloaded = bytesRead,
@@ -400,7 +361,7 @@ class DownloadManager @Inject constructor(
                                         lastUpdateTime = now
                                     }
 
-                                    if (now - lastDbUpdateTime > 5000) {
+                                    if (now - lastDbUpdateTime > DB_UPDATE_INTERVAL_MS) {
                                         downloadQueueDao.updateProgress(progress.id, bytesRead)
                                         lastDbUpdateTime = now
                                     }
@@ -414,15 +375,11 @@ class DownloadManager @Inject constructor(
                                 )
                                 downloadQueueDao.updateProgress(progress.id, bytesRead)
 
-                                if (tempFile.renameTo(targetFile)) {
-                                    Log.d(TAG, "downloadRom: renamed temp file to ${targetFile.absolutePath}")
-                                } else {
+                                if (!tempFile.renameTo(targetFile)) {
                                     tempFile.copyTo(targetFile, overwrite = true)
                                     tempFile.delete()
-                                    Log.d(TAG, "downloadRom: copied temp file to ${targetFile.absolutePath}")
                                 }
 
-                                Log.d(TAG, "downloadRom: download complete, updating database")
                                 gameDao.updateLocalPath(
                                     progress.gameId,
                                     targetFile.absolutePath,
@@ -434,18 +391,31 @@ class DownloadManager @Inject constructor(
                         }
                     }
                     is RomMResult.Error -> {
-                        Log.e(TAG, "downloadRom: failed - ${result.message}")
                         DownloadResult.Failure(result.message)
                     }
                 }
-            } catch (e: CancellationException) {
-                Log.d(TAG, "downloadRom: cancelled")
+            } catch (_: CancellationException) {
                 DownloadResult.Cancelled
             } catch (e: Exception) {
-                Log.e(TAG, "downloadRom: exception", e)
                 DownloadResult.Failure(e.message ?: "Unknown error")
             }
         }
+
+    private fun createOutputStream(tempFile: File, isResume: Boolean): java.io.OutputStream {
+        return if (isResume && tempFile.exists()) {
+            RandomAccessFile(tempFile, "rw").apply {
+                seek(tempFile.length())
+            }.let { raf ->
+                object : java.io.OutputStream() {
+                    override fun write(b: Int) = raf.write(b)
+                    override fun write(b: ByteArray, off: Int, len: Int) = raf.write(b, off, len)
+                    override fun close() = raf.close()
+                }
+            }
+        } else {
+            FileOutputStream(tempFile)
+        }
+    }
 
     private fun updateProgress(progress: DownloadProgress) {
         _state.value = _state.value.copy(
@@ -458,7 +428,6 @@ class DownloadManager @Inject constructor(
     fun pauseDownload(rommId: Long) {
         val active = _state.value.activeDownloads.find { it.rommId == rommId }
         if (active != null) {
-            Log.d(TAG, "pauseDownload: pausing active download for rommId=$rommId")
             downloadJobs[active.id]?.cancel()
             downloadJobs.remove(active.id)
 
@@ -488,7 +457,6 @@ class DownloadManager @Inject constructor(
             it.gameId == gameId && (it.state == DownloadState.PAUSED || it.state == DownloadState.WAITING_FOR_STORAGE)
         }
         if (paused != null) {
-            Log.d(TAG, "resumeDownload: resuming download for gameId=$gameId")
             scope.launch {
                 downloadQueueDao.updateState(paused.id, DownloadState.QUEUED.name)
             }
@@ -513,12 +481,7 @@ class DownloadManager @Inject constructor(
                 !reason.contains("HTTP 404", ignoreCase = true)
         }
 
-        if (retryable.isEmpty()) {
-            Log.d(TAG, "retryFailedDownloads: ${failed.size} failed but none retryable (permanent errors)")
-            return
-        }
-
-        Log.d(TAG, "retryFailedDownloads: retrying ${retryable.size} of ${failed.size} failed downloads")
+        if (retryable.isEmpty()) return
 
         for (entity in retryable) {
             downloadQueueDao.updateState(entity.id, DownloadState.QUEUED.name, null)
@@ -535,13 +498,11 @@ class DownloadManager @Inject constructor(
         }
 
         val availableStorage = getAvailableStorageBytes()
-        Log.d(TAG, "recheckStorageAndResume: checking ${waiting.size} items, available=$availableStorage")
 
         var anyResumed = false
         for (item in waiting) {
             val requiredBytes = item.totalBytes - item.bytesDownloaded
             if (hasEnoughStorage(requiredBytes, availableStorage)) {
-                Log.d(TAG, "recheckStorageAndResume: resuming ${item.gameTitle}")
                 downloadQueueDao.updateState(item.id, DownloadState.QUEUED.name)
                 anyResumed = true
             }
@@ -555,15 +516,18 @@ class DownloadManager @Inject constructor(
     }
 
     fun cancelDownload(rommId: Long) {
+        soundManager.play(SoundType.DOWNLOAD_CANCEL)
         val active = _state.value.activeDownloads.find { it.rommId == rommId }
         if (active != null) {
             downloadJobs[active.id]?.cancel()
             downloadJobs.remove(active.id)
             scope.launch {
                 downloadQueueDao.deleteById(active.id)
-                val downloadDir = getDownloadDir()
-                val tempFile = File(downloadDir, "${active.platformSlug}/${active.fileName}.tmp")
-                if (tempFile.exists()) tempFile.delete()
+                withContext(Dispatchers.IO) {
+                    val downloadDir = getDownloadDir()
+                    val tempFile = File(downloadDir, "${active.platformSlug}/${active.fileName}.tmp")
+                    if (tempFile.exists()) tempFile.delete()
+                }
             }
             _state.value = _state.value.copy(
                 activeDownloads = _state.value.activeDownloads.filter { it.id != active.id }
@@ -574,9 +538,11 @@ class DownloadManager @Inject constructor(
             if (queued != null) {
                 scope.launch {
                     downloadQueueDao.deleteById(queued.id)
-                    val downloadDir = getDownloadDir()
-                    val tempFile = File(downloadDir, "${queued.platformSlug}/${queued.fileName}.tmp")
-                    if (tempFile.exists()) tempFile.delete()
+                    withContext(Dispatchers.IO) {
+                        val downloadDir = getDownloadDir()
+                        val tempFile = File(downloadDir, "${queued.platformSlug}/${queued.fileName}.tmp")
+                        if (tempFile.exists()) tempFile.delete()
+                    }
                 }
                 _state.value = _state.value.copy(
                     queue = _state.value.queue.filter { it.rommId != rommId }

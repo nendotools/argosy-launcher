@@ -54,7 +54,6 @@ enum class LaunchType {
 object EmulatorRegistry {
 
     private val emulators = listOf(
-        // RetroArch - Universal
         EmulatorDef(
             id = "retroarch",
             packageName = "com.retroarch",
@@ -94,7 +93,6 @@ object EmulatorRegistry {
             downloadUrl = "https://play.google.com/store/apps/details?id=com.retroarch.aarch64"
         ),
 
-        // Nintendo - Standalone
         EmulatorDef(
             id = "mupen64plus_fz",
             packageName = "org.mupen64plusae.v3.fzurita",
@@ -216,7 +214,6 @@ object EmulatorRegistry {
             downloadUrl = "https://play.google.com/store/apps/details?id=com.swordfish.lemuroid"
         ),
 
-        // Sony
         EmulatorDef(
             id = "duckstation",
             packageName = "com.github.stenzek.duckstation",
@@ -260,7 +257,6 @@ object EmulatorRegistry {
             downloadUrl = "https://github.com/Vita3K/Vita3K-Android/releases"
         ),
 
-        // Sega
         // NOTE: Redream has known Android 13+ issues - explicit activity launches fail
         // https://github.com/TapiocaFox/Daijishou/issues/487
         // https://github.com/TapiocaFox/Daijishou/issues/579
@@ -300,7 +296,6 @@ object EmulatorRegistry {
             downloadUrl = "https://play.google.com/store/apps/details?id=com.explusalpha.MdEmu"
         ),
 
-        // Arcade
         EmulatorDef(
             id = "mame4droid",
             packageName = "com.seleuco.mame4droid",
@@ -316,7 +311,6 @@ object EmulatorRegistry {
             downloadUrl = "https://play.google.com/store/apps/details?id=com.bangkokfusion.finalburn"
         ),
 
-        // Other
         EmulatorDef(
             id = "scummvm",
             packageName = "org.scummvm.scummvm",

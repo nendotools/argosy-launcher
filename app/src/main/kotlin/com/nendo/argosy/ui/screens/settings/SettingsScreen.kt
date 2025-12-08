@@ -1601,7 +1601,6 @@ private fun EmulatorPickerPopup(
                 modifier = Modifier.heightIn(max = 300.dp),
                 verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
             ) {
-                // "Auto" option - only show if there are installed emulators
                 if (installedCount > 0) {
                     item {
                         val isFocused = focusIndex == 0
@@ -1617,7 +1616,6 @@ private fun EmulatorPickerPopup(
                     }
                 }
 
-                // Installed emulators
                 itemsIndexed(info.installedEmulators) { index, emulator ->
                     val itemIndex = 1 + index // Auto is index 0
                     val isFocused = focusIndex == itemIndex
@@ -1632,7 +1630,6 @@ private fun EmulatorPickerPopup(
                     )
                 }
 
-                // Downloadable emulators section
                 if (info.downloadableEmulators.isNotEmpty()) {
                     item {
                         Spacer(modifier = Modifier.height(Dimens.spacingSm))

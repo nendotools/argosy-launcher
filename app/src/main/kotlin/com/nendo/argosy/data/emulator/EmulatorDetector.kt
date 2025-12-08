@@ -46,8 +46,7 @@ class EmulatorDetector @Inject constructor(
                         versionCode = versionCode
                     )
                 )
-            } catch (e: PackageManager.NameNotFoundException) {
-                // Emulator not installed
+            } catch (_: PackageManager.NameNotFoundException) {
             }
         }
 

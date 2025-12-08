@@ -23,6 +23,7 @@ enum class SoundType {
     UNFAVORITE,
     DOWNLOAD_START,
     DOWNLOAD_COMPLETE,
+    DOWNLOAD_CANCEL,
     ERROR,
     VOLUME_PREVIEW,
     TOGGLE,
@@ -44,6 +45,7 @@ enum class SoundPreset(val resourceId: Int?, val displayName: String) {
     TICK_ACCEPT(R.raw.tick_accept, "Tick Accept"),
     BELL_HIGH(R.raw.bell_high, "Bell High"),
     COLLECT(R.raw.collect, "Collect"),
+    DISMISS_FAIL(R.raw.dismiss_fail, "Dismiss Fail"),
     SILENT(null, "Silent"),
     CUSTOM(null, "Custom...")
 }
@@ -66,8 +68,6 @@ class SoundFeedbackManager @Inject constructor(
     private var soundConfigs: Map<SoundType, SoundConfig> = emptyMap()
 
     companion object {
-        // TODO: Rapid navigation can outpace sound attack time, causing clipped playback.
-        // Consider input-level debounce in InputDispatcher instead of sound-level debounce.
         private const val DEBOUNCE_MS = 50L
     }
 
@@ -83,6 +83,7 @@ class SoundFeedbackManager @Inject constructor(
         SoundType.UNFAVORITE to SoundPreset.TICK_ACCEPT,
         SoundType.DOWNLOAD_START to SoundPreset.NOTIFY_START,
         SoundType.DOWNLOAD_COMPLETE to SoundPreset.CHIME_SUCCESS,
+        SoundType.DOWNLOAD_CANCEL to SoundPreset.DISMISS_FAIL,
         SoundType.ERROR to SoundPreset.BUZZ_ERROR,
         SoundType.VOLUME_PREVIEW to SoundPreset.CLICK_SOFT,
         SoundType.TOGGLE to SoundPreset.BELL_HIGH,

@@ -1,10 +1,7 @@
 package com.nendo.argosy.ui.input
 
-import android.util.Log
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.staticCompositionLocalOf
-
-private const val TAG = "InputDispatcher"
 
 @Stable
 class InputDispatcher(
@@ -18,11 +15,9 @@ class InputDispatcher(
     private var inputBlockedUntil: Long = 0L
 
     fun setActiveScreen(handler: InputHandler?) {
-        Log.d(TAG, "setActiveScreen: ${handler?.javaClass?.simpleName}")
         activeHandler = handler
         if (handler != null && !isDrawerOpen) {
             pendingEvent?.let { event ->
-                Log.d(TAG, "Replaying pending event: $event")
                 pendingEvent = null
                 dispatch(event)
             }
@@ -30,11 +25,9 @@ class InputDispatcher(
     }
 
     fun setDrawerHandler(handler: InputHandler?) {
-        Log.d(TAG, "setDrawerHandler: ${handler?.javaClass?.simpleName}")
         drawerHandler = handler
         if (handler != null && isDrawerOpen) {
             pendingEvent?.let { event ->
-                Log.d(TAG, "Replaying pending event to drawer: $event")
                 pendingEvent = null
                 dispatch(event)
             }
@@ -42,28 +35,21 @@ class InputDispatcher(
     }
 
     fun setDrawerOpen(open: Boolean) {
-        Log.d(TAG, "setDrawerOpen: $open (was: $isDrawerOpen)")
         isDrawerOpen = open
     }
 
     fun blockInputFor(durationMs: Long) {
         inputBlockedUntil = System.currentTimeMillis() + durationMs
-        Log.d(TAG, "Blocking input for ${durationMs}ms")
     }
 
     fun dispatch(event: GamepadEvent): Boolean {
         if (System.currentTimeMillis() < inputBlockedUntil) {
-            Log.d(TAG, "Input blocked, ignoring event: $event")
             return true
         }
 
-        Log.d(TAG, "dispatch: event=$event, isDrawerOpen=$isDrawerOpen, " +
-            "drawerHandler=${drawerHandler?.javaClass?.simpleName}, " +
-            "activeHandler=${activeHandler?.javaClass?.simpleName}")
         val handler = if (isDrawerOpen) drawerHandler else activeHandler
 
         if (handler == null) {
-            Log.d(TAG, "No handler available, buffering event: $event")
             pendingEvent = event
             return false
         }
@@ -105,7 +91,6 @@ class InputDispatcher(
             else -> {}
         }
 
-        Log.d(TAG, "dispatch result: handled=$handled")
         return handled
     }
 

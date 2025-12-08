@@ -79,8 +79,7 @@ fun AppsScreen(
                 is AppsEvent.Launch -> {
                     try {
                         context.startActivity(event.intent)
-                    } catch (e: Exception) {
-                        // Handle launch failure
+                    } catch (_: Exception) {
                     }
                 }
                 is AppsEvent.OpenAppInfo -> {
@@ -132,7 +131,6 @@ fun AppsScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().blur(modalBlur)) {
-            // Header
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -159,7 +157,6 @@ fun AppsScreen(
                 }
             }
 
-            // Content
             when {
                 uiState.isLoading -> {
                     Box(
@@ -212,7 +209,6 @@ fun AppsScreen(
                 }
             }
 
-            // Footer
             FooterBar(
                 hints = when {
                     uiState.isReorderMode -> listOf(
@@ -231,7 +227,6 @@ fun AppsScreen(
             )
         }
 
-        // Context Menu Overlay
         if (uiState.showContextMenu) {
             Box(
                 modifier = Modifier

@@ -80,6 +80,8 @@ import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.Motion
 import kotlinx.coroutines.launch
 
+private const val SCROLL_OFFSET = 100
+
 @Composable
 fun HomeScreen(
     onGameSelect: (Long) -> Unit,
@@ -96,7 +98,7 @@ fun HomeScreen(
             scope.launch {
                 listState.animateScrollToItem(
                     index = uiState.focusedGameIndex.coerceIn(0, uiState.currentItems.lastIndex),
-                    scrollOffset = 100
+                    scrollOffset = SCROLL_OFFSET
                 )
             }
         }
@@ -113,11 +115,8 @@ fun HomeScreen(
             when (event) {
                 is HomeEvent.LaunchGame -> {
                     try {
-                        android.util.Log.d("HomeScreen", "Starting activity: ${event.intent}")
                         context.startActivity(event.intent)
-                        android.util.Log.d("HomeScreen", "Activity started successfully")
                     } catch (e: Exception) {
-                        android.util.Log.e("HomeScreen", "Failed to start activity", e)
                         viewModel.showLaunchError("Failed to launch: ${e.message}")
                     }
                 }
@@ -534,7 +533,6 @@ private fun ViewAllCard(
             verticalArrangement = Arrangement.Center,
             modifier = Modifier.padding(12.dp)
         ) {
-            // 2x2 grid icon
             Column(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.padding(bottom = 12.dp)

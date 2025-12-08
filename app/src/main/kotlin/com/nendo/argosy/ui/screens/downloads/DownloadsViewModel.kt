@@ -167,7 +167,8 @@ class DownloadsViewModel @Inject constructor(
             return InputResult.HANDLED
         }
         override fun onMenu(): InputResult = InputResult.UNHANDLED
-        override fun onSecondaryAction(): InputResult {
+        override fun onSecondaryAction(): InputResult = InputResult.UNHANDLED
+        override fun onContextMenu(): InputResult {
             if (_uiState.value.canCancel) {
                 cancelFocusedItem()
                 return InputResult.HANDLED

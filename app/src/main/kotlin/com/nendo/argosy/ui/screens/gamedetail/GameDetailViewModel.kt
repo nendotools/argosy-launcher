@@ -27,6 +27,7 @@ import com.nendo.argosy.ui.navigation.GameNavigationContext
 import com.nendo.argosy.ui.notification.NotificationManager
 import com.nendo.argosy.ui.notification.showError
 import com.nendo.argosy.ui.notification.showSuccess
+import com.nendo.argosy.ui.screens.common.GameActionsDelegate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -113,12 +114,11 @@ class GameDetailViewModel @Inject constructor(
     private val notificationManager: NotificationManager,
     private val gameRepository: GameRepository,
     private val gameNavigationContext: GameNavigationContext,
-    private val downloadGameUseCase: DownloadGameUseCase,
     private val launchGameUseCase: LaunchGameUseCase,
     private val configureEmulatorUseCase: ConfigureEmulatorUseCase,
-    private val deleteGameUseCase: DeleteGameUseCase,
     private val romMRepository: RomMRepository,
-    private val soundManager: SoundFeedbackManager
+    private val soundManager: SoundFeedbackManager,
+    private val gameActions: GameActionsDelegate
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GameDetailUiState())
@@ -228,7 +228,7 @@ class GameDetailViewModel @Inject constructor(
         val now = System.currentTimeMillis()
         if (now - pageLoadTime < pageLoadDebounceMs) return
         viewModelScope.launch {
-            when (val result = downloadGameUseCase(currentGameId)) {
+            when (val result = gameActions.queueDownload(currentGameId)) {
                 is DownloadResult.Queued -> { }
                 is DownloadResult.Error -> notificationManager.showError(result.message)
             }
@@ -277,10 +277,7 @@ class GameDetailViewModel @Inject constructor(
 
     fun toggleFavorite() {
         viewModelScope.launch {
-            val game = gameDao.getById(currentGameId) ?: return@launch
-            val newFavoriteState = !game.isFavorite
-            gameDao.updateFavorite(currentGameId, newFavoriteState)
-            soundManager.play(if (newFavoriteState) SoundType.FAVORITE else SoundType.UNFAVORITE)
+            gameActions.toggleFavorite(currentGameId)
             loadGame(currentGameId)
         }
     }
@@ -438,13 +435,13 @@ class GameDetailViewModel @Inject constructor(
 
     fun hideGame() {
         viewModelScope.launch {
-            gameDao.updateHidden(currentGameId, true)
+            gameActions.hideGame(currentGameId)
         }
     }
 
     private fun deleteLocalFile() {
         viewModelScope.launch {
-            deleteGameUseCase(currentGameId)
+            gameActions.deleteLocalFile(currentGameId)
             notificationManager.showSuccess("Download deleted")
             loadGame(currentGameId)
         }

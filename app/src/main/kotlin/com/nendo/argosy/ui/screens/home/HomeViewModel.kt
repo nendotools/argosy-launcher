@@ -25,8 +25,8 @@ import com.nendo.argosy.ui.navigation.GameNavigationContext
 import com.nendo.argosy.ui.notification.NotificationManager
 import com.nendo.argosy.ui.notification.showError
 import com.nendo.argosy.ui.notification.showSuccess
+import com.nendo.argosy.ui.screens.common.GameActionsDelegate
 import android.content.Intent
-import android.util.Log
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
@@ -44,7 +44,11 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 
-private const val TAG = "HomeViewModel"
+private const val PLATFORM_GAMES_LIMIT = 20
+private const val RECENT_GAMES_LIMIT = 10
+private const val AUTO_SYNC_DAYS = 7L
+private const val MENU_INDEX_MAX_DOWNLOADED = 4
+private const val MENU_INDEX_MAX_REMOTE = 3
 
 data class GameDownloadIndicator(
     val isDownloading: Boolean = false,
@@ -158,11 +162,10 @@ class HomeViewModel @Inject constructor(
     private val notificationManager: NotificationManager,
     private val gameNavigationContext: GameNavigationContext,
     private val syncLibraryUseCase: SyncLibraryUseCase,
-    private val downloadGameUseCase: DownloadGameUseCase,
     private val launchGameUseCase: LaunchGameUseCase,
-    private val deleteGameUseCase: DeleteGameUseCase,
     private val downloadManager: DownloadManager,
-    private val soundManager: SoundFeedbackManager
+    private val soundManager: SoundFeedbackManager,
+    private val gameActions: GameActionsDelegate
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -189,7 +192,7 @@ class HomeViewModel @Inject constructor(
             if (isConfigured) {
                 val prefs = preferencesRepository.preferences.first()
                 val lastSync = prefs.lastRommSync
-                val oneWeekAgo = Instant.now().minus(7, ChronoUnit.DAYS)
+                val oneWeekAgo = Instant.now().minus(AUTO_SYNC_DAYS, ChronoUnit.DAYS)
 
                 if (lastSync == null || lastSync.isBefore(oneWeekAgo)) {
                     syncFromRomm()
@@ -201,7 +204,6 @@ class HomeViewModel @Inject constructor(
     private fun loadData() {
         viewModelScope.launch {
             val totalGames = gameDao.countAll()
-            Log.d(TAG, "loadData: totalGames in DB = $totalGames")
             if (totalGames == 0) {
                 _uiState.update { it.copy(isLoading = false) }
             }
@@ -241,7 +243,7 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun loadRecentGames() {
-        gameDao.observeRecentlyPlayed(10).collect { games ->
+        gameDao.observeRecentlyPlayed(RECENT_GAMES_LIMIT).collect { games ->
             val filtered = games.filter { it.lastPlayed != null }
             val gameUis = filtered.map { it.toUi() }
             _uiState.update { state ->
@@ -274,7 +276,6 @@ class HomeViewModel @Inject constructor(
     private suspend fun loadPlatforms() {
         platformDao.observePlatformsWithGames().collect { platforms ->
             val platformUis = platforms.map { it.toUi() }
-            Log.d(TAG, "loadPlatforms: got ${platforms.size} platforms")
             _uiState.update { state ->
                 val shouldSwitchRow = platforms.isNotEmpty() &&
                     state.currentRow == HomeRow.Continue &&
@@ -299,7 +300,7 @@ class HomeViewModel @Inject constructor(
         platformGamesJob?.cancel()
         platformGamesJob = viewModelScope.launch {
             var isFirstEmission = true
-            gameDao.observeByPlatformSorted(platformId, limit = 20).collect { games ->
+            gameDao.observeByPlatformSorted(platformId, limit = PLATFORM_GAMES_LIMIT).collect { games ->
                 val platform = _uiState.value.platforms.getOrNull(platformIndex)
                 val gameItems: List<HomeRowItem> = games.map { HomeRowItem.Game(it.toUi()) }
                 val items: List<HomeRowItem> = if (platform != null) {
@@ -428,7 +429,7 @@ class HomeViewModel @Inject constructor(
 
     fun moveGameMenuFocus(delta: Int) {
         _uiState.update {
-            val maxIndex = if (it.focusedGame?.isDownloaded == true) 4 else 3
+            val maxIndex = if (it.focusedGame?.isDownloaded == true) MENU_INDEX_MAX_DOWNLOADED else MENU_INDEX_MAX_REMOTE
             val newIndex = (it.gameMenuFocusIndex + delta).coerceIn(0, maxIndex)
             it.copy(gameMenuFocusIndex = newIndex)
         }
@@ -472,22 +473,19 @@ class HomeViewModel @Inject constructor(
 
     private fun toggleFavorite(gameId: Long) {
         viewModelScope.launch {
-            val game = gameDao.getById(gameId) ?: return@launch
-            val newFavoriteState = !game.isFavorite
-            gameDao.updateFavorite(gameId, newFavoriteState)
-            soundManager.play(if (newFavoriteState) SoundType.FAVORITE else SoundType.UNFAVORITE)
+            gameActions.toggleFavorite(gameId)
         }
     }
 
     private fun hideGame(gameId: Long) {
         viewModelScope.launch {
-            gameDao.updateHidden(gameId, true)
+            gameActions.hideGame(gameId)
         }
     }
 
     private fun deleteLocalFile(gameId: Long) {
         viewModelScope.launch {
-            deleteGameUseCase(gameId)
+            gameActions.deleteLocalFile(gameId)
             notificationManager.showSuccess("Download deleted")
         }
     }
@@ -501,7 +499,7 @@ class HomeViewModel @Inject constructor(
         lastDownloadQueueTime = now
 
         viewModelScope.launch {
-            when (val result = downloadGameUseCase(gameId)) {
+            when (val result = gameActions.queueDownload(gameId)) {
                 is DownloadResult.Queued -> { }
                 is DownloadResult.Error -> notificationManager.showError(result.message)
             }

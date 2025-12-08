@@ -1,6 +1,5 @@
 package com.nendo.argosy.data.preferences
 
-import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -14,8 +13,6 @@ import kotlinx.coroutines.flow.map
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
-
-private const val TAG = "Preferences"
 
 @Singleton
 class UserPreferencesRepository @Inject constructor(
@@ -59,15 +56,11 @@ class UserPreferencesRepository @Inject constructor(
     }
 
     val userPreferences: Flow<UserPreferences> = dataStore.data.map { prefs ->
-        val url = prefs[Keys.ROMM_URL]
-        val token = prefs[Keys.ROMM_TOKEN]
-        val username = prefs[Keys.ROMM_USERNAME]
-        Log.d(TAG, "Reading prefs: url=${url?.take(30)}, hasToken=${token != null}, username=$username")
         UserPreferences(
             firstRunComplete = prefs[Keys.FIRST_RUN_COMPLETE] ?: false,
-            rommBaseUrl = url,
-            rommUsername = username,
-            rommToken = token,
+            rommBaseUrl = prefs[Keys.ROMM_URL],
+            rommUsername = prefs[Keys.ROMM_USERNAME],
+            rommToken = prefs[Keys.ROMM_TOKEN],
             romStoragePath = prefs[Keys.ROM_STORAGE_PATH],
             themeMode = ThemeMode.fromString(prefs[Keys.THEME_MODE]),
             primaryColor = prefs[Keys.PRIMARY_COLOR],
@@ -160,23 +153,19 @@ class UserPreferencesRepository @Inject constructor(
     }
 
     suspend fun setRomMCredentials(baseUrl: String, token: String, username: String? = null) {
-        Log.d(TAG, "Saving credentials: url=${baseUrl.take(30)}, tokenLength=${token.length}, username=$username")
         dataStore.edit { prefs ->
             prefs[Keys.ROMM_URL] = baseUrl
             prefs[Keys.ROMM_TOKEN] = token
             if (username != null) prefs[Keys.ROMM_USERNAME] = username
         }
-        Log.d(TAG, "Credentials saved successfully")
     }
 
     suspend fun clearRomMCredentials() {
-        Log.d(TAG, "CLEARING credentials")
         dataStore.edit { prefs ->
             prefs.remove(Keys.ROMM_URL)
             prefs.remove(Keys.ROMM_TOKEN)
             prefs.remove(Keys.ROMM_USERNAME)
         }
-        Log.d(TAG, "Credentials cleared")
     }
 
     suspend fun setRomStoragePath(path: String) {

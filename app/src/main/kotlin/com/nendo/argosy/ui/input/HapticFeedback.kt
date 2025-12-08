@@ -5,13 +5,10 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import android.util.Log
 import androidx.core.content.getSystemService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
-
-private const val TAG = "HapticFeedback"
 
 enum class HapticPattern {
     FOCUS_CHANGE,
@@ -40,10 +37,6 @@ class HapticFeedbackManager @Inject constructor(
 
     enum class Intensity { LOW, MEDIUM, HIGH }
 
-    init {
-        Log.d(TAG, "Vibrator: $vibrator, hasVibrator: ${vibrator?.hasVibrator()}, hasAmplitudeControl: $hasAmplitudeControl")
-    }
-
     fun setEnabled(enabled: Boolean) {
         this.enabled = enabled
     }
@@ -54,11 +47,9 @@ class HapticFeedbackManager @Inject constructor(
             amplitude <= 180 -> Intensity.MEDIUM
             else -> Intensity.HIGH
         }
-        Log.d(TAG, "setIntensity amplitude=$amplitude -> $intensity")
     }
 
     fun vibrate(pattern: HapticPattern) {
-        Log.d(TAG, "vibrate($pattern) enabled=$enabled intensity=$intensity hasAmplitudeControl=$hasAmplitudeControl")
         if (!enabled || vibrator == null || !vibrator.hasVibrator()) return
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

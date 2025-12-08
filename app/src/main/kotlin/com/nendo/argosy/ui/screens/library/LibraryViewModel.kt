@@ -29,6 +29,7 @@ import com.nendo.argosy.ui.notification.NotificationManager
 import com.nendo.argosy.ui.notification.showError
 import com.nendo.argosy.ui.notification.showSuccess
 import com.nendo.argosy.ui.navigation.GameNavigationContext
+import com.nendo.argosy.ui.screens.common.GameActionsDelegate
 import com.nendo.argosy.ui.screens.home.HomePlatformUi
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -89,7 +90,6 @@ data class FilterOptions(
     val franchises: List<String> = emptyList()
 )
 
-// Keep for backward compatibility during transition
 enum class LibraryFilter(val label: String) {
     ALL("All Games"),
     PLAYABLE("Playable Only"),
@@ -217,12 +217,11 @@ class LibraryViewModel @Inject constructor(
     private val platformDao: PlatformDao,
     private val gameDao: GameDao,
     private val gameNavigationContext: GameNavigationContext,
-    private val deleteGameUseCase: DeleteGameUseCase,
-    private val downloadGameUseCase: DownloadGameUseCase,
     private val launchGameUseCase: LaunchGameUseCase,
     private val notificationManager: NotificationManager,
     private val preferencesRepository: UserPreferencesRepository,
-    private val soundManager: SoundFeedbackManager
+    private val soundManager: SoundFeedbackManager,
+    private val gameActions: GameActionsDelegate
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LibraryUiState())
@@ -577,13 +576,13 @@ class LibraryViewModel @Inject constructor(
 
     fun hideGame(gameId: Long) {
         viewModelScope.launch {
-            gameDao.updateHidden(gameId, true)
+            gameActions.hideGame(gameId)
         }
     }
 
     private fun deleteLocalFile(gameId: Long) {
         viewModelScope.launch {
-            deleteGameUseCase(gameId)
+            gameActions.deleteLocalFile(gameId)
             notificationManager.showSuccess("Download deleted")
         }
     }
@@ -610,7 +609,7 @@ class LibraryViewModel @Inject constructor(
 
     private fun downloadGame(gameId: Long) {
         viewModelScope.launch {
-            when (val result = downloadGameUseCase(gameId)) {
+            when (val result = gameActions.queueDownload(gameId)) {
                 is DownloadResult.Queued -> { }
                 is DownloadResult.Error -> notificationManager.showError(result.message)
             }
@@ -619,10 +618,7 @@ class LibraryViewModel @Inject constructor(
 
     fun toggleFavorite(gameId: Long) {
         viewModelScope.launch {
-            val game = gameDao.getById(gameId) ?: return@launch
-            val newFavoriteState = !game.isFavorite
-            gameDao.updateFavorite(gameId, newFavoriteState)
-            soundManager.play(if (newFavoriteState) SoundType.FAVORITE else SoundType.UNFAVORITE)
+            gameActions.toggleFavorite(gameId)
             loadGames()
         }
     }

@@ -28,13 +28,12 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
-import android.util.Log
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private const val TAG = "RomMRepository"
+private const val SYNC_PAGE_SIZE = 100
 
 sealed class RomMResult<out T> {
     data class Success<T>(val data: T) : RomMResult<T>()
@@ -85,23 +84,13 @@ class RomMRepository @Inject constructor(
     }
 
     suspend fun initialize() {
-        Log.d(TAG, "initialize() called")
-
-        val gameCount = gameDao.countAll()
-        Log.d(TAG, "initialize: DB has $gameCount games total")
-
         val prefs = userPreferencesRepository.preferences.first()
-        Log.d(TAG, "initialize: baseUrl=${prefs.rommBaseUrl?.take(30)}, hasToken=${prefs.rommToken != null}")
         if (!prefs.rommBaseUrl.isNullOrBlank()) {
-            val result = connect(prefs.rommBaseUrl, prefs.rommToken)
-            Log.d(TAG, "initialize connect result: $result")
-        } else {
-            Log.d(TAG, "initialize: no baseUrl, skipping connect")
+            connect(prefs.rommBaseUrl, prefs.rommToken)
         }
     }
 
     suspend fun connect(url: String, token: String? = null): RomMResult<String> {
-        Log.d(TAG, "connect: url=${url.take(30)}, hasToken=${token != null}")
         _connectionState.value = ConnectionState.Connecting
 
         val normalizedUrl = url.trimEnd('/') + "/"
@@ -114,16 +103,13 @@ class RomMRepository @Inject constructor(
 
             if (response.isSuccessful) {
                 val version = response.body()?.version ?: "unknown"
-                Log.d(TAG, "connect SUCCESS: version=$version")
                 _connectionState.value = ConnectionState.Connected(version)
                 RomMResult.Success(version)
             } else {
-                Log.d(TAG, "connect FAILED: code=${response.code()}")
                 _connectionState.value = ConnectionState.Failed("Server returned ${response.code()}")
                 RomMResult.Error("Connection failed", response.code())
             }
         } catch (e: Exception) {
-            Log.d(TAG, "connect EXCEPTION: ${e.message}")
             _connectionState.value = ConnectionState.Failed(e.message ?: "Unknown error")
             RomMResult.Error(e.message ?: "Connection failed")
         }
@@ -133,30 +119,21 @@ class RomMRepository @Inject constructor(
         val currentApi = api ?: return RomMResult.Error("Not connected")
 
         return try {
-            Log.d(TAG, "login: attempting login for user=$username")
             val scope = "me.read platforms.read roms.read assets.read roms.user.read roms.user.write"
             val response = currentApi.login(username, password, scope)
-            Log.d(TAG, "login: response code=${response.code()}, successful=${response.isSuccessful}")
             if (response.isSuccessful) {
                 val token = response.body()?.accessToken
-                if (token == null) {
-                    Log.e(TAG, "login: no token in response body")
-                    return RomMResult.Error("No token received")
-                }
+                    ?: return RomMResult.Error("No token received")
 
-                Log.d(TAG, "login: got token, recreating API with auth")
                 accessToken = token
                 api = createApi(baseUrl, token)
 
                 userPreferencesRepository.setRomMCredentials(baseUrl, token, username)
                 RomMResult.Success(token)
             } else {
-                val errorBody = response.errorBody()?.string()
-                Log.e(TAG, "login: failed, error=$errorBody")
                 RomMResult.Error("Login failed", response.code())
             }
         } catch (e: Exception) {
-            Log.e(TAG, "login: exception", e)
             RomMResult.Error(e.message ?: "Login failed")
         }
     }
@@ -165,7 +142,6 @@ class RomMRepository @Inject constructor(
         onProgress: ((current: Int, total: Int, platformName: String) -> Unit)? = null
     ): SyncResult = withContext(NonCancellable + Dispatchers.IO) {
         if (!syncMutex.tryLock()) {
-            Log.d(TAG, "syncLibrary: sync already in progress, skipping")
             return@withContext SyncResult(0, 0, 0, 0, listOf("Sync already in progress"))
         }
 
@@ -193,15 +169,9 @@ class RomMRepository @Inject constructor(
         _syncProgress.value = SyncProgress(isSyncing = true)
 
         try {
-            val initialCount = gameDao.countAll()
-            Log.d(TAG, "syncLibrary: STARTING sync - initial game count in DB: $initialCount")
-            Log.d(TAG, "syncLibrary: fetching platforms...")
             val platformsResponse = currentApi.getPlatforms()
-            Log.d(TAG, "syncLibrary: platforms response code=${platformsResponse.code()}, successful=${platformsResponse.isSuccessful}")
 
             if (!platformsResponse.isSuccessful) {
-                val errorBody = platformsResponse.errorBody()?.string()
-                Log.e(TAG, "syncLibrary: failed to fetch platforms, error=$errorBody")
                 val errorMsg = when (platformsResponse.code()) {
                     401, 403 -> "Authentication failed - token may be invalid or missing permissions"
                     else -> "Failed to fetch platforms: ${platformsResponse.code()}"
@@ -211,10 +181,8 @@ class RomMRepository @Inject constructor(
 
             val platforms = platformsResponse.body()
             if (platforms.isNullOrEmpty()) {
-                Log.e(TAG, "syncLibrary: platforms response body is null or empty")
                 return SyncResult(0, 0, 0, 0, listOf("No platforms returned from server"))
             }
-            Log.d(TAG, "syncLibrary: got ${platforms.size} platforms")
             _syncProgress.value = _syncProgress.value.copy(platformsTotal = platforms.size)
 
             for ((index, platform) in platforms.withIndex()) {
@@ -227,78 +195,17 @@ class RomMRepository @Inject constructor(
 
                 syncPlatform(platform)
 
-                val limit = 100
-                var offset = 0
-                var totalFetched = 0
-                var platformAdded = 0
-                var platformUpdated = 0
-                var platformSkipped = 0
+                val result = syncPlatformRoms(currentApi, platform, filters)
+                gamesAdded += result.added
+                gamesUpdated += result.updated
+                seenRommIds.addAll(result.seenIds)
+                result.error?.let { errors.add(it) }
 
-                while (true) {
-                    Log.d(TAG, "syncLibrary: fetching ROMs for ${platform.name} (id=${platform.id}), offset=$offset, limit=$limit")
-                    val romsResponse = currentApi.getRoms(
-                        platformId = platform.id,
-                        limit = limit,
-                        offset = offset
-                    )
-
-                    if (!romsResponse.isSuccessful) {
-                        val errorBody = romsResponse.errorBody()?.string()
-                        Log.e(TAG, "syncLibrary: failed to fetch ROMs: $errorBody")
-                        errors.add("Failed to fetch ROMs for ${platform.name}: ${romsResponse.code()}")
-                        break
-                    }
-
-                    val romsPage = romsResponse.body()
-                    if (romsPage == null || romsPage.items.isEmpty()) {
-                        break
-                    }
-
-                    totalFetched += romsPage.items.size
-                    _syncProgress.value = _syncProgress.value.copy(
-                        gamesTotal = romsPage.total,
-                        gamesDone = totalFetched
-                    )
-
-                    for (rom in romsPage.items) {
-                        if (rom.igdbId == null) {
-                            platformSkipped++
-                            continue
-                        }
-                        if (!shouldSyncRom(rom, filters)) {
-                            platformSkipped++
-                            continue
-                        }
-                        seenRommIds.add(rom.id)
-                        try {
-                            val result = syncRom(rom, platform.slug)
-                            if (result.first) {
-                                gamesAdded++
-                                platformAdded++
-                            } else {
-                                gamesUpdated++
-                                platformUpdated++
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "syncLibrary: failed to sync ROM ${rom.name}: ${e.message}")
-                        }
-                    }
-
-                    if (totalFetched >= romsPage.total) break
-                    offset += limit
-                }
-
-                val dbCount = gameDao.countByPlatform(platform.slug)
-                Log.d(TAG, "syncLibrary: ${platform.slug} done - fetched=$totalFetched, added=$platformAdded, updated=$platformUpdated, skipped=$platformSkipped, dbCount=$dbCount")
                 platformsSynced++
             }
 
-            val totalGames = gameDao.countAll()
-            Log.d(TAG, "syncLibrary: TOTAL games in DB: $totalGames")
-
             platforms.forEach { platform ->
                 val count = gameDao.countByPlatform(platform.slug)
-                Log.d(TAG, "syncLibrary: platform ${platform.slug} has $count games")
                 platformDao.updateGameCount(platform.slug, count)
             }
 
@@ -307,10 +214,8 @@ class RomMRepository @Inject constructor(
             }
 
             userPreferencesRepository.setLastRommSyncTime(Instant.now())
-            Log.d(TAG, "syncLibrary: recorded sync time, added=$gamesAdded, updated=$gamesUpdated, deleted=$gamesDeleted")
 
         } catch (e: Exception) {
-            Log.e(TAG, "syncLibrary: exception during sync", e)
             errors.add(e.message ?: "Sync failed")
         } finally {
             _syncProgress.value = SyncProgress(isSyncing = false)
@@ -350,12 +255,6 @@ class RomMRepository @Inject constructor(
 
     private suspend fun syncRom(rom: RomMRom, platformSlug: String): Pair<Boolean, GameEntity> {
         val existing = gameDao.getByRommId(rom.id)
-        if (existing != null) {
-            if (existing.rommId != rom.id) {
-                Log.e(TAG, "syncRom: BUG! getByRommId(${rom.id}) returned record with WRONG rommId=${existing.rommId}!")
-            }
-            Log.d(TAG, "syncRom: FOUND existing for rommId=${rom.id}: dbId=${existing.id}, dbRommId=${existing.rommId}, platform=${existing.platformId}")
-        }
 
         val screenshotUrls = rom.screenshotUrls.ifEmpty {
             rom.screenshotPaths?.map { buildMediaUrl(it) } ?: emptyList()
@@ -408,15 +307,7 @@ class RomMRepository @Inject constructor(
         )
 
         val isNew = existing == null
-        try {
-            val insertedId = gameDao.insert(game)
-            if (insertedId == -1L) {
-                Log.e(TAG, "syncRom: INSERT FAILED for ${rom.name} (rommId=${rom.id}, igdbId=${rom.igdbId})")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "syncRom: DB ERROR for ${rom.name}: ${e.message}", e)
-            throw e
-        }
+        gameDao.insert(game)
         return isNew to game
     }
 
@@ -473,6 +364,62 @@ class RomMRepository @Inject constructor(
         return true
     }
 
+    private data class PlatformSyncResult(
+        val added: Int,
+        val updated: Int,
+        val seenIds: Set<Long>,
+        val error: String? = null
+    )
+
+    private suspend fun syncPlatformRoms(
+        api: RomMApi,
+        platform: RomMPlatform,
+        filters: SyncFilterPreferences
+    ): PlatformSyncResult {
+        var added = 0
+        var updated = 0
+        val seenIds = mutableSetOf<Long>()
+        var offset = 0
+        var totalFetched = 0
+
+        while (true) {
+            val romsResponse = api.getRoms(
+                platformId = platform.id,
+                limit = SYNC_PAGE_SIZE,
+                offset = offset
+            )
+
+            if (!romsResponse.isSuccessful) {
+                return PlatformSyncResult(added, updated, seenIds,
+                    "Failed to fetch ROMs for ${platform.name}: ${romsResponse.code()}")
+            }
+
+            val romsPage = romsResponse.body()
+            if (romsPage == null || romsPage.items.isEmpty()) break
+
+            totalFetched += romsPage.items.size
+            _syncProgress.value = _syncProgress.value.copy(
+                gamesTotal = romsPage.total,
+                gamesDone = totalFetched
+            )
+
+            for (rom in romsPage.items) {
+                if (rom.igdbId == null || !shouldSyncRom(rom, filters)) continue
+                seenIds.add(rom.id)
+                try {
+                    val (isNew, _) = syncRom(rom, platform.slug)
+                    if (isNew) added++ else updated++
+                } catch (_: Exception) {
+                }
+            }
+
+            if (totalFetched >= romsPage.total) break
+            offset += SYNC_PAGE_SIZE
+        }
+
+        return PlatformSyncResult(added, updated, seenIds)
+    }
+
     private suspend fun deleteOrphanedGames(seenRommIds: Set<Long>): Int {
         val remoteOnlyGames = gameDao.getBySource(GameSource.ROMM_REMOTE)
         var deleted = 0
@@ -482,11 +429,9 @@ class RomMRepository @Inject constructor(
             if (rommId !in seenRommIds && game.localPath == null) {
                 gameDao.delete(game.id)
                 deleted++
-                Log.d(TAG, "deleteOrphanedGames: deleted orphan ${game.title} (rommId=$rommId)")
             }
         }
 
-        Log.d(TAG, "deleteOrphanedGames: removed $deleted orphaned games")
         return deleted
     }
 
@@ -516,20 +461,17 @@ class RomMRepository @Inject constructor(
     ): RomMResult<DownloadResponse> {
         val currentApi = api ?: return RomMResult.Error("Not connected")
         return try {
-            Log.d(TAG, "downloadRom: starting download for romId=$romId, fileName=$fileName, range=$rangeHeader")
             val response = currentApi.downloadRom(romId, fileName, rangeHeader)
             if (response.isSuccessful) {
                 val body = response.body()
                 if (body != null) {
                     val isPartial = response.code() == 206
-                    Log.d(TAG, "downloadRom: success, size=${body.contentLength()}, partial=$isPartial")
                     RomMResult.Success(DownloadResponse(body, isPartial))
                 } else {
                     RomMResult.Error("Empty response body")
                 }
             } else {
                 val code = response.code()
-                Log.e(TAG, "downloadRom: failed with code=$code")
                 val message = when (code) {
                     400 -> "Bad request - try resyncing (HTTP 400)"
                     401, 403 -> "Authentication failed (HTTP $code)"
@@ -540,7 +482,6 @@ class RomMRepository @Inject constructor(
                 RomMResult.Error(message, code)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "downloadRom: exception", e)
             RomMResult.Error(e.message ?: "Download failed")
         }
     }
@@ -692,8 +633,7 @@ class RomMRepository @Inject constructor(
                         delay(500)
                     }
                 }
-            } catch (e: Exception) {
-                Log.d(TAG, "processPendingSync: failed to sync item ${item.id}: ${e.message}")
+            } catch (_: Exception) {
             }
         }
         return synced
