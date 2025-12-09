@@ -195,20 +195,14 @@ class GameLauncher @Inject constructor(
         platformId: String,
         config: LaunchConfig.RetroArch
     ): Intent {
-        val coreName = EmulatorRegistry.getRetroArchCores()[platformId]
         val retroArchPackage = emulator.packageName
         val dataDir = "/data/data/$retroArchPackage"
         val externalDir = "/storage/emulated/0/Android/data/$retroArchPackage/files"
-
-        val corePath = coreName?.let { "$dataDir/cores/${it}_libretro_android.so" }
         val configPath = "$externalDir/retroarch.cfg"
 
         return Intent(emulator.launchAction).apply {
             component = ComponentName(retroArchPackage, config.activityClass)
             putExtra("ROM", romFile.absolutePath)
-            if (corePath != null) {
-                putExtra("LIBRETRO", corePath)
-            }
             putExtra("CONFIGFILE", configPath)
             putExtra("IME", "com.android.inputmethod.latin/.LatinIME")
             putExtra("DATADIR", dataDir)
