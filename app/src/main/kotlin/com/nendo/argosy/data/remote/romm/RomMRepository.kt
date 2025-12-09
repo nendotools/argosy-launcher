@@ -63,7 +63,8 @@ class RomMRepository @Inject constructor(
     private val gameDao: GameDao,
     private val platformDao: PlatformDao,
     private val pendingSyncDao: PendingSyncDao,
-    private val imageCacheManager: ImageCacheManager
+    private val imageCacheManager: ImageCacheManager,
+    private val saveSyncRepository: dagger.Lazy<com.nendo.argosy.data.repository.SaveSyncRepository>
 ) {
     private var api: RomMApi? = null
     private var baseUrl: String = ""
@@ -99,6 +100,7 @@ class RomMRepository @Inject constructor(
 
         return try {
             api = createApi(normalizedUrl, token)
+            saveSyncRepository.get().setApi(api)
             val response = api!!.heartbeat()
 
             if (response.isSuccessful) {
@@ -127,6 +129,7 @@ class RomMRepository @Inject constructor(
 
                 accessToken = token
                 api = createApi(baseUrl, token)
+                saveSyncRepository.get().setApi(api)
 
                 userPreferencesRepository.setRomMCredentials(baseUrl, token, username)
                 RomMResult.Success(token)
@@ -369,6 +372,10 @@ class RomMRepository @Inject constructor(
         }
         if (filters.excludeDemo) {
             if (revision.contains("demo") || name.contains("(demo)") || name.contains("(sample)")) return false
+        }
+        if (filters.excludeHack) {
+            if (revision.contains("hack") || name.contains("(hack)") ||
+                Regex("\\(.*hack.*\\)", RegexOption.IGNORE_CASE).containsMatchIn(name)) return false
         }
 
         return true

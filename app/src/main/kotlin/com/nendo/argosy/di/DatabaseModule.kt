@@ -5,9 +5,12 @@ import androidx.room.Room
 import com.nendo.argosy.data.local.ALauncherDatabase
 import com.nendo.argosy.data.local.dao.DownloadQueueDao
 import com.nendo.argosy.data.local.dao.EmulatorConfigDao
+import com.nendo.argosy.data.local.dao.EmulatorSaveConfigDao
 import com.nendo.argosy.data.local.dao.GameDao
+import com.nendo.argosy.data.local.dao.PendingSaveSyncDao
 import com.nendo.argosy.data.local.dao.PendingSyncDao
 import com.nendo.argosy.data.local.dao.PlatformDao
+import com.nendo.argosy.data.local.dao.SaveSyncDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -36,7 +39,8 @@ object DatabaseModule {
                 ALauncherDatabase.MIGRATION_6_7,
                 ALauncherDatabase.MIGRATION_7_8,
                 ALauncherDatabase.MIGRATION_8_9,
-                ALauncherDatabase.MIGRATION_9_10
+                ALauncherDatabase.MIGRATION_9_10,
+                ALauncherDatabase.MIGRATION_10_11
             )
             .build()
     }
@@ -58,4 +62,16 @@ object DatabaseModule {
     @Provides
     fun provideDownloadQueueDao(database: ALauncherDatabase): DownloadQueueDao =
         database.downloadQueueDao()
+
+    @Provides
+    fun provideSaveSyncDao(database: ALauncherDatabase): SaveSyncDao =
+        database.saveSyncDao()
+
+    @Provides
+    fun providePendingSaveSyncDao(database: ALauncherDatabase): PendingSaveSyncDao =
+        database.pendingSaveSyncDao()
+
+    @Provides
+    fun provideEmulatorSaveConfigDao(database: ALauncherDatabase): EmulatorSaveConfigDao =
+        database.emulatorSaveConfigDao()
 }

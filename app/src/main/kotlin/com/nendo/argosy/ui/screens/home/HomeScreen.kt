@@ -15,6 +15,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,6 +61,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -83,7 +85,7 @@ import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.Motion
 import kotlinx.coroutines.launch
 
-private const val SCROLL_OFFSET = 100
+private const val SCROLL_OFFSET = -25
 
 @Composable
 fun HomeScreen(
@@ -278,7 +280,28 @@ fun HomeScreen(
                 GameSelectOverlay(
                     game = focusedGame,
                     focusIndex = uiState.gameMenuFocusIndex,
-                    onDismiss = { viewModel.toggleGameMenu() }
+                    onDismiss = { viewModel.toggleGameMenu() },
+                    onPlayOrDownload = {
+                        viewModel.toggleGameMenu()
+                        if (focusedGame.isDownloaded) {
+                            viewModel.launchGame(focusedGame.id)
+                        } else {
+                            viewModel.queueDownload(focusedGame.id)
+                        }
+                    },
+                    onFavorite = { viewModel.toggleFavorite(focusedGame.id) },
+                    onDetails = {
+                        viewModel.toggleGameMenu()
+                        onGameSelect(focusedGame.id)
+                    },
+                    onDelete = {
+                        viewModel.toggleGameMenu()
+                        viewModel.deleteLocalFile(focusedGame.id)
+                    },
+                    onHide = {
+                        viewModel.toggleGameMenu()
+                        viewModel.hideGame(focusedGame.id)
+                    }
                 )
             }
         }
@@ -408,7 +431,7 @@ private fun GameInfo(
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
-                            text = "$userRating/5",
+                            text = "$userRating/10",
                             style = MaterialTheme.typography.labelMedium,
                             color = Color.White.copy(alpha = 0.7f)
                         )
@@ -426,7 +449,7 @@ private fun GameInfo(
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
-                            text = "$userDifficulty/5",
+                            text = "$userDifficulty/10",
                             style = MaterialTheme.typography.labelMedium,
                             color = Color.White.copy(alpha = 0.7f)
                         )
@@ -446,9 +469,11 @@ private fun GameRail(
     downloadIndicatorFor: (Long) -> GameDownloadIndicator,
     modifier: Modifier = Modifier
 ) {
+    val focusSpacingPx = with(LocalDensity.current) { 64.dp.toPx() }
+
     LazyRow(
         state = listState,
-        contentPadding = PaddingValues(start = 48.dp, end = 600.dp),
+        contentPadding = PaddingValues(start = 58.dp, end = 600.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.Bottom,
         modifier = modifier
@@ -465,6 +490,16 @@ private fun GameRail(
             }
         ) { index, item ->
             val isFocused = index == focusedIndex
+            val translationX by animateFloatAsState(
+                targetValue = when {
+                    index < focusedIndex -> -focusSpacingPx
+                    index > focusedIndex -> focusSpacingPx
+                    else -> 0f
+                },
+                animationSpec = Motion.focusSpring,
+                label = "translationX"
+            )
+
             when (item) {
                 is HomeRowItem.Game -> {
                     GameCard(
@@ -474,7 +509,7 @@ private fun GameRail(
                         scaleFromBottom = true,
                         downloadIndicator = downloadIndicatorFor(item.game.id),
                         modifier = Modifier
-                            .padding(horizontal = if (isFocused) 64.dp else 0.dp)
+                            .graphicsLayer { this.translationX = translationX }
                             .width(120.dp)
                             .height(160.dp)
                     )
@@ -483,7 +518,7 @@ private fun GameRail(
                     ViewAllCard(
                         isFocused = isFocused,
                         modifier = Modifier
-                            .padding(horizontal = if (isFocused) 64.dp else 0.dp)
+                            .graphicsLayer { this.translationX = translationX }
                             .width(120.dp)
                             .height(160.dp)
                     )
@@ -623,7 +658,12 @@ private fun EmptyState(
 private fun GameSelectOverlay(
     game: HomeGameUi,
     focusIndex: Int,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onPlayOrDownload: () -> Unit,
+    onFavorite: () -> Unit,
+    onDetails: () -> Unit,
+    onDelete: () -> Unit,
+    onHide: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -647,30 +687,35 @@ private fun GameSelectOverlay(
             MenuOption(
                 icon = if (game.isDownloaded) Icons.Default.PlayArrow else Icons.Default.Download,
                 label = if (game.isDownloaded) "Play" else "Download",
-                isFocused = focusIndex == 0
+                isFocused = focusIndex == 0,
+                onClick = onPlayOrDownload
             )
             MenuOption(
                 icon = if (game.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                 label = if (game.isFavorite) "Unfavorite" else "Favorite",
-                isFocused = focusIndex == 1
+                isFocused = focusIndex == 1,
+                onClick = onFavorite
             )
             MenuOption(
                 icon = Icons.Default.Info,
                 label = "Details",
-                isFocused = focusIndex == 2
+                isFocused = focusIndex == 2,
+                onClick = onDetails
             )
             if (game.isDownloaded) {
                 MenuOption(
                     icon = Icons.Default.DeleteOutline,
                     label = "Delete Download",
                     isFocused = focusIndex == 3,
-                    isDangerous = true
+                    isDangerous = true,
+                    onClick = onDelete
                 )
             }
             MenuOption(
                 label = "Hide",
                 isFocused = focusIndex == if (game.isDownloaded) 4 else 3,
-                isDangerous = true
+                isDangerous = true,
+                onClick = onHide
             )
         }
     }
@@ -681,7 +726,8 @@ private fun MenuOption(
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     label: String,
     isFocused: Boolean = false,
-    isDangerous: Boolean = false
+    isDangerous: Boolean = false,
+    onClick: () -> Unit
 ) {
     val contentColor = when {
         isDangerous && isFocused -> MaterialTheme.colorScheme.onErrorContainer
@@ -698,6 +744,7 @@ private fun MenuOption(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .background(backgroundColor, RoundedCornerShape(8.dp))
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,

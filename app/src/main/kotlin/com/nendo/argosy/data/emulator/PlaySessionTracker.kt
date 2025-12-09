@@ -3,12 +3,17 @@ package com.nendo.argosy.data.emulator
 import android.app.Activity
 import android.app.Application
 import android.os.Bundle
+import android.util.Log
 import com.nendo.argosy.data.local.dao.GameDao
+import com.nendo.argosy.domain.usecase.save.SyncSaveOnSessionEndUseCase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.Duration
@@ -22,15 +27,28 @@ data class ActiveSession(
     val emulatorPackage: String
 )
 
+data class SaveConflictEvent(
+    val gameId: Long,
+    val localTimestamp: Instant,
+    val serverTimestamp: Instant
+)
+
 @Singleton
 class PlaySessionTracker @Inject constructor(
     private val application: Application,
-    private val gameDao: GameDao
+    private val gameDao: GameDao,
+    private val syncSaveOnSessionEndUseCase: dagger.Lazy<SyncSaveOnSessionEndUseCase>
 ) {
+    companion object {
+        private const val TAG = "PlaySessionTracker"
+    }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val _activeSession = MutableStateFlow<ActiveSession?>(null)
     val activeSession: StateFlow<ActiveSession?> = _activeSession.asStateFlow()
+
+    private val _conflictEvents = MutableSharedFlow<SaveConflictEvent>()
+    val conflictEvents: SharedFlow<SaveConflictEvent> = _conflictEvents.asSharedFlow()
 
     private var wasInBackground = false
     private var lastPauseTime: Instant? = null
@@ -54,9 +72,37 @@ class PlaySessionTracker @Inject constructor(
         val duration = Duration.between(session.startTime, Instant.now())
         val minutes = duration.toMinutes().toInt()
 
-        if (minutes > 0) {
-            scope.launch {
+        scope.launch {
+            if (minutes > 0) {
                 gameDao.addPlayTime(session.gameId, minutes)
+            }
+
+            val result = syncSaveOnSessionEndUseCase.get()(session.gameId, session.emulatorPackage)
+            when (result) {
+                is SyncSaveOnSessionEndUseCase.Result.Conflict -> {
+                    _conflictEvents.emit(
+                        SaveConflictEvent(
+                            gameId = result.gameId,
+                            localTimestamp = result.localTimestamp,
+                            serverTimestamp = result.serverTimestamp
+                        )
+                    )
+                }
+                is SyncSaveOnSessionEndUseCase.Result.Uploaded -> {
+                    Log.d(TAG, "Save uploaded for game ${session.gameId}")
+                }
+                is SyncSaveOnSessionEndUseCase.Result.Queued -> {
+                    Log.d(TAG, "Save queued for game ${session.gameId}")
+                }
+                is SyncSaveOnSessionEndUseCase.Result.NoSaveFound -> {
+                    Log.d(TAG, "No save found for game ${session.gameId}")
+                }
+                is SyncSaveOnSessionEndUseCase.Result.NotConfigured -> {
+                    Log.d(TAG, "Save sync not configured for game ${session.gameId}")
+                }
+                is SyncSaveOnSessionEndUseCase.Result.Error -> {
+                    Log.e(TAG, "Save sync error: ${result.message}")
+                }
             }
         }
     }

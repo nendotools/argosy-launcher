@@ -19,6 +19,7 @@ enum class FirstRunStep {
     ROMM_LOGIN,
     ROMM_SUCCESS,
     ROM_PATH,
+    SAVE_SYNC,
     COMPLETE
 }
 
@@ -34,7 +35,8 @@ data class FirstRunUiState(
     val romStoragePath: String? = null,
     val folderSelected: Boolean = false,
     val launchFolderPicker: Boolean = false,
-    val skippedRomm: Boolean = false
+    val skippedRomm: Boolean = false,
+    val saveSyncEnabled: Boolean = false
 )
 
 @HiltViewModel
@@ -53,7 +55,8 @@ class FirstRunViewModel @Inject constructor(
                 FirstRunStep.ROMM_CHOICE -> FirstRunStep.ROMM_LOGIN
                 FirstRunStep.ROMM_LOGIN -> FirstRunStep.ROMM_SUCCESS
                 FirstRunStep.ROMM_SUCCESS -> FirstRunStep.ROM_PATH
-                FirstRunStep.ROM_PATH -> FirstRunStep.COMPLETE
+                FirstRunStep.ROM_PATH -> if (state.skippedRomm) FirstRunStep.COMPLETE else FirstRunStep.SAVE_SYNC
+                FirstRunStep.SAVE_SYNC -> FirstRunStep.COMPLETE
                 FirstRunStep.COMPLETE -> FirstRunStep.COMPLETE
             }
             state.copy(currentStep = nextStep)
@@ -68,7 +71,8 @@ class FirstRunViewModel @Inject constructor(
                 FirstRunStep.ROMM_LOGIN -> FirstRunStep.ROMM_CHOICE
                 FirstRunStep.ROMM_SUCCESS -> FirstRunStep.ROMM_LOGIN
                 FirstRunStep.ROM_PATH -> if (state.skippedRomm) FirstRunStep.ROMM_CHOICE else FirstRunStep.ROMM_SUCCESS
-                FirstRunStep.COMPLETE -> FirstRunStep.ROM_PATH
+                FirstRunStep.SAVE_SYNC -> FirstRunStep.ROM_PATH
+                FirstRunStep.COMPLETE -> if (state.skippedRomm) FirstRunStep.ROM_PATH else FirstRunStep.SAVE_SYNC
             }
             state.copy(currentStep = prevStep)
         }
@@ -174,11 +178,22 @@ class FirstRunViewModel @Inject constructor(
         }
     }
 
+    fun enableSaveSync() {
+        _uiState.update { it.copy(saveSyncEnabled = true) }
+        nextStep()
+    }
+
+    fun skipSaveSync() {
+        _uiState.update { it.copy(saveSyncEnabled = false) }
+        nextStep()
+    }
+
     fun completeSetup() {
         viewModelScope.launch {
             _uiState.value.romStoragePath?.let { path ->
                 preferencesRepository.setRomStoragePath(path)
             }
+            preferencesRepository.setSaveSyncEnabled(_uiState.value.saveSyncEnabled)
             preferencesRepository.setFirstRunComplete()
         }
     }

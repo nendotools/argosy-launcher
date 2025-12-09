@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -120,6 +121,10 @@ fun FirstRunScreen(
                     folderSelected = uiState.folderSelected,
                     onChooseFolder = { viewModel.openFolderPicker() },
                     onContinue = { viewModel.proceedFromRomPath() }
+                )
+                FirstRunStep.SAVE_SYNC -> SaveSyncStep(
+                    onEnable = { viewModel.enableSaveSync() },
+                    onSkip = { viewModel.skipSaveSync() }
                 )
                 FirstRunStep.COMPLETE -> CompleteStep(
                     rommConnected = !uiState.skippedRomm,
@@ -394,6 +399,49 @@ private fun RomPathStep(
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "We'll create subfolders for each console automatically.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun SaveSyncStep(
+    onEnable: () -> Unit,
+    onSkip: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(32.dp)
+    ) {
+        StepHeader(step = 3, title = "Save Data Sync")
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Sync your game saves with your RomM server to continue playing across multiple devices.",
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Saves are uploaded when you stop playing and downloaded when needed.",
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(32.dp))
+        Button(onClick = onEnable) {
+            Icon(Icons.Default.Sync, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Enable Save Sync")
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        OutlinedButton(onClick = onSkip) {
+            Text("Skip for Now")
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(
+            text = "You can enable this later in Settings.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

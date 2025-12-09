@@ -245,7 +245,12 @@ fun LibraryScreen(
         ) {
             FilterMenuOverlay(
                 uiState = uiState,
-                onDismiss = { viewModel.toggleFilterMenu() }
+                onDismiss = { viewModel.toggleFilterMenu() },
+                onCategorySelect = { viewModel.setFilterCategory(it) },
+                onOptionSelect = { index ->
+                    viewModel.moveFilterOptionFocus(index - uiState.filterOptionIndex)
+                    viewModel.confirmFilterSelection()
+                }
             )
         }
 
@@ -258,7 +263,28 @@ fun LibraryScreen(
                 QuickMenuOverlay(
                     game = game,
                     focusIndex = uiState.quickMenuFocusIndex,
-                    onDismiss = { viewModel.toggleQuickMenu() }
+                    onDismiss = { viewModel.toggleQuickMenu() },
+                    onPlayOrDownload = {
+                        viewModel.toggleQuickMenu()
+                        if (game.isDownloaded) {
+                            viewModel.launchGame(game.id)
+                        } else {
+                            viewModel.downloadGame(game.id)
+                        }
+                    },
+                    onFavorite = { viewModel.toggleFavorite(game.id) },
+                    onDetails = {
+                        viewModel.toggleQuickMenu()
+                        onGameSelect(game.id)
+                    },
+                    onDelete = {
+                        viewModel.toggleQuickMenu()
+                        viewModel.deleteLocalFile(game.id)
+                    },
+                    onHide = {
+                        viewModel.toggleQuickMenu()
+                        viewModel.hideGame(game.id)
+                    }
                 )
             }
         }
@@ -391,7 +417,9 @@ private fun EmptyLibrary(platformName: String?) {
 @Composable
 private fun FilterMenuOverlay(
     uiState: LibraryUiState,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onCategorySelect: (FilterCategory) -> Unit,
+    onOptionSelect: (Int) -> Unit
 ) {
     val listState = rememberLazyListState()
     val options = uiState.currentCategoryOptions
@@ -464,6 +492,7 @@ private fun FilterMenuOverlay(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(Dimens.radiusMd))
+                            .clickable { onCategorySelect(category) }
                             .then(
                                 if (hasActiveFilters && !isCurrent) {
                                     Modifier.border(
@@ -504,7 +533,8 @@ private fun FilterMenuOverlay(
                     FilterOptionItem(
                         label = option,
                         isFocused = isFocused,
-                        isSelected = isSelected
+                        isSelected = isSelected,
+                        onClick = { onOptionSelect(index) }
                     )
                 }
             }
@@ -525,12 +555,14 @@ private fun FilterMenuOverlay(
 private fun FilterOptionItem(
     label: String,
     isFocused: Boolean,
-    isSelected: Boolean
+    isSelected: Boolean,
+    onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(Dimens.radiusMd))
+            .clickable(onClick = onClick)
             .background(
                 when {
                     isFocused -> MaterialTheme.colorScheme.primaryContainer
@@ -564,7 +596,12 @@ private fun FilterOptionItem(
 private fun QuickMenuOverlay(
     game: LibraryGameUi,
     focusIndex: Int,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onPlayOrDownload: () -> Unit,
+    onFavorite: () -> Unit,
+    onDetails: () -> Unit,
+    onDelete: () -> Unit,
+    onHide: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -591,30 +628,35 @@ private fun QuickMenuOverlay(
             QuickMenuItem(
                 icon = if (game.isDownloaded) Icons.Default.PlayArrow else Icons.Default.Download,
                 label = if (game.isDownloaded) "Play" else "Download",
-                isFocused = focusIndex == 0
+                isFocused = focusIndex == 0,
+                onClick = onPlayOrDownload
             )
             QuickMenuItem(
                 icon = if (game.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                 label = if (game.isFavorite) "Unfavorite" else "Favorite",
-                isFocused = focusIndex == 1
+                isFocused = focusIndex == 1,
+                onClick = onFavorite
             )
             QuickMenuItem(
                 icon = Icons.Default.Info,
                 label = "Details",
-                isFocused = focusIndex == 2
+                isFocused = focusIndex == 2,
+                onClick = onDetails
             )
             if (game.isDownloaded) {
                 QuickMenuItem(
                     icon = Icons.Default.DeleteOutline,
                     label = "Delete Download",
                     isFocused = focusIndex == 3,
-                    isDangerous = true
+                    isDangerous = true,
+                    onClick = onDelete
                 )
             }
             QuickMenuItem(
                 label = "Hide",
                 isFocused = focusIndex == if (game.isDownloaded) 4 else 3,
-                isDangerous = true
+                isDangerous = true,
+                onClick = onHide
             )
         }
     }
@@ -626,7 +668,8 @@ private fun QuickMenuItem(
     label: String,
     value: String? = null,
     isFocused: Boolean = false,
-    isDangerous: Boolean = false
+    isDangerous: Boolean = false,
+    onClick: () -> Unit
 ) {
     val contentColor = when {
         isDangerous && isFocused -> MaterialTheme.colorScheme.onErrorContainer
@@ -643,6 +686,7 @@ private fun QuickMenuItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .background(backgroundColor, RoundedCornerShape(8.dp))
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,

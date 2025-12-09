@@ -210,8 +210,9 @@ fun SettingsScreen(
             SettingsHeader(
                 title = when (uiState.currentSection) {
                     SettingsSection.MAIN -> "SETTINGS"
-                    SettingsSection.SERVER -> "SERVER"
+                    SettingsSection.SERVER -> "GAME DATA"
                     SettingsSection.SYNC_SETTINGS -> "SYNC SETTINGS"
+                    SettingsSection.SYNC_FILTERS -> "METADATA FILTERS"
                     SettingsSection.STEAM_SETTINGS -> "STEAM (EXPERIMENTAL)"
                     SettingsSection.STORAGE -> "STORAGE"
                     SettingsSection.DISPLAY -> "DISPLAY"
@@ -222,20 +223,21 @@ fun SettingsScreen(
                 }
             )
 
-            when (uiState.currentSection) {
-                SettingsSection.MAIN -> MainSettingsSection(uiState, viewModel)
-                SettingsSection.SERVER -> ServerSection(uiState, viewModel, imageCacheProgress)
-                SettingsSection.SYNC_SETTINGS -> SyncSettingsSection(uiState, viewModel)
-                SettingsSection.STEAM_SETTINGS -> SteamSection(uiState, viewModel)
-                SettingsSection.STORAGE -> StorageSection(uiState, viewModel)
-                SettingsSection.DISPLAY -> DisplaySection(uiState, viewModel)
-                SettingsSection.CONTROLS -> ControlsSection(uiState, viewModel)
-                SettingsSection.SOUNDS -> SoundsSection(uiState, viewModel)
-                SettingsSection.EMULATORS -> EmulatorsSection(uiState, viewModel)
-                SettingsSection.ABOUT -> AboutSection(uiState, viewModel)
+            Box(modifier = Modifier.weight(1f)) {
+                when (uiState.currentSection) {
+                    SettingsSection.MAIN -> MainSettingsSection(uiState, viewModel)
+                    SettingsSection.SERVER -> ServerSection(uiState, viewModel)
+                    SettingsSection.SYNC_SETTINGS -> SyncSettingsSection(uiState, viewModel, imageCacheProgress)
+                    SettingsSection.SYNC_FILTERS -> SyncFiltersSection(uiState, viewModel)
+                    SettingsSection.STEAM_SETTINGS -> SteamSection(uiState, viewModel)
+                    SettingsSection.STORAGE -> StorageSection(uiState, viewModel)
+                    SettingsSection.DISPLAY -> DisplaySection(uiState, viewModel)
+                    SettingsSection.CONTROLS -> ControlsSection(uiState, viewModel)
+                    SettingsSection.SOUNDS -> SoundsSection(uiState, viewModel)
+                    SettingsSection.EMULATORS -> EmulatorsSection(uiState, viewModel)
+                    SettingsSection.ABOUT -> AboutSection(uiState, viewModel)
+                }
             }
-
-            Spacer(modifier = Modifier.weight(1f))
 
             SettingsFooter()
         }
@@ -324,16 +326,23 @@ private fun MainSettingsSection(uiState: SettingsUiState, viewModel: SettingsVie
         verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
         item {
-            val serverSubtitle = when (uiState.server.connectionStatus) {
-                ConnectionStatus.ONLINE -> uiState.server.rommUrl ?: "Connected"
-                ConnectionStatus.OFFLINE -> "Offline"
-                ConnectionStatus.CHECKING -> "Checking..."
-                ConnectionStatus.NOT_CONFIGURED -> "Not configured"
+            val gameDataSubtitle = when (uiState.server.connectionStatus) {
+                ConnectionStatus.NOT_CONFIGURED -> "Server not configured"
+                ConnectionStatus.CHECKING -> "Checking connection..."
+                ConnectionStatus.OFFLINE -> "Server offline"
+                ConnectionStatus.ONLINE -> {
+                    uiState.server.lastRommSync?.let { instant ->
+                        val formatter = java.time.format.DateTimeFormatter
+                            .ofPattern("MMM d, h:mm a")
+                            .withZone(java.time.ZoneId.systemDefault())
+                        "Last sync: ${formatter.format(instant)}"
+                    } ?: "Never synced"
+                }
             }
             NavigationPreference(
                 icon = Icons.Default.Dns,
-                title = "Server",
-                subtitle = serverSubtitle,
+                title = "Game Data",
+                subtitle = gameDataSubtitle,
                 isFocused = uiState.focusedIndex == 0,
                 onClick = { viewModel.navigateToSection(SettingsSection.SERVER) }
             )
@@ -425,7 +434,7 @@ private fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewMode
 
     LazyColumn(
         state = listState,
-        modifier = Modifier.padding(Dimens.spacingMd),
+        modifier = Modifier.fillMaxSize().padding(Dimens.spacingMd),
         verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
         item {
@@ -511,7 +520,7 @@ private fun ControlsSection(uiState: SettingsUiState, viewModel: SettingsViewMod
 
     LazyColumn(
         state = listState,
-        modifier = Modifier.padding(Dimens.spacingMd),
+        modifier = Modifier.fillMaxSize().padding(Dimens.spacingMd),
         verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
         item {
@@ -584,7 +593,7 @@ private fun SoundsSection(uiState: SettingsUiState, viewModel: SettingsViewModel
 
     LazyColumn(
         state = listState,
-        modifier = Modifier.padding(Dimens.spacingMd),
+        modifier = Modifier.fillMaxSize().padding(Dimens.spacingMd),
         verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
         item {
@@ -851,7 +860,7 @@ private fun EmulatorsSection(uiState: SettingsUiState, viewModel: SettingsViewMo
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             state = listState,
-            modifier = Modifier.padding(Dimens.spacingMd).blur(modalBlur),
+            modifier = Modifier.fillMaxSize().padding(Dimens.spacingMd).blur(modalBlur),
             verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
         ) {
             if (uiState.emulators.canAutoAssign) {
@@ -890,18 +899,19 @@ private fun EmulatorsSection(uiState: SettingsUiState, viewModel: SettingsViewMo
 @Composable
 private fun ServerSection(
     uiState: SettingsUiState,
-    viewModel: SettingsViewModel,
-    imageCacheProgress: ImageCacheProgress
+    viewModel: SettingsViewModel
 ) {
     if (uiState.server.rommConfiguring) {
         RomMConfigForm(uiState, viewModel)
     } else {
         val listState = rememberLazyListState()
+        val isConnected = uiState.server.connectionStatus == ConnectionStatus.ONLINE ||
+            uiState.server.connectionStatus == ConnectionStatus.OFFLINE
 
         val maxIndex = when {
-            uiState.server.connectionStatus == ConnectionStatus.ONLINE ||
-            uiState.server.connectionStatus == ConnectionStatus.OFFLINE -> 2
-            else -> 0
+            isConnected && uiState.syncSettings.saveSyncEnabled -> 4
+            isConnected -> 3
+            else -> 1
         }
 
         LaunchedEffect(uiState.focusedIndex) {
@@ -916,7 +926,7 @@ private fun ServerSection(
 
         LazyColumn(
             state = listState,
-            modifier = Modifier.padding(Dimens.spacingMd),
+            modifier = Modifier.fillMaxSize().padding(Dimens.spacingMd),
             verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
         ) {
             item {
@@ -933,13 +943,12 @@ private fun ServerSection(
                     onClick = { viewModel.startRommConfig() }
                 )
             }
-            if (uiState.server.connectionStatus == ConnectionStatus.ONLINE ||
-                uiState.server.connectionStatus == ConnectionStatus.OFFLINE) {
+            if (isConnected) {
                 item {
                     NavigationPreference(
                         icon = Icons.Default.Tune,
                         title = "Sync Settings",
-                        subtitle = "Images, screenshots, filters",
+                        subtitle = "Filters and media options",
                         isFocused = uiState.focusedIndex == 1,
                         onClick = { viewModel.navigateToSection(SettingsSection.SYNC_SETTINGS) }
                     )
@@ -947,23 +956,33 @@ private fun ServerSection(
                 item {
                     val lastSyncText = uiState.server.lastRommSync?.let { instant ->
                         val formatter = java.time.format.DateTimeFormatter
-                            .ofPattern("MMM d, yyyy h:mm a")
+                            .ofPattern("MMM d, h:mm a")
                             .withZone(java.time.ZoneId.systemDefault())
-                        formatter.format(instant)
-                    } ?: "Never"
-
+                        "Last: ${formatter.format(instant)}"
+                    } ?: "Never synced"
                     ActionPreference(
-                        icon = Icons.Default.Sync,
+                        icon = Icons.AutoMirrored.Filled.LibraryBooks,
                         title = "Sync Library",
-                        subtitle = "Last sync: $lastSyncText",
+                        subtitle = lastSyncText,
                         isFocused = uiState.focusedIndex == 2,
                         isEnabled = uiState.server.connectionStatus == ConnectionStatus.ONLINE,
                         onClick = { viewModel.syncRomm() }
                     )
                 }
-                if (imageCacheProgress.isProcessing) {
+                if (uiState.syncSettings.saveSyncEnabled) {
                     item {
-                        ImageCacheProgressItem(imageCacheProgress)
+                        val pendingText = if (uiState.syncSettings.pendingUploadsCount > 0) {
+                            "${uiState.syncSettings.pendingUploadsCount} pending"
+                        } else {
+                            "Up to date"
+                        }
+                        ActionPreference(
+                            icon = Icons.Default.Sync,
+                            title = "Sync Saves",
+                            subtitle = pendingText,
+                            isFocused = uiState.focusedIndex == 3,
+                            onClick = { viewModel.runSaveSyncNow() }
+                        )
                     }
                 }
             }
@@ -977,11 +996,16 @@ private fun ServerSection(
                 } else {
                     "No launchers installed"
                 }
+                val steamIndex = when {
+                    isConnected && uiState.syncSettings.saveSyncEnabled -> 4
+                    isConnected -> 3
+                    else -> 1
+                }
                 NavigationPreference(
                     icon = Icons.Default.Cloud,
                     title = "Steam (Experimental)",
                     subtitle = subtitle,
-                    isFocused = uiState.focusedIndex == 3,
+                    isFocused = uiState.focusedIndex == steamIndex,
                     onClick = { viewModel.navigateToSection(SettingsSection.STEAM_SETTINGS) }
                 )
             }
@@ -1015,7 +1039,7 @@ private fun SteamSection(uiState: SettingsUiState, viewModel: SettingsViewModel)
 
     LazyColumn(
         state = listState,
-        modifier = Modifier.padding(Dimens.spacingMd),
+        modifier = Modifier.fillMaxSize().padding(Dimens.spacingMd),
         verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
         item {
@@ -1305,7 +1329,7 @@ private fun StorageSection(uiState: SettingsUiState, viewModel: SettingsViewMode
 
     LazyColumn(
         state = listState,
-        modifier = Modifier.padding(Dimens.spacingMd),
+        modifier = Modifier.fillMaxSize().padding(Dimens.spacingMd),
         verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
         item {
@@ -1387,7 +1411,104 @@ private fun ImageCacheProgressItem(progress: ImageCacheProgress) {
 }
 
 @Composable
-private fun SyncSettingsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
+private fun SyncSettingsSection(
+    uiState: SettingsUiState,
+    viewModel: SettingsViewModel,
+    imageCacheProgress: ImageCacheProgress
+) {
+    val listState = rememberLazyListState()
+    val maxIndex = 2
+
+    LaunchedEffect(uiState.focusedIndex) {
+        if (uiState.focusedIndex in 0..maxIndex) {
+            val viewportHeight = listState.layoutInfo.viewportSize.height
+            val itemHeight = listState.layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 0
+            val centerOffset = if (itemHeight > 0) (viewportHeight - itemHeight) / 2 else 0
+            val paddingBuffer = (itemHeight * Motion.scrollPaddingPercent).toInt()
+            listState.animateScrollToItem(uiState.focusedIndex, -centerOffset + paddingBuffer)
+        }
+    }
+
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize().padding(Dimens.spacingMd),
+        verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
+    ) {
+        item {
+            val filtersSubtitle = buildFiltersSubtitle(uiState.syncSettings.syncFilters)
+            NavigationPreference(
+                icon = Icons.Default.Tune,
+                title = "Metadata Filters",
+                subtitle = filtersSubtitle,
+                isFocused = uiState.focusedIndex == 0,
+                onClick = { viewModel.navigateToSection(SettingsSection.SYNC_FILTERS) }
+            )
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(Dimens.spacingMd))
+            SectionHeader("MEDIA")
+        }
+        item {
+            SwitchPreference(
+                title = "Cache Screenshots",
+                subtitle = "Boxart and backgrounds are always cached",
+                isEnabled = uiState.server.syncScreenshotsEnabled,
+                isFocused = uiState.focusedIndex == 1,
+                onToggle = { viewModel.toggleSyncScreenshots() }
+            )
+        }
+        item {
+            if (uiState.syncSettings.saveSyncEnabled) {
+                SwitchPreference(
+                    title = "Save Sync",
+                    subtitle = "Sync game saves with server",
+                    isEnabled = true,
+                    isFocused = uiState.focusedIndex == 2,
+                    onToggle = { viewModel.toggleSaveSync() }
+                )
+            } else {
+                ActionPreference(
+                    title = "Enable Save Sync",
+                    subtitle = "Sync game saves with server",
+                    isFocused = uiState.focusedIndex == 2,
+                    onClick = { viewModel.enableSaveSync() }
+                )
+            }
+        }
+
+        if (imageCacheProgress.isProcessing) {
+            item {
+                Spacer(modifier = Modifier.height(Dimens.spacingMd))
+                ImageCacheProgressItem(imageCacheProgress)
+            }
+        }
+    }
+}
+
+private fun buildFiltersSubtitle(filters: SyncFilterPreferences): String {
+    val parts = mutableListOf<String>()
+    if (filters.enabledRegions.isNotEmpty()) {
+        val mode = if (filters.regionMode == RegionFilterMode.EXCLUDE) "excl" else "incl"
+        parts.add("${filters.enabledRegions.size} regions ($mode)")
+    }
+    val excludes = listOfNotNull(
+        if (filters.excludeBeta) "beta" else null,
+        if (filters.excludePrototype) "proto" else null,
+        if (filters.excludeDemo) "demo" else null,
+        if (filters.excludeHack) "hacks" else null
+    )
+    if (excludes.isNotEmpty()) {
+        parts.add("no ${excludes.joinToString("/")}")
+    }
+    return if (parts.isEmpty()) "No filters applied" else parts.joinToString(", ")
+}
+
+@Composable
+private fun SyncFiltersSection(
+    uiState: SettingsUiState,
+    viewModel: SettingsViewModel
+) {
     val listState = rememberLazyListState()
 
     val modalBlur by animateDpAsState(
@@ -1396,8 +1517,10 @@ private fun SyncSettingsSection(uiState: SettingsUiState, viewModel: SettingsVie
         label = "regionPickerBlur"
     )
 
+    val maxIndex = 6
+
     LaunchedEffect(uiState.focusedIndex) {
-        if (uiState.focusedIndex in 0..7) {
+        if (uiState.focusedIndex in 0..maxIndex) {
             val viewportHeight = listState.layoutInfo.viewportSize.height
             val itemHeight = listState.layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 0
             val centerOffset = if (itemHeight > 0) (viewportHeight - itemHeight) / 2 else 0
@@ -1409,24 +1532,9 @@ private fun SyncSettingsSection(uiState: SettingsUiState, viewModel: SettingsVie
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             state = listState,
-            modifier = Modifier.padding(Dimens.spacingMd).blur(modalBlur),
+            modifier = Modifier.fillMaxSize().padding(Dimens.spacingMd).blur(modalBlur),
             verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
         ) {
-            item {
-                InfoPreference(
-                    title = "Sync Images",
-                    value = "Cover art and screenshots",
-                    isFocused = uiState.focusedIndex == 0
-                )
-            }
-            item {
-                SwitchPreference(
-                    title = "Sync Screenshots",
-                    isEnabled = uiState.server.syncScreenshotsEnabled,
-                    isFocused = uiState.focusedIndex == 1,
-                    onToggle = { viewModel.toggleSyncScreenshots() }
-                )
-            }
             item {
                 val enabledRegions = uiState.syncSettings.syncFilters.enabledRegions
                 val regionsText = if (enabledRegions.isEmpty()) {
@@ -1434,11 +1542,10 @@ private fun SyncSettingsSection(uiState: SettingsUiState, viewModel: SettingsVie
                 } else {
                     enabledRegions.sorted().joinToString(", ")
                 }
-
                 ActionPreference(
                     title = "Regions",
                     subtitle = regionsText,
-                    isFocused = uiState.focusedIndex == 2,
+                    isFocused = uiState.focusedIndex == 0,
                     onClick = { viewModel.showRegionPicker() }
                 )
             }
@@ -1450,7 +1557,7 @@ private fun SyncSettingsSection(uiState: SettingsUiState, viewModel: SettingsVie
                 CyclePreference(
                     title = "Region Mode",
                     value = modeText,
-                    isFocused = uiState.focusedIndex == 3,
+                    isFocused = uiState.focusedIndex == 1,
                     onClick = { viewModel.toggleRegionMode() }
                 )
             }
@@ -1458,7 +1565,7 @@ private fun SyncSettingsSection(uiState: SettingsUiState, viewModel: SettingsVie
                 SwitchPreference(
                     title = "Exclude Beta",
                     isEnabled = uiState.syncSettings.syncFilters.excludeBeta,
-                    isFocused = uiState.focusedIndex == 4,
+                    isFocused = uiState.focusedIndex == 2,
                     onToggle = { viewModel.setExcludeBeta(it) }
                 )
             }
@@ -1466,7 +1573,7 @@ private fun SyncSettingsSection(uiState: SettingsUiState, viewModel: SettingsVie
                 SwitchPreference(
                     title = "Exclude Prototype",
                     isEnabled = uiState.syncSettings.syncFilters.excludePrototype,
-                    isFocused = uiState.focusedIndex == 5,
+                    isFocused = uiState.focusedIndex == 3,
                     onToggle = { viewModel.setExcludePrototype(it) }
                 )
             }
@@ -1474,15 +1581,24 @@ private fun SyncSettingsSection(uiState: SettingsUiState, viewModel: SettingsVie
                 SwitchPreference(
                     title = "Exclude Demo",
                     isEnabled = uiState.syncSettings.syncFilters.excludeDemo,
-                    isFocused = uiState.focusedIndex == 6,
+                    isFocused = uiState.focusedIndex == 4,
                     onToggle = { viewModel.setExcludeDemo(it) }
                 )
             }
             item {
                 SwitchPreference(
+                    title = "Exclude ROM Hacks",
+                    isEnabled = uiState.syncSettings.syncFilters.excludeHack,
+                    isFocused = uiState.focusedIndex == 5,
+                    onToggle = { viewModel.setExcludeHack(it) }
+                )
+            }
+            item {
+                SwitchPreference(
                     title = "Remove Orphaned Entries",
+                    subtitle = "Delete games no longer on server",
                     isEnabled = uiState.syncSettings.syncFilters.deleteOrphans,
-                    isFocused = uiState.focusedIndex == 7,
+                    isFocused = uiState.focusedIndex == 6,
                     onToggle = { viewModel.setDeleteOrphans(it) }
                 )
             }
@@ -1497,6 +1613,16 @@ private fun SyncSettingsSection(uiState: SettingsUiState, viewModel: SettingsVie
             )
         }
     }
+}
+
+@Composable
+private fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(horizontal = Dimens.spacingSm)
+    )
 }
 
 @Composable
@@ -1807,7 +1933,7 @@ private fun AboutSection(uiState: SettingsUiState, viewModel: SettingsViewModel)
     val context = LocalContext.current
 
     LazyColumn(
-        modifier = Modifier.padding(Dimens.spacingMd),
+        modifier = Modifier.fillMaxSize().padding(Dimens.spacingMd),
         verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
         item {

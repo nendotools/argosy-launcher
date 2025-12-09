@@ -6,6 +6,7 @@ data class SyncFilterPreferences(
     val excludeBeta: Boolean = true,
     val excludePrototype: Boolean = true,
     val excludeDemo: Boolean = true,
+    val excludeHack: Boolean = false,
     val deleteOrphans: Boolean = true
 ) {
     companion object {

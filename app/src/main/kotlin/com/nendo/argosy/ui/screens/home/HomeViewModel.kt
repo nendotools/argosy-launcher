@@ -524,19 +524,19 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun toggleFavorite(gameId: Long) {
+    fun toggleFavorite(gameId: Long) {
         viewModelScope.launch {
             gameActions.toggleFavorite(gameId)
         }
     }
 
-    private fun hideGame(gameId: Long) {
+    fun hideGame(gameId: Long) {
         viewModelScope.launch {
             gameActions.hideGame(gameId)
         }
     }
 
-    private fun deleteLocalFile(gameId: Long) {
+    fun deleteLocalFile(gameId: Long) {
         viewModelScope.launch {
             gameActions.deleteLocalFile(gameId)
             notificationManager.showSuccess("Download deleted")
@@ -546,7 +546,7 @@ class HomeViewModel @Inject constructor(
     private var lastDownloadQueueTime = 0L
     private val downloadQueueDebounceMs = 300L
 
-    private fun queueDownload(gameId: Long) {
+    fun queueDownload(gameId: Long) {
         val now = System.currentTimeMillis()
         if (now - lastDownloadQueueTime < downloadQueueDebounceMs) return
         lastDownloadQueueTime = now

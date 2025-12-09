@@ -46,6 +46,7 @@ class UserPreferencesRepository @Inject constructor(
         val SYNC_FILTER_EXCLUDE_BETA = booleanPreferencesKey("sync_filter_exclude_beta")
         val SYNC_FILTER_EXCLUDE_PROTO = booleanPreferencesKey("sync_filter_exclude_proto")
         val SYNC_FILTER_EXCLUDE_DEMO = booleanPreferencesKey("sync_filter_exclude_demo")
+        val SYNC_FILTER_EXCLUDE_HACK = booleanPreferencesKey("sync_filter_exclude_hack")
         val SYNC_FILTER_DELETE_ORPHANS = booleanPreferencesKey("sync_filter_delete_orphans")
         val SYNC_SCREENSHOTS_ENABLED = booleanPreferencesKey("sync_screenshots_enabled")
 
@@ -56,6 +57,7 @@ class UserPreferencesRepository @Inject constructor(
         val UI_DENSITY = stringPreferencesKey("ui_density")
         val SOUND_CONFIGS = stringPreferencesKey("sound_configs")
         val BETA_UPDATES_ENABLED = booleanPreferencesKey("beta_updates_enabled")
+        val SAVE_SYNC_ENABLED = booleanPreferencesKey("save_sync_enabled")
     }
 
     val userPreferences: Flow<UserPreferences> = dataStore.data.map { prefs ->
@@ -91,6 +93,7 @@ class UserPreferencesRepository @Inject constructor(
                 excludeBeta = prefs[Keys.SYNC_FILTER_EXCLUDE_BETA] ?: true,
                 excludePrototype = prefs[Keys.SYNC_FILTER_EXCLUDE_PROTO] ?: true,
                 excludeDemo = prefs[Keys.SYNC_FILTER_EXCLUDE_DEMO] ?: true,
+                excludeHack = prefs[Keys.SYNC_FILTER_EXCLUDE_HACK] ?: false,
                 deleteOrphans = prefs[Keys.SYNC_FILTER_DELETE_ORPHANS] ?: true
             ),
             syncScreenshotsEnabled = prefs[Keys.SYNC_SCREENSHOTS_ENABLED] ?: false,
@@ -111,7 +114,8 @@ class UserPreferencesRepository @Inject constructor(
             maxConcurrentDownloads = prefs[Keys.MAX_CONCURRENT_DOWNLOADS] ?: 1,
             uiDensity = UiDensity.fromString(prefs[Keys.UI_DENSITY]),
             soundConfigs = parseSoundConfigs(prefs[Keys.SOUND_CONFIGS]),
-            betaUpdatesEnabled = prefs[Keys.BETA_UPDATES_ENABLED] ?: false
+            betaUpdatesEnabled = prefs[Keys.BETA_UPDATES_ENABLED] ?: false,
+            saveSyncEnabled = prefs[Keys.SAVE_SYNC_ENABLED] ?: false
         )
     }
 
@@ -284,6 +288,12 @@ class UserPreferencesRepository @Inject constructor(
         }
     }
 
+    suspend fun setSyncFilterExcludeHack(exclude: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.SYNC_FILTER_EXCLUDE_HACK] = exclude
+        }
+    }
+
     suspend fun setSyncFilterDeleteOrphans(delete: Boolean) {
         dataStore.edit { prefs ->
             prefs[Keys.SYNC_FILTER_DELETE_ORPHANS] = delete
@@ -369,6 +379,12 @@ class UserPreferencesRepository @Inject constructor(
             prefs[Keys.BETA_UPDATES_ENABLED] = enabled
         }
     }
+
+    suspend fun setSaveSyncEnabled(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.SAVE_SYNC_ENABLED] = enabled
+        }
+    }
 }
 
 data class UserPreferences(
@@ -399,7 +415,8 @@ data class UserPreferences(
     val maxConcurrentDownloads: Int = 1,
     val uiDensity: UiDensity = UiDensity.NORMAL,
     val soundConfigs: Map<SoundType, SoundConfig> = emptyMap(),
-    val betaUpdatesEnabled: Boolean = false
+    val betaUpdatesEnabled: Boolean = false,
+    val saveSyncEnabled: Boolean = false
 )
 
 enum class ThemeMode {

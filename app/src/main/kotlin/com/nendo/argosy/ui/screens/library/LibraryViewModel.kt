@@ -453,6 +453,16 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
+    fun setFilterCategory(category: FilterCategory) {
+        val globalIndex = FilterCategory.entries.indexOf(category)
+        _uiState.update { state ->
+            state.copy(
+                filterCategoryIndex = globalIndex,
+                filterOptionIndex = 0
+            )
+        }
+    }
+
     fun moveFilterOptionFocus(delta: Int) {
         _uiState.update { state ->
             val maxIndex = state.currentCategoryOptions.size - 1
@@ -581,14 +591,14 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    private fun deleteLocalFile(gameId: Long) {
+    fun deleteLocalFile(gameId: Long) {
         viewModelScope.launch {
             gameActions.deleteLocalFile(gameId)
             notificationManager.showSuccess("Download deleted")
         }
     }
 
-    private fun launchGame(gameId: Long) {
+    fun launchGame(gameId: Long) {
         viewModelScope.launch {
             when (val result = launchGameUseCase(gameId)) {
                 is LaunchResult.Success -> {
@@ -611,7 +621,7 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    private fun downloadGame(gameId: Long) {
+    fun downloadGame(gameId: Long) {
         viewModelScope.launch {
             when (val result = gameActions.queueDownload(gameId)) {
                 is DownloadResult.Queued -> { }

@@ -52,6 +52,8 @@ import com.nendo.argosy.ui.input.SoundConfig
 import com.nendo.argosy.ui.input.SoundFeedbackManager
 import com.nendo.argosy.ui.input.SoundPreset
 import com.nendo.argosy.ui.input.SoundType
+import com.nendo.argosy.data.local.dao.PendingSaveSyncDao
+import com.nendo.argosy.data.repository.SaveSyncRepository
 import com.nendo.argosy.ui.notification.NotificationManager
 import com.nendo.argosy.ui.notification.showError
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -73,6 +75,7 @@ enum class SettingsSection {
     MAIN,
     SERVER,
     SYNC_SETTINGS,
+    SYNC_FILTERS,
     STEAM_SETTINGS,
     STORAGE,
     DISPLAY,
@@ -183,7 +186,10 @@ data class SyncSettingsState(
     val showRegionPicker: Boolean = false,
     val regionPickerFocusIndex: Int = 0,
     val totalGames: Int = 0,
-    val totalPlatforms: Int = 0
+    val totalPlatforms: Int = 0,
+    val saveSyncEnabled: Boolean = false,
+    val pendingUploadsCount: Int = 0,
+    val hasStoragePermission: Boolean = false
 )
 
 data class InstalledSteamLauncher(
@@ -257,7 +263,9 @@ class SettingsViewModel @Inject constructor(
     private val updateRepository: UpdateRepository,
     private val appInstaller: AppInstaller,
     private val hapticManager: HapticFeedbackManager,
-    private val soundManager: SoundFeedbackManager
+    private val soundManager: SoundFeedbackManager,
+    private val saveSyncRepository: SaveSyncRepository,
+    private val pendingSaveSyncDao: PendingSaveSyncDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -362,7 +370,9 @@ class SettingsViewModel @Inject constructor(
                     syncSettings = state.syncSettings.copy(
                         syncFilters = prefs.syncFilters,
                         totalPlatforms = platforms.count { it.gameCount > 0 },
-                        totalGames = platforms.sumOf { it.gameCount }
+                        totalGames = platforms.sumOf { it.gameCount },
+                        saveSyncEnabled = prefs.saveSyncEnabled,
+                        pendingUploadsCount = pendingSaveSyncDao.getCount()
                     ),
                     betaUpdatesEnabled = prefs.betaUpdatesEnabled
                 )
@@ -487,7 +497,10 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(currentSection = section, focusedIndex = 0) }
         when (section) {
             SettingsSection.EMULATORS -> refreshEmulators()
-            SettingsSection.SERVER -> checkRommConnection()
+            SettingsSection.SERVER -> {
+                checkRommConnection()
+                loadLibrarySettings()
+            }
             SettingsSection.SYNC_SETTINGS -> loadLibrarySettings()
             SettingsSection.STEAM_SETTINGS -> loadSteamSettings()
             else -> {}
@@ -497,7 +510,18 @@ class SettingsViewModel @Inject constructor(
     private fun loadLibrarySettings() {
         viewModelScope.launch {
             val prefs = preferencesRepository.preferences.first()
-            _uiState.update { it.copy(syncSettings = it.syncSettings.copy(syncFilters = prefs.syncFilters)) }
+            val hasPermission = checkStoragePermission()
+            val pendingCount = pendingSaveSyncDao.getCount()
+            _uiState.update {
+                it.copy(
+                    syncSettings = it.syncSettings.copy(
+                        syncFilters = prefs.syncFilters,
+                        saveSyncEnabled = prefs.saveSyncEnabled,
+                        hasStoragePermission = hasPermission,
+                        pendingUploadsCount = pendingCount
+                    )
+                )
+            }
         }
     }
 
@@ -759,12 +783,17 @@ class SettingsViewModel @Inject constructor(
                 cancelRommConfig()
                 true
             }
+            state.currentSection == SettingsSection.SYNC_FILTERS -> {
+                _uiState.update { it.copy(currentSection = SettingsSection.SYNC_SETTINGS, focusedIndex = 0) }
+                true
+            }
             state.currentSection == SettingsSection.SYNC_SETTINGS -> {
                 _uiState.update { it.copy(currentSection = SettingsSection.SERVER, focusedIndex = 1) }
                 true
             }
             state.currentSection == SettingsSection.STEAM_SETTINGS -> {
-                _uiState.update { it.copy(currentSection = SettingsSection.SERVER, focusedIndex = 3) }
+                val steamIndex = if (_uiState.value.syncSettings.saveSyncEnabled) 4 else 3
+                _uiState.update { it.copy(currentSection = SettingsSection.SERVER, focusedIndex = steamIndex) }
                 true
             }
             state.currentSection != SettingsSection.MAIN -> {
@@ -791,15 +820,18 @@ class SettingsViewModel @Inject constructor(
             return
         }
         _uiState.update { state ->
+            val isConnected = state.server.connectionStatus == ConnectionStatus.ONLINE ||
+                state.server.connectionStatus == ConnectionStatus.OFFLINE
             val maxIndex = when (state.currentSection) {
                 SettingsSection.MAIN -> 6
                 SettingsSection.SERVER -> when {
                     state.server.rommConfiguring -> 4
-                    state.server.connectionStatus == ConnectionStatus.ONLINE ||
-                    state.server.connectionStatus == ConnectionStatus.OFFLINE -> 3
-                    else -> 0
+                    isConnected && state.syncSettings.saveSyncEnabled -> 4
+                    isConnected -> 3
+                    else -> 1
                 }
-                SettingsSection.SYNC_SETTINGS -> 7
+                SettingsSection.SYNC_SETTINGS -> 2
+                SettingsSection.SYNC_FILTERS -> 6
                 SettingsSection.STEAM_SETTINGS -> 2 + state.steam.installedLaunchers.size
                 SettingsSection.STORAGE -> 2
                 SettingsSection.DISPLAY -> 3
@@ -1145,6 +1177,15 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setExcludeHack(exclude: Boolean) {
+        viewModelScope.launch {
+            preferencesRepository.setSyncFilterExcludeHack(exclude)
+            _uiState.update {
+                it.copy(syncSettings = it.syncSettings.copy(syncFilters = it.syncSettings.syncFilters.copy(excludeHack = exclude)))
+            }
+        }
+    }
+
     fun setDeleteOrphans(delete: Boolean) {
         viewModelScope.launch {
             preferencesRepository.setSyncFilterDeleteOrphans(delete)
@@ -1161,6 +1202,65 @@ class SettingsViewModel @Inject constructor(
             _uiState.update { it.copy(server = it.server.copy(syncScreenshotsEnabled = newValue)) }
             if (newValue) {
                 imageCacheManager.resumePendingScreenshotCache()
+            }
+        }
+    }
+
+    fun enableSaveSync() {
+        viewModelScope.launch {
+            val currentState = _uiState.value.syncSettings
+            if (!currentState.hasStoragePermission) {
+                _requestStoragePermissionEvent.emit(Unit)
+                return@launch
+            }
+
+            preferencesRepository.setSaveSyncEnabled(true)
+            _uiState.update { it.copy(syncSettings = it.syncSettings.copy(saveSyncEnabled = true)) }
+            runSaveSyncNow()
+        }
+    }
+
+    fun toggleSaveSync() {
+        viewModelScope.launch {
+            val currentState = _uiState.value.syncSettings
+            val newValue = !currentState.saveSyncEnabled
+
+            preferencesRepository.setSaveSyncEnabled(newValue)
+            _uiState.update { it.copy(syncSettings = it.syncSettings.copy(saveSyncEnabled = newValue)) }
+
+            if (newValue) {
+                runSaveSyncNow()
+            }
+        }
+    }
+
+    fun onStoragePermissionResult(granted: Boolean) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(syncSettings = it.syncSettings.copy(hasStoragePermission = granted)) }
+            if (granted && _uiState.value.currentSection == SettingsSection.SYNC_SETTINGS) {
+                preferencesRepository.setSaveSyncEnabled(true)
+                _uiState.update { it.copy(syncSettings = it.syncSettings.copy(saveSyncEnabled = true)) }
+                runSaveSyncNow()
+            }
+            loadSteamSettings()
+        }
+    }
+
+    fun runSaveSyncNow() {
+        viewModelScope.launch {
+            notificationManager.show("Checking for save updates...")
+            try {
+                saveSyncRepository.checkForAllServerUpdates()
+                val uploaded = saveSyncRepository.processPendingUploads()
+                val pendingCount = pendingSaveSyncDao.getCount()
+                _uiState.update { it.copy(syncSettings = it.syncSettings.copy(pendingUploadsCount = pendingCount)) }
+                if (uploaded > 0) {
+                    notificationManager.show("Uploaded $uploaded saves")
+                } else {
+                    notificationManager.show("Saves are up to date")
+                }
+            } catch (e: Exception) {
+                notificationManager.showError("Save sync failed: ${e.message}")
             }
         }
     }
@@ -1505,17 +1605,37 @@ class SettingsViewModel @Inject constructor(
                 InputResult.HANDLED
             }
             SettingsSection.SERVER -> {
+                val isConnected = state.server.connectionStatus == ConnectionStatus.ONLINE ||
+                    state.server.connectionStatus == ConnectionStatus.OFFLINE
                 when {
                     state.server.rommConfiguring -> when (state.focusedIndex) {
                         0, 1, 2 -> _uiState.update { it.copy(server = it.server.copy(rommFocusField = state.focusedIndex)) }
                         3 -> connectToRomm()
                         4 -> cancelRommConfig()
                     }
-                    else -> when (state.focusedIndex) {
-                        0 -> startRommConfig()
-                        1 -> navigateToSection(SettingsSection.SYNC_SETTINGS)
-                        2 -> if (state.server.connectionStatus == ConnectionStatus.ONLINE) syncRomm()
-                        3 -> navigateToSection(SettingsSection.STEAM_SETTINGS)
+                    else -> {
+                        val steamIndex = when {
+                            isConnected && state.syncSettings.saveSyncEnabled -> 4
+                            isConnected -> 3
+                            else -> 1
+                        }
+                        when (state.focusedIndex) {
+                            0 -> startRommConfig()
+                            1 -> if (isConnected) {
+                                navigateToSection(SettingsSection.SYNC_SETTINGS)
+                            } else {
+                                navigateToSection(SettingsSection.STEAM_SETTINGS)
+                            }
+                            2 -> if (isConnected && state.server.connectionStatus == ConnectionStatus.ONLINE) {
+                                syncRomm()
+                            }
+                            3 -> if (isConnected && state.syncSettings.saveSyncEnabled) {
+                                runSaveSyncNow()
+                            } else if (isConnected) {
+                                navigateToSection(SettingsSection.STEAM_SETTINGS)
+                            }
+                            steamIndex -> navigateToSection(SettingsSection.STEAM_SETTINGS)
+                        }
                     }
                 }
                 InputResult.HANDLED
@@ -1537,13 +1657,28 @@ class SettingsViewModel @Inject constructor(
             }
             SettingsSection.SYNC_SETTINGS -> {
                 when (state.focusedIndex) {
+                    0 -> navigateToSection(SettingsSection.SYNC_FILTERS)
                     1 -> { toggleSyncScreenshots(); return InputResult.handled(SoundType.TOGGLE) }
-                    2 -> showRegionPicker()
-                    3 -> toggleRegionMode()
-                    4 -> { setExcludeBeta(!state.syncSettings.syncFilters.excludeBeta); return InputResult.handled(SoundType.TOGGLE) }
-                    5 -> { setExcludePrototype(!state.syncSettings.syncFilters.excludePrototype); return InputResult.handled(SoundType.TOGGLE) }
-                    6 -> { setExcludeDemo(!state.syncSettings.syncFilters.excludeDemo); return InputResult.handled(SoundType.TOGGLE) }
-                    7 -> { setDeleteOrphans(!state.syncSettings.syncFilters.deleteOrphans); return InputResult.handled(SoundType.TOGGLE) }
+                    2 -> {
+                        if (state.syncSettings.saveSyncEnabled) {
+                            toggleSaveSync()
+                            return InputResult.handled(SoundType.TOGGLE)
+                        } else {
+                            enableSaveSync()
+                        }
+                    }
+                }
+                InputResult.HANDLED
+            }
+            SettingsSection.SYNC_FILTERS -> {
+                when (state.focusedIndex) {
+                    0 -> showRegionPicker()
+                    1 -> toggleRegionMode()
+                    2 -> { setExcludeBeta(!state.syncSettings.syncFilters.excludeBeta); return InputResult.handled(SoundType.TOGGLE) }
+                    3 -> { setExcludePrototype(!state.syncSettings.syncFilters.excludePrototype); return InputResult.handled(SoundType.TOGGLE) }
+                    4 -> { setExcludeDemo(!state.syncSettings.syncFilters.excludeDemo); return InputResult.handled(SoundType.TOGGLE) }
+                    5 -> { setExcludeHack(!state.syncSettings.syncFilters.excludeHack); return InputResult.handled(SoundType.TOGGLE) }
+                    6 -> { setDeleteOrphans(!state.syncSettings.syncFilters.deleteOrphans); return InputResult.handled(SoundType.TOGGLE) }
                 }
                 InputResult.HANDLED
             }

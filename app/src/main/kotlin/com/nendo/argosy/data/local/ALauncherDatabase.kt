@@ -8,14 +8,20 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.nendo.argosy.data.local.converter.Converters
 import com.nendo.argosy.data.local.dao.DownloadQueueDao
 import com.nendo.argosy.data.local.dao.EmulatorConfigDao
+import com.nendo.argosy.data.local.dao.EmulatorSaveConfigDao
 import com.nendo.argosy.data.local.dao.GameDao
+import com.nendo.argosy.data.local.dao.PendingSaveSyncDao
 import com.nendo.argosy.data.local.dao.PendingSyncDao
 import com.nendo.argosy.data.local.dao.PlatformDao
+import com.nendo.argosy.data.local.dao.SaveSyncDao
 import com.nendo.argosy.data.local.entity.DownloadQueueEntity
 import com.nendo.argosy.data.local.entity.EmulatorConfigEntity
+import com.nendo.argosy.data.local.entity.EmulatorSaveConfigEntity
 import com.nendo.argosy.data.local.entity.GameEntity
+import com.nendo.argosy.data.local.entity.PendingSaveSyncEntity
 import com.nendo.argosy.data.local.entity.PendingSyncEntity
 import com.nendo.argosy.data.local.entity.PlatformEntity
+import com.nendo.argosy.data.local.entity.SaveSyncEntity
 
 @Database(
     entities = [
@@ -23,9 +29,12 @@ import com.nendo.argosy.data.local.entity.PlatformEntity
         GameEntity::class,
         EmulatorConfigEntity::class,
         PendingSyncEntity::class,
-        DownloadQueueEntity::class
+        DownloadQueueEntity::class,
+        SaveSyncEntity::class,
+        PendingSaveSyncEntity::class,
+        EmulatorSaveConfigEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -35,6 +44,9 @@ abstract class ALauncherDatabase : RoomDatabase() {
     abstract fun emulatorConfigDao(): EmulatorConfigDao
     abstract fun pendingSyncDao(): PendingSyncDao
     abstract fun downloadQueueDao(): DownloadQueueDao
+    abstract fun saveSyncDao(): SaveSyncDao
+    abstract fun pendingSaveSyncDao(): PendingSaveSyncDao
+    abstract fun emulatorSaveConfigDao(): EmulatorSaveConfigDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -148,6 +160,57 @@ abstract class ALauncherDatabase : RoomDatabase() {
                     ON games(steamAppId) WHERE steamAppId IS NOT NULL
                     """
                 )
+            }
+        }
+
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS save_sync (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        gameId INTEGER NOT NULL,
+                        rommId INTEGER NOT NULL,
+                        emulatorId TEXT NOT NULL,
+                        rommSaveId INTEGER,
+                        localSavePath TEXT,
+                        localUpdatedAt INTEGER,
+                        serverUpdatedAt INTEGER,
+                        lastSyncedAt INTEGER,
+                        syncStatus TEXT NOT NULL,
+                        lastSyncError TEXT
+                    )
+                """)
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_save_sync_gameId_emulatorId ON save_sync(gameId, emulatorId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_save_sync_rommSaveId ON save_sync(rommSaveId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_save_sync_lastSyncedAt ON save_sync(lastSyncedAt)")
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS pending_save_sync (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        gameId INTEGER NOT NULL,
+                        rommId INTEGER NOT NULL,
+                        emulatorId TEXT NOT NULL,
+                        localSavePath TEXT NOT NULL,
+                        action TEXT NOT NULL,
+                        retryCount INTEGER NOT NULL DEFAULT 0,
+                        lastError TEXT,
+                        createdAt INTEGER NOT NULL
+                    )
+                """)
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_pending_save_sync_gameId ON pending_save_sync(gameId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_pending_save_sync_createdAt ON pending_save_sync(createdAt)")
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS emulator_save_config (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        emulatorId TEXT NOT NULL,
+                        savePathPattern TEXT NOT NULL,
+                        isAutoDetected INTEGER NOT NULL,
+                        isUserOverride INTEGER NOT NULL DEFAULT 0,
+                        lastVerifiedAt INTEGER
+                    )
+                """)
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_emulator_save_config_emulatorId ON emulator_save_config(emulatorId)")
             }
         }
     }

@@ -157,6 +157,8 @@ fun ArgosyApp(
                         focusedIndex = drawerFocusIndex,
                         drawerState = drawerUiState,
                         onNavigate = { route ->
+                            inputDispatcher.unsubscribeDrawer()
+                            viewModel.setDrawerOpen(false)
                             scope.launch { drawerState.close() }
                             if (route != currentRoute) {
                                 navController.navigate(route) {
