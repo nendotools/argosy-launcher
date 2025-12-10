@@ -33,8 +33,8 @@ data class EmulatorConfigEntity(
     val platformId: String?,
     val gameId: Long?,
 
-    val packageName: String,
-    val displayName: String,
+    val packageName: String?,
+    val displayName: String?,
     val coreName: String?,
     val isDefault: Boolean = false
 )

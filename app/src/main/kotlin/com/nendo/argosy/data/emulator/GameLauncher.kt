@@ -1,5 +1,6 @@
 package com.nendo.argosy.data.emulator
 
+import android.app.ActivityManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -26,6 +27,7 @@ sealed class LaunchResult {
     data class NoEmulator(val platformId: String) : LaunchResult()
     data class NoRomFile(val gamePath: String?) : LaunchResult()
     data class NoSteamLauncher(val launcherPackage: String) : LaunchResult()
+    data class NoCore(val platformId: String) : LaunchResult()
     data class MissingDiscs(val missingDiscNumbers: List<Int>) : LaunchResult()
     data class Error(val message: String) : LaunchResult()
 }
@@ -61,8 +63,12 @@ class GameLauncher @Inject constructor(
         val emulator = resolveEmulator(game)
             ?: return LaunchResult.NoEmulator(game.platformId)
 
-        val intent = buildIntent(emulator, romFile, game.platformId)
-            ?: return LaunchResult.Error("Failed to build launch intent")
+        val intent = buildIntent(emulator, romFile, game)
+            ?: return if (emulator.launchConfig is LaunchConfig.RetroArch) {
+                LaunchResult.NoCore(game.platformId)
+            } else {
+                LaunchResult.Error("Failed to build launch intent")
+            }
 
         gameDao.recordPlayStart(gameId, Instant.now())
 
@@ -98,8 +104,12 @@ class GameLauncher @Inject constructor(
         val emulator = resolveEmulator(game)
             ?: return LaunchResult.NoEmulator(game.platformId)
 
-        val intent = buildIntent(emulator, romFile, game.platformId)
-            ?: return LaunchResult.Error("Failed to build launch intent")
+        val intent = buildIntent(emulator, romFile, game)
+            ?: return if (emulator.launchConfig is LaunchConfig.RetroArch) {
+                LaunchResult.NoCore(game.platformId)
+            } else {
+                LaunchResult.Error("Failed to build launch intent")
+            }
 
         gameDao.recordPlayStart(game.id, Instant.now())
         gameDao.updateLastPlayedDisc(game.id, targetDisc.id)
@@ -133,12 +143,12 @@ class GameLauncher @Inject constructor(
 
     private suspend fun resolveEmulator(game: GameEntity): EmulatorDef? {
         val gameOverride = emulatorConfigDao.getByGameId(game.id)
-        if (gameOverride != null) {
+        if (gameOverride?.packageName != null) {
             return EmulatorRegistry.getByPackage(gameOverride.packageName)
         }
 
         val platformDefault = emulatorConfigDao.getDefaultForPlatform(game.platformId)
-        if (platformDefault != null) {
+        if (platformDefault?.packageName != null) {
             return EmulatorRegistry.getByPackage(platformDefault.packageName)
         }
 
@@ -149,13 +159,13 @@ class GameLauncher @Inject constructor(
         return emulatorDetector.getPreferredEmulator(game.platformId)?.def
     }
 
-    private fun buildIntent(emulator: EmulatorDef, romFile: File, platformId: String): Intent? {
+    private suspend fun buildIntent(emulator: EmulatorDef, romFile: File, game: GameEntity): Intent? {
         Log.d(TAG, "buildIntent: emulator=${emulator.displayName}, config=${emulator.launchConfig::class.simpleName}, rom=${romFile.name}")
         return when (val config = emulator.launchConfig) {
             is LaunchConfig.FileUri -> buildFileUriIntent(emulator, romFile)
             is LaunchConfig.FilePathExtra -> buildFilePathIntent(emulator, romFile, config)
-            is LaunchConfig.RetroArch -> buildRetroArchIntent(emulator, romFile, platformId, config)
-            is LaunchConfig.Custom -> buildCustomIntent(emulator, romFile, platformId, config)
+            is LaunchConfig.RetroArch -> buildRetroArchIntent(emulator, romFile, game, config)
+            is LaunchConfig.Custom -> buildCustomIntent(emulator, romFile, game.platformId, config)
             is LaunchConfig.CustomScheme -> buildCustomSchemeIntent(emulator, romFile, config)
         }.also { intent ->
             Log.d(TAG, "buildIntent: action=${intent?.action}, package=${intent?.`package`}, component=${intent?.component}, data=${intent?.data}")
@@ -189,31 +199,74 @@ class GameLauncher @Inject constructor(
         }
     }
 
-    private fun buildRetroArchIntent(
+    private suspend fun buildRetroArchIntent(
         emulator: EmulatorDef,
         romFile: File,
-        platformId: String,
+        game: GameEntity,
         config: LaunchConfig.RetroArch
-    ): Intent {
+    ): Intent? {
         val retroArchPackage = emulator.packageName
         val dataDir = "/data/data/$retroArchPackage"
         val externalDir = "/storage/emulated/0/Android/data/$retroArchPackage/files"
         val configPath = "$externalDir/retroarch.cfg"
 
+        val corePath = getCorePath(game, retroArchPackage)
+        if (corePath == null) {
+            Log.e(TAG, "No compatible core found for platform: ${game.platformId}")
+            return null
+        }
+
+        Log.d(TAG, "Using core: $corePath for platform: ${game.platformId}")
+
         return Intent(emulator.launchAction).apply {
             component = ComponentName(retroArchPackage, config.activityClass)
             putExtra("ROM", romFile.absolutePath)
+            putExtra("LIBRETRO", corePath)
             putExtra("CONFIGFILE", configPath)
             putExtra("IME", "com.android.inputmethod.latin/.LatinIME")
             putExtra("DATADIR", dataDir)
             putExtra("SDCARD", "/storage/emulated/0")
             putExtra("EXTERNAL", externalDir)
+            // QUITFOCUS tells RetroArch to exit when focus is lost, allowing new ROM to launch
+            putExtra("QUITFOCUS", "")
             addFlags(
                 Intent.FLAG_ACTIVITY_NEW_TASK or
-                Intent.FLAG_ACTIVITY_CLEAR_TASK or
-                Intent.FLAG_ACTIVITY_CLEAR_TOP
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
             )
         }
+    }
+
+    private suspend fun getCorePath(game: GameEntity, retroArchPackage: String): String? {
+        val coreName = resolveCoreName(game)
+        if (coreName == null) {
+            Log.w(TAG, "No core found for platform: ${game.platformId}")
+            return null
+        }
+        val corePath = "/data/data/$retroArchPackage/cores/${coreName}_libretro_android.so"
+        Log.d(TAG, "Using core path for ${game.platformId}: $corePath (core: $coreName)")
+        return corePath
+    }
+
+    private suspend fun resolveCoreName(game: GameEntity): String? {
+        val gameConfig = emulatorConfigDao.getByGameId(game.id)
+        if (gameConfig?.coreName != null) {
+            Log.d(TAG, "Using game-specific core: ${gameConfig.coreName}")
+            return gameConfig.coreName
+        }
+
+        val platformConfig = emulatorConfigDao.getDefaultForPlatform(game.platformId)
+        if (platformConfig?.coreName != null) {
+            Log.d(TAG, "Using platform default core: ${platformConfig.coreName}")
+            return platformConfig.coreName
+        }
+
+        val defaultCore = EmulatorRegistry.getDefaultCore(game.platformId)
+        if (defaultCore != null) {
+            Log.d(TAG, "Using hardcoded default core: ${defaultCore.id}")
+            return defaultCore.id
+        }
+
+        return EmulatorRegistry.getPreferredCore(game.platformId)
     }
 
     private fun buildCustomIntent(
@@ -303,5 +356,30 @@ class GameLauncher @Inject constructor(
         // Most emulators filter by file extension, not MIME type.
         // Using */* ensures the intent resolves to the target emulator.
         return "*/*"
+    }
+
+    private suspend fun killRetroArchProcess(packageName: String) {
+        try {
+            val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+
+            // Kill any background processes
+            activityManager.killBackgroundProcesses(packageName)
+
+            // Also try to kill via running app processes
+            @Suppress("DEPRECATION")
+            val runningProcesses = activityManager.runningAppProcesses ?: emptyList()
+            val isRunning = runningProcesses.any { it.processName == packageName }
+
+            if (isRunning) {
+                Log.d(TAG, "RetroArch is running, attempting to kill...")
+                activityManager.killBackgroundProcesses(packageName)
+                // Give the system time to clean up
+                kotlinx.coroutines.delay(200)
+            }
+
+            Log.d(TAG, "Killed processes for $packageName")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to kill $packageName: ${e.message}")
+        }
     }
 }

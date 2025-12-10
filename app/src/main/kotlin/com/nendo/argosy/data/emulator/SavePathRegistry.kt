@@ -285,7 +285,7 @@ object SavePathRegistry {
 
     fun getAllConfigs(): Map<String, SavePathConfig> = configs
 
-    fun getRetroArchCore(platformId: String): String? = EmulatorRegistry.getRetroArchCores()[platformId]
+    fun getRetroArchCore(platformId: String): String? = EmulatorRegistry.getRetroArchCorePatterns()[platformId]?.firstOrNull()
 
     fun resolvePath(
         config: SavePathConfig,

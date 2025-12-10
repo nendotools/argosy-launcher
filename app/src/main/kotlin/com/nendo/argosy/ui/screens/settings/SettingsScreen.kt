@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,11 +24,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -54,7 +57,10 @@ import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -105,6 +111,7 @@ import com.nendo.argosy.ui.input.SoundPreset
 import com.nendo.argosy.ui.input.SoundType
 import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.Motion
+import com.nendo.argosy.data.emulator.RetroArchCore
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.ui.draw.blur
 
@@ -874,13 +881,11 @@ private fun EmulatorsSection(uiState: SettingsUiState, viewModel: SettingsViewMo
                 }
             }
             itemsIndexed(uiState.emulators.platforms) { index, config ->
-                PlatformPreference(
-                    platformName = config.platform.name,
-                    emulatorCount = config.availableEmulators.size,
-                    selectedEmulator = if (config.hasInstalledEmulators) config.selectedEmulator else null,
+                PlatformEmulatorItem(
+                    config = config,
                     isFocused = uiState.focusedIndex == index + focusOffset,
-                    isEnabled = config.hasInstalledEmulators,
-                    onCycle = { viewModel.showEmulatorPicker(config) }
+                    onEmulatorClick = { viewModel.showEmulatorPicker(config) },
+                    onCycleCore = { direction -> viewModel.cycleCoreForPlatform(config, direction) }
                 )
             }
         }
@@ -892,6 +897,134 @@ private fun EmulatorsSection(uiState: SettingsUiState, viewModel: SettingsViewMo
                 onConfirm = { viewModel.confirmEmulatorPickerSelection() },
                 onDismiss = { viewModel.dismissEmulatorPicker() }
             )
+        }
+    }
+}
+
+@Composable
+private fun PlatformEmulatorItem(
+    config: PlatformEmulatorConfig,
+    isFocused: Boolean,
+    onEmulatorClick: () -> Unit,
+    onCycleCore: (Int) -> Unit
+) {
+    val disabledAlpha = 0.45f
+    val backgroundColor = if (isFocused) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    val contentColor = when {
+        !config.hasInstalledEmulators -> MaterialTheme.colorScheme.onSurface.copy(alpha = disabledAlpha)
+        isFocused -> MaterialTheme.colorScheme.onPrimaryContainer
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+    val secondaryColor = when {
+        !config.hasInstalledEmulators -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = disabledAlpha)
+        isFocused -> MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.55f)
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Dimens.radiusLg))
+            .background(backgroundColor, RoundedCornerShape(Dimens.radiusLg))
+            .clickable(onClick = onEmulatorClick)
+            .padding(Dimens.spacingMd)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = config.platform.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = contentColor
+                )
+                Text(
+                    text = if (config.hasInstalledEmulators) "${config.availableEmulators.size} emulators available" else "No emulators installed",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = secondaryColor
+                )
+            }
+            val emulatorDisplay = when {
+                !config.hasInstalledEmulators -> "Download"
+                config.selectedEmulator != null -> "< ${config.selectedEmulator} >"
+                config.effectiveEmulatorName != null -> "< ${config.effectiveEmulatorName} >"
+                else -> "< Auto >"
+            }
+            Text(
+                text = emulatorDisplay,
+                style = MaterialTheme.typography.bodyMedium,
+                color = when {
+                    !config.hasInstalledEmulators -> MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                    isFocused -> MaterialTheme.colorScheme.onPrimaryContainer
+                    else -> MaterialTheme.colorScheme.primary
+                }
+            )
+        }
+
+        if (config.showCoreSelection) {
+            val selectedCoreId = config.selectedCore ?: config.availableCores.firstOrNull()?.id
+            val selectedCoreName = config.availableCores.find { it.id == selectedCoreId }?.displayName
+                ?: config.availableCores.firstOrNull()?.displayName ?: "Default"
+
+            Spacer(modifier = Modifier.height(Dimens.spacingXs))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
+            ) {
+                Text(
+                    text = "Core",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = secondaryColor
+                )
+                if (isFocused) {
+                    config.availableCores.forEach { core ->
+                        val isSelected = core.id == selectedCoreId
+                        if (isSelected) {
+                            OutlinedButton(
+                                onClick = { },
+                                modifier = Modifier.height(28.dp),
+                                contentPadding = PaddingValues(horizontal = Dimens.spacingSm, vertical = 0.dp),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.onPrimaryContainer)
+                            ) {
+                                Text(
+                                    text = core.displayName,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        } else {
+                            TextButton(
+                                onClick = {
+                                    val currentIdx = config.availableCores.indexOfFirst { it.id == selectedCoreId }
+                                    val targetIdx = config.availableCores.indexOf(core)
+                                    onCycleCore(targetIdx - currentIdx)
+                                },
+                                modifier = Modifier.height(28.dp),
+                                contentPadding = PaddingValues(horizontal = Dimens.spacingSm, vertical = 0.dp)
+                            ) {
+                                Text(
+                                    text = core.displayName,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Text(
+                        text = selectedCoreName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
         }
     }
 }

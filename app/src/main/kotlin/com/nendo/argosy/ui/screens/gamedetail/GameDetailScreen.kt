@@ -78,6 +78,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.nendo.argosy.data.emulator.InstalledEmulator
+import com.nendo.argosy.data.emulator.RetroArchCore
 import com.nendo.argosy.ui.input.LocalInputDispatcher
 import com.nendo.argosy.ui.navigation.Screen
 import com.nendo.argosy.ui.components.FooterBar
@@ -167,7 +168,7 @@ private fun GameDetailContent(
     viewModel: GameDetailViewModel,
     scrollState: ScrollState
 ) {
-    val showAnyOverlay = uiState.showMoreOptions || uiState.showEmulatorPicker ||
+    val showAnyOverlay = uiState.showMoreOptions || uiState.showEmulatorPicker || uiState.showCorePicker ||
         uiState.showRatingPicker || uiState.showDiscPicker || uiState.showMissingDiscPrompt
     val modalBlur by animateDpAsState(
         targetValue = if (showAnyOverlay) Motion.blurRadiusModal else 0.dp,
@@ -489,7 +490,23 @@ private fun GameDetailContent(
             EmulatorPickerOverlay(
                 availableEmulators = uiState.availableEmulators,
                 currentEmulatorName = game.emulatorName,
-                focusIndex = uiState.emulatorPickerFocusIndex
+                focusIndex = uiState.emulatorPickerFocusIndex,
+                onSelectEmulator = viewModel::selectEmulator,
+                onDismiss = viewModel::dismissEmulatorPicker
+            )
+        }
+
+        AnimatedVisibility(
+            visible = uiState.showCorePicker,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            CorePickerOverlay(
+                availableCores = uiState.availableCores,
+                selectedCoreId = uiState.selectedCoreId,
+                focusIndex = uiState.corePickerFocusIndex,
+                onSelectCore = viewModel::selectCore,
+                onDismiss = viewModel::dismissCorePicker
             )
         }
 
@@ -752,11 +769,25 @@ private fun MoreOptionsOverlay(
             )
             Spacer(modifier = Modifier.height(16.dp))
 
+            if (game.isMultiDisc) {
+                OptionItem(
+                    icon = Icons.Default.Album,
+                    label = "Select Disc",
+                    isFocused = focusIndex == currentIndex++
+                )
+            }
             OptionItem(
                 label = "Change Emulator",
                 value = game.emulatorName ?: "Default",
                 isFocused = focusIndex == currentIndex++
             )
+            if (game.isRetroArchEmulator) {
+                OptionItem(
+                    label = "Change Core",
+                    value = game.selectedCoreName ?: "Default",
+                    isFocused = focusIndex == currentIndex++
+                )
+            }
             if (isRommGame) {
                 OptionItem(
                     icon = Icons.Default.Star,
@@ -792,12 +823,15 @@ private fun MoreOptionsOverlay(
 private fun EmulatorPickerOverlay(
     availableEmulators: List<InstalledEmulator>,
     currentEmulatorName: String?,
-    focusIndex: Int
+    focusIndex: Int,
+    onSelectEmulator: (InstalledEmulator?) -> Unit,
+    onDismiss: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.7f)),
+            .background(Color.Black.copy(alpha = 0.7f))
+            .clickable(onClick = onDismiss),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -806,6 +840,7 @@ private fun EmulatorPickerOverlay(
                     MaterialTheme.colorScheme.surface,
                     RoundedCornerShape(12.dp)
                 )
+                .clickable(enabled = false) {}
                 .padding(24.dp)
                 .width(350.dp)
         ) {
@@ -819,7 +854,8 @@ private fun EmulatorPickerOverlay(
             OptionItem(
                 label = "Use Platform Default",
                 isFocused = focusIndex == 0,
-                isSelected = currentEmulatorName == null
+                isSelected = currentEmulatorName == null,
+                onClick = { onSelectEmulator(null) }
             )
 
             availableEmulators.forEachIndexed { index, emulator ->
@@ -827,7 +863,65 @@ private fun EmulatorPickerOverlay(
                     label = emulator.def.displayName,
                     value = emulator.versionName,
                     isFocused = focusIndex == index + 1,
-                    isSelected = emulator.def.displayName == currentEmulatorName
+                    isSelected = emulator.def.displayName == currentEmulatorName,
+                    onClick = { onSelectEmulator(emulator) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CorePickerOverlay(
+    availableCores: List<RetroArchCore>,
+    selectedCoreId: String?,
+    focusIndex: Int,
+    onSelectCore: (String?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.7f))
+            .clickable(onClick = onDismiss),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .background(
+                    MaterialTheme.colorScheme.surface,
+                    RoundedCornerShape(12.dp)
+                )
+                .clickable(enabled = false) {}
+                .padding(24.dp)
+                .width(350.dp)
+        ) {
+            Text(
+                text = "SELECT CORE",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "Cores must be installed in RetroArch first",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OptionItem(
+                label = "Use Platform Default",
+                isFocused = focusIndex == 0,
+                isSelected = selectedCoreId == null,
+                onClick = { onSelectCore(null) }
+            )
+
+            availableCores.forEachIndexed { index, core ->
+                OptionItem(
+                    label = core.displayName,
+                    value = core.id,
+                    isFocused = focusIndex == index + 1,
+                    isSelected = core.id == selectedCoreId,
+                    onClick = { onSelectCore(core.id) }
                 )
             }
         }
@@ -841,7 +935,8 @@ private fun OptionItem(
     value: String? = null,
     isFocused: Boolean = false,
     isDangerous: Boolean = false,
-    isSelected: Boolean = false
+    isSelected: Boolean = false,
+    onClick: (() -> Unit)? = null
 ) {
     val contentColor = when {
         isDangerous && isFocused -> MaterialTheme.colorScheme.onErrorContainer
@@ -858,7 +953,9 @@ private fun OptionItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
             .background(backgroundColor, RoundedCornerShape(8.dp))
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)

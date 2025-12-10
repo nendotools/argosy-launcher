@@ -44,6 +44,11 @@ sealed class ExtraValue {
     data class Literal(val value: String) : ExtraValue()
 }
 
+data class RetroArchCore(
+    val id: String,
+    val displayName: String
+)
+
 @Deprecated("Use LaunchConfig instead", ReplaceWith("LaunchConfig"))
 enum class LaunchType {
     FILE_URI,
@@ -414,7 +419,9 @@ object EmulatorRegistry {
         "wonderswancolor" to listOf("retroarch", "retroarch_64")
     )
 
-    fun getRetroArchCores(): Map<String, String> = mapOf(
+    fun getPreferredCore(platformId: String): String? = preferredCores[platformId]
+
+    private val preferredCores = mapOf(
         "nes" to "fceumm",
         "snes" to "snes9x",
         "n64" to "mupen64plus_next",
@@ -423,7 +430,7 @@ object EmulatorRegistry {
         "gb" to "gambatte",
         "gbc" to "gambatte",
         "gba" to "mgba",
-        "nds" to "melonds",
+        "nds" to "melondsds",
         "genesis" to "genesis_plus_gx",
         "sms" to "genesis_plus_gx",
         "gg" to "genesis_plus_gx",
@@ -447,4 +454,170 @@ object EmulatorRegistry {
         "wonderswan" to "mednafen_wswan",
         "wonderswancolor" to "mednafen_wswan"
     )
+
+    fun getRetroArchCorePatterns(): Map<String, List<String>> = mapOf(
+        "nes" to listOf("fceumm", "nestopia", "quicknes", "mesen"),
+        "snes" to listOf("snes9x", "bsnes", "mesen"),
+        "n64" to listOf("mupen64plus", "parallel_n64"),
+        "gc" to listOf("dolphin"),
+        "ngc" to listOf("dolphin"),
+        "gb" to listOf("gambatte", "mgba", "sameboy", "gearboy", "vba"),
+        "gbc" to listOf("gambatte", "mgba", "sameboy", "gearboy", "vba"),
+        "gba" to listOf("mgba", "vba", "gpsp"),
+        "nds" to listOf("melonds", "desmume"),
+        "genesis" to listOf("genesis_plus", "picodrive", "blastem"),
+        "sms" to listOf("genesis_plus", "picodrive", "gearsystem"),
+        "gg" to listOf("genesis_plus", "gearsystem"),
+        "scd" to listOf("genesis_plus", "picodrive"),
+        "32x" to listOf("picodrive"),
+        "psx" to listOf("pcsx", "duckstation", "beetle_psx", "swanstation"),
+        "psp" to listOf("ppsspp"),
+        "tg16" to listOf("pce", "beetle_pce"),
+        "tgcd" to listOf("pce", "beetle_pce"),
+        "pcfx" to listOf("pcfx"),
+        "atari2600" to listOf("stella"),
+        "atari5200" to listOf("atari800"),
+        "atari7800" to listOf("prosystem"),
+        "lynx" to listOf("handy", "lynx"),
+        "ngp" to listOf("ngp", "race"),
+        "ngpc" to listOf("ngp", "race"),
+        "neogeo" to listOf("fbneo", "fbalpha", "neogeo"),
+        "arcade" to listOf("fbneo", "mame", "fbalpha"),
+        "msx" to listOf("bluemsx", "fmsx"),
+        "msx2" to listOf("bluemsx", "fmsx"),
+        "wonderswan" to listOf("wswan", "beetle_wswan"),
+        "wonderswancolor" to listOf("wswan", "beetle_wswan")
+    )
+
+    private val platformCores: Map<String, List<RetroArchCore>> = mapOf(
+        "nes" to listOf(
+            RetroArchCore("fceumm", "FCEUmm"),
+            RetroArchCore("nestopia", "Nestopia"),
+            RetroArchCore("mesen", "Mesen"),
+            RetroArchCore("quicknes", "QuickNES")
+        ),
+        "snes" to listOf(
+            RetroArchCore("snes9x", "Snes9x"),
+            RetroArchCore("bsnes", "bsnes"),
+            RetroArchCore("mesen-s", "Mesen-S")
+        ),
+        "n64" to listOf(
+            RetroArchCore("mupen64plus_next", "Mupen64Plus-Next"),
+            RetroArchCore("parallel_n64", "ParaLLEl N64")
+        ),
+        "gb" to listOf(
+            RetroArchCore("gambatte", "Gambatte"),
+            RetroArchCore("mgba", "mGBA"),
+            RetroArchCore("sameboy", "SameBoy"),
+            RetroArchCore("gearboy", "Gearboy")
+        ),
+        "gbc" to listOf(
+            RetroArchCore("gambatte", "Gambatte"),
+            RetroArchCore("mgba", "mGBA"),
+            RetroArchCore("sameboy", "SameBoy"),
+            RetroArchCore("gearboy", "Gearboy")
+        ),
+        "gba" to listOf(
+            RetroArchCore("mgba", "mGBA"),
+            RetroArchCore("vba_next", "VBA Next"),
+            RetroArchCore("gpsp", "gpSP")
+        ),
+        "nds" to listOf(
+            RetroArchCore("melondsds", "melonDS DS"),
+            RetroArchCore("desmume", "DeSmuME")
+        ),
+        "genesis" to listOf(
+            RetroArchCore("genesis_plus_gx", "Genesis Plus GX"),
+            RetroArchCore("picodrive", "PicoDrive"),
+            RetroArchCore("blastem", "BlastEm")
+        ),
+        "sms" to listOf(
+            RetroArchCore("genesis_plus_gx", "Genesis Plus GX"),
+            RetroArchCore("picodrive", "PicoDrive"),
+            RetroArchCore("gearsystem", "Gearsystem")
+        ),
+        "gg" to listOf(
+            RetroArchCore("genesis_plus_gx", "Genesis Plus GX"),
+            RetroArchCore("gearsystem", "Gearsystem")
+        ),
+        "scd" to listOf(
+            RetroArchCore("genesis_plus_gx", "Genesis Plus GX"),
+            RetroArchCore("picodrive", "PicoDrive")
+        ),
+        "32x" to listOf(
+            RetroArchCore("picodrive", "PicoDrive")
+        ),
+        "psx" to listOf(
+            RetroArchCore("pcsx_rearmed", "PCSX ReARMed"),
+            RetroArchCore("swanstation", "SwanStation"),
+            RetroArchCore("beetle_psx", "Beetle PSX"),
+            RetroArchCore("beetle_psx_hw", "Beetle PSX HW")
+        ),
+        "psp" to listOf(
+            RetroArchCore("ppsspp", "PPSSPP")
+        ),
+        "tg16" to listOf(
+            RetroArchCore("mednafen_pce_fast", "Mednafen PCE Fast"),
+            RetroArchCore("beetle_pce", "Beetle PCE")
+        ),
+        "tgcd" to listOf(
+            RetroArchCore("mednafen_pce_fast", "Mednafen PCE Fast"),
+            RetroArchCore("beetle_pce", "Beetle PCE")
+        ),
+        "pcfx" to listOf(
+            RetroArchCore("mednafen_pcfx", "Mednafen PC-FX")
+        ),
+        "atari2600" to listOf(
+            RetroArchCore("stella", "Stella")
+        ),
+        "atari5200" to listOf(
+            RetroArchCore("atari800", "Atari800")
+        ),
+        "atari7800" to listOf(
+            RetroArchCore("prosystem", "ProSystem")
+        ),
+        "lynx" to listOf(
+            RetroArchCore("handy", "Handy"),
+            RetroArchCore("mednafen_lynx", "Mednafen Lynx")
+        ),
+        "ngp" to listOf(
+            RetroArchCore("mednafen_ngp", "Mednafen NGP"),
+            RetroArchCore("race", "RACE!")
+        ),
+        "ngpc" to listOf(
+            RetroArchCore("mednafen_ngp", "Mednafen NGP"),
+            RetroArchCore("race", "RACE!")
+        ),
+        "neogeo" to listOf(
+            RetroArchCore("fbneo", "FinalBurn Neo"),
+            RetroArchCore("fbalpha2012_neogeo", "FB Alpha 2012 Neo Geo")
+        ),
+        "arcade" to listOf(
+            RetroArchCore("fbneo", "FinalBurn Neo"),
+            RetroArchCore("mame2003_plus", "MAME 2003-Plus"),
+            RetroArchCore("mame", "MAME")
+        ),
+        "msx" to listOf(
+            RetroArchCore("bluemsx", "blueMSX"),
+            RetroArchCore("fmsx", "fMSX")
+        ),
+        "msx2" to listOf(
+            RetroArchCore("bluemsx", "blueMSX"),
+            RetroArchCore("fmsx", "fMSX")
+        ),
+        "wonderswan" to listOf(
+            RetroArchCore("mednafen_wswan", "Mednafen WonderSwan"),
+            RetroArchCore("beetle_wswan", "Beetle WonderSwan")
+        ),
+        "wonderswancolor" to listOf(
+            RetroArchCore("mednafen_wswan", "Mednafen WonderSwan"),
+            RetroArchCore("beetle_wswan", "Beetle WonderSwan")
+        )
+    )
+
+    fun getCoresForPlatform(platformId: String): List<RetroArchCore> =
+        platformCores[platformId] ?: emptyList()
+
+    fun getDefaultCore(platformId: String): RetroArchCore? =
+        platformCores[platformId]?.firstOrNull()
 }

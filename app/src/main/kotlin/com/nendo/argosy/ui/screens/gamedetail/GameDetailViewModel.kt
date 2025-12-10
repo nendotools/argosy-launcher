@@ -6,8 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.nendo.argosy.data.download.DownloadManager
 import com.nendo.argosy.data.download.DownloadState
 import com.nendo.argosy.data.emulator.EmulatorDetector
+import com.nendo.argosy.data.emulator.EmulatorRegistry
 import com.nendo.argosy.data.emulator.InstalledEmulator
+import com.nendo.argosy.data.emulator.LaunchConfig
 import com.nendo.argosy.data.emulator.LaunchResult
+import com.nendo.argosy.data.emulator.RetroArchCore
 import com.nendo.argosy.data.launcher.SteamLaunchers
 import com.nendo.argosy.data.local.dao.EmulatorConfigDao
 import com.nendo.argosy.data.model.GameSource
@@ -79,7 +82,9 @@ data class GameDetailUi(
     val emulatorName: String?,
     val canPlay: Boolean,
     val isMultiDisc: Boolean = false,
-    val lastPlayedDiscId: Long? = null
+    val lastPlayedDiscId: Long? = null,
+    val isRetroArchEmulator: Boolean = false,
+    val selectedCoreName: String? = null
 )
 
 sealed class LaunchEvent {
@@ -107,6 +112,10 @@ data class GameDetailUiState(
     val showEmulatorPicker: Boolean = false,
     val availableEmulators: List<InstalledEmulator> = emptyList(),
     val emulatorPickerFocusIndex: Int = 0,
+    val showCorePicker: Boolean = false,
+    val availableCores: List<RetroArchCore> = emptyList(),
+    val corePickerFocusIndex: Int = 0,
+    val selectedCoreId: String? = null,
     val siblingGameIds: List<Long> = emptyList(),
     val currentGameIndex: Int = -1,
     val showRatingPicker: Boolean = false,
@@ -208,11 +217,24 @@ class GameDetailViewModel @Inject constructor(
             val game = gameDao.getById(gameId) ?: return@launch
             val platform = platformDao.getById(game.platformId)
 
-            val emulatorConfig = emulatorConfigDao.getByGameId(gameId)
-                ?: emulatorConfigDao.getDefaultForPlatform(game.platformId)
+            val gameSpecificConfig = emulatorConfigDao.getByGameId(gameId)
+            val platformDefaultConfig = emulatorConfigDao.getDefaultForPlatform(game.platformId)
+            val emulatorConfig = gameSpecificConfig ?: platformDefaultConfig
 
             val emulatorName = emulatorConfig?.displayName
                 ?: emulatorDetector.getPreferredEmulator(game.platformId)?.def?.displayName
+
+            val emulatorDef = emulatorConfig?.packageName?.let { EmulatorRegistry.getByPackage(it) }
+                ?: emulatorDetector.getPreferredEmulator(game.platformId)?.def
+            val isRetroArch = emulatorDef?.launchConfig is LaunchConfig.RetroArch
+
+            val selectedCoreId = gameSpecificConfig?.coreName
+                ?: platformDefaultConfig?.coreName
+                ?: EmulatorRegistry.getDefaultCore(game.platformId)?.id
+            val selectedCoreName = if (isRetroArch) {
+                EmulatorRegistry.getCoresForPlatform(game.platformId)
+                    .find { it.id == selectedCoreId }?.displayName
+            } else null
 
             val isSteamGame = game.source == GameSource.STEAM
             val fileExists = gameRepository.checkGameFileExists(gameId)
@@ -263,14 +285,18 @@ class GameDetailViewModel @Inject constructor(
                     game = game.toUi(
                         platformName = platform?.name ?: "Unknown",
                         emulatorName = emulatorName,
-                        canPlay = canPlay
+                        canPlay = canPlay,
+                        isRetroArch = isRetroArch,
+                        selectedCoreName = selectedCoreName
                     ),
                     isLoading = false,
                     downloadStatus = downloadStatus,
                     downloadProgress = if (downloadStatus == GameDownloadStatus.DOWNLOADED) 1f else 0f,
                     siblingGameIds = siblingIds,
                     currentGameIndex = currentIndex,
-                    discs = discsUi
+                    discs = discsUi,
+                    availableCores = if (isRetroArch) EmulatorRegistry.getCoresForPlatform(game.platformId) else emptyList(),
+                    selectedCoreId = selectedCoreId
                 )
             }
         }
@@ -326,6 +352,9 @@ class GameDetailViewModel @Inject constructor(
                 is LaunchResult.NoSteamLauncher -> {
                     notificationManager.showError("Steam launcher not installed")
                 }
+                is LaunchResult.NoCore -> {
+                    notificationManager.showError("No compatible RetroArch core installed for ${result.platformId}")
+                }
                 is LaunchResult.MissingDiscs -> {
                     _uiState.update {
                         it.copy(
@@ -367,11 +396,14 @@ class GameDetailViewModel @Inject constructor(
         _uiState.update {
             val isDownloaded = it.downloadStatus == GameDownloadStatus.DOWNLOADED
             val isRommGame = it.game?.isRommGame == true
-            val maxIndex = when {
-                isDownloaded && isRommGame -> 4
-                isDownloaded || isRommGame -> 3
-                else -> 1
-            }
+            val isRetroArch = it.game?.isRetroArchEmulator == true
+            val isMultiDisc = it.game?.isMultiDisc == true
+            var optionCount = 2  // Base: Emulator + Hide
+            if (isMultiDisc) optionCount++  // Select Disc
+            if (isRetroArch) optionCount++  // Change Core
+            if (isRommGame) optionCount += 2  // Rate + Difficulty
+            if (isDownloaded) optionCount++  // Delete
+            val maxIndex = optionCount - 1
             val newIndex = (it.moreOptionsFocusIndex + delta).coerceIn(0, maxIndex)
             it.copy(moreOptionsFocusIndex = newIndex)
         }
@@ -381,18 +413,27 @@ class GameDetailViewModel @Inject constructor(
         val state = _uiState.value
         val isDownloaded = state.downloadStatus == GameDownloadStatus.DOWNLOADED
         val isRommGame = state.game?.isRommGame == true
+        val isRetroArch = state.game?.isRetroArchEmulator == true
+        val isMultiDisc = state.game?.isMultiDisc == true
         val index = state.moreOptionsFocusIndex
 
-        when {
-            index == 0 -> showEmulatorPicker()
-            index == 1 && isRommGame -> showRatingPicker(RatingType.OPINION)
-            index == 2 && isRommGame -> showRatingPicker(RatingType.DIFFICULTY)
-            index == 1 && !isRommGame && isDownloaded -> { toggleMoreOptions(); deleteLocalFile() }
-            index == 1 && !isRommGame && !isDownloaded -> { hideGame(); onBack() }
-            index == 3 && isRommGame && isDownloaded -> { toggleMoreOptions(); deleteLocalFile() }
-            index == 3 && isRommGame && !isDownloaded -> { hideGame(); onBack() }
-            index == 4 && isRommGame && isDownloaded -> { hideGame(); onBack() }
-            index == 2 && !isRommGame && isDownloaded -> { hideGame(); onBack() }
+        var currentIdx = 0
+        val discIdx = if (isMultiDisc) currentIdx++ else -1
+        val emulatorIdx = currentIdx++
+        val coreIdx = if (isRetroArch) currentIdx++ else -1
+        val rateIdx = if (isRommGame) currentIdx++ else -1
+        val difficultyIdx = if (isRommGame) currentIdx++ else -1
+        val deleteIdx = if (isDownloaded) currentIdx++ else -1
+        val hideIdx = currentIdx
+
+        when (index) {
+            discIdx -> showDiscPicker()
+            emulatorIdx -> showEmulatorPicker()
+            coreIdx -> showCorePicker()
+            rateIdx -> showRatingPicker(RatingType.OPINION)
+            difficultyIdx -> showRatingPicker(RatingType.DIFFICULTY)
+            deleteIdx -> { toggleMoreOptions(); deleteLocalFile() }
+            hideIdx -> { hideGame(); onBack() }
             else -> toggleMoreOptions()
         }
     }
@@ -444,6 +485,61 @@ class GameDetailViewModel @Inject constructor(
         } else {
             val emulator = state.availableEmulators.getOrNull(index - 1)
             selectEmulator(emulator)
+        }
+    }
+
+    fun showCorePicker() {
+        val game = _uiState.value.game ?: return
+        if (!game.isRetroArchEmulator) return
+        val cores = EmulatorRegistry.getCoresForPlatform(game.platformId)
+        if (cores.isEmpty()) return
+
+        val initialIndex = _uiState.value.selectedCoreId?.let { selectedId ->
+            val idx = cores.indexOfFirst { it.id == selectedId }
+            if (idx >= 0) idx + 1 else 1
+        } ?: 0
+
+        _uiState.update {
+            it.copy(
+                showMoreOptions = false,
+                showCorePicker = true,
+                availableCores = cores,
+                corePickerFocusIndex = initialIndex
+            )
+        }
+        soundManager.play(SoundType.OPEN_MODAL)
+    }
+
+    fun dismissCorePicker() {
+        _uiState.update { it.copy(showCorePicker = false) }
+        soundManager.play(SoundType.CLOSE_MODAL)
+    }
+
+    fun moveCorePickerFocus(delta: Int) {
+        _uiState.update { state ->
+            val maxIndex = state.availableCores.size
+            val newIndex = (state.corePickerFocusIndex + delta).coerceIn(0, maxIndex)
+            state.copy(corePickerFocusIndex = newIndex)
+        }
+    }
+
+    fun selectCore(coreId: String?) {
+        viewModelScope.launch {
+            val gameId = currentGameId
+            configureEmulatorUseCase.setCoreForGame(gameId, coreId)
+            _uiState.update { it.copy(showCorePicker = false) }
+            loadGame(gameId)
+        }
+    }
+
+    fun confirmCoreSelection() {
+        val state = _uiState.value
+        val index = state.corePickerFocusIndex
+        if (index == 0) {
+            selectCore(null)
+        } else {
+            val core = state.availableCores.getOrNull(index - 1)
+            selectCore(core?.id)
         }
     }
 
@@ -578,7 +674,9 @@ class GameDetailViewModel @Inject constructor(
     private fun GameEntity.toUi(
         platformName: String,
         emulatorName: String?,
-        canPlay: Boolean
+        canPlay: Boolean,
+        isRetroArch: Boolean = false,
+        selectedCoreName: String? = null
     ): GameDetailUi {
         val remoteUrls = screenshotPaths?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
         val cachedPaths = cachedScreenshotPaths?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
@@ -613,7 +711,9 @@ class GameDetailViewModel @Inject constructor(
             emulatorName = emulatorName,
             canPlay = canPlay,
             isMultiDisc = isMultiDisc,
-            lastPlayedDiscId = lastPlayedDiscId
+            lastPlayedDiscId = lastPlayedDiscId,
+            isRetroArchEmulator = isRetroArch,
+            selectedCoreName = selectedCoreName
         )
     }
 
@@ -631,6 +731,10 @@ class GameDetailViewModel @Inject constructor(
             return when {
                 state.showRatingPicker -> InputResult.UNHANDLED
                 state.showMissingDiscPrompt -> InputResult.UNHANDLED
+                state.showCorePicker -> {
+                    moveCorePickerFocus(-1)
+                    InputResult.HANDLED
+                }
                 state.showDiscPicker -> {
                     moveDiscPickerFocus(-1)
                     InputResult.HANDLED
@@ -655,6 +759,10 @@ class GameDetailViewModel @Inject constructor(
             return when {
                 state.showRatingPicker -> InputResult.UNHANDLED
                 state.showMissingDiscPrompt -> InputResult.UNHANDLED
+                state.showCorePicker -> {
+                    moveCorePickerFocus(1)
+                    InputResult.HANDLED
+                }
                 state.showDiscPicker -> {
                     moveDiscPickerFocus(1)
                     InputResult.HANDLED
@@ -681,7 +789,7 @@ class GameDetailViewModel @Inject constructor(
                     changeRatingValue(-1)
                     return InputResult.HANDLED
                 }
-                state.showMoreOptions || state.showEmulatorPicker || state.showDiscPicker || state.showMissingDiscPrompt -> {
+                state.showMoreOptions || state.showEmulatorPicker || state.showCorePicker || state.showDiscPicker || state.showMissingDiscPrompt -> {
                     return InputResult.UNHANDLED
                 }
                 else -> {
@@ -700,7 +808,7 @@ class GameDetailViewModel @Inject constructor(
                     changeRatingValue(1)
                     return InputResult.HANDLED
                 }
-                state.showMoreOptions || state.showEmulatorPicker || state.showDiscPicker || state.showMissingDiscPrompt -> {
+                state.showMoreOptions || state.showEmulatorPicker || state.showCorePicker || state.showDiscPicker || state.showMissingDiscPrompt -> {
                     return InputResult.UNHANDLED
                 }
                 else -> {
@@ -717,6 +825,7 @@ class GameDetailViewModel @Inject constructor(
             when {
                 state.showRatingPicker -> confirmRating()
                 state.showMissingDiscPrompt -> repairAndPlay()
+                state.showCorePicker -> confirmCoreSelection()
                 state.showDiscPicker -> confirmDiscSelection()
                 state.showEmulatorPicker -> confirmEmulatorSelection()
                 state.showMoreOptions -> confirmOptionSelection(onBack)
@@ -730,6 +839,7 @@ class GameDetailViewModel @Inject constructor(
             when {
                 state.showRatingPicker -> dismissRatingPicker()
                 state.showMissingDiscPrompt -> dismissMissingDiscPrompt()
+                state.showCorePicker -> dismissCorePicker()
                 state.showDiscPicker -> dismissDiscPicker()
                 state.showEmulatorPicker -> dismissEmulatorPicker()
                 state.showMoreOptions -> toggleMoreOptions()
@@ -746,6 +856,10 @@ class GameDetailViewModel @Inject constructor(
             }
             if (state.showMissingDiscPrompt) {
                 dismissMissingDiscPrompt()
+                return InputResult.UNHANDLED
+            }
+            if (state.showCorePicker) {
+                dismissCorePicker()
                 return InputResult.UNHANDLED
             }
             if (state.showDiscPicker) {

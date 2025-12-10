@@ -583,6 +583,9 @@ class HomeViewModel @Inject constructor(
                 is LaunchResult.NoSteamLauncher -> {
                     notificationManager.showError("Steam launcher not installed")
                 }
+                is LaunchResult.NoCore -> {
+                    notificationManager.showError("No compatible RetroArch core installed for ${result.platformId}")
+                }
                 is LaunchResult.MissingDiscs -> {
                     val discText = result.missingDiscNumbers.joinToString(", ")
                     notificationManager.showError("Missing discs: $discText. View game details to repair.")

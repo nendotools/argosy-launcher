@@ -12,6 +12,8 @@ import com.nendo.argosy.data.emulator.EmulatorDef
 import com.nendo.argosy.data.emulator.EmulatorDetector
 import com.nendo.argosy.data.emulator.EmulatorRegistry
 import com.nendo.argosy.data.emulator.InstalledEmulator
+import com.nendo.argosy.data.emulator.LaunchConfig
+import com.nendo.argosy.data.emulator.RetroArchCore
 import com.nendo.argosy.data.local.dao.EmulatorConfigDao
 import com.nendo.argosy.data.local.dao.PlatformDao
 import com.nendo.argosy.data.local.entity.PlatformEntity
@@ -95,11 +97,18 @@ enum class ConnectionStatus {
 data class PlatformEmulatorConfig(
     val platform: PlatformEntity,
     val selectedEmulator: String?,
+    val selectedEmulatorPackage: String? = null,
+    val selectedCore: String? = null,
     val isUserConfigured: Boolean,
     val availableEmulators: List<InstalledEmulator>,
-    val downloadableEmulators: List<EmulatorDef> = emptyList()
+    val downloadableEmulators: List<EmulatorDef> = emptyList(),
+    val availableCores: List<RetroArchCore> = emptyList(),
+    val effectiveEmulatorIsRetroArch: Boolean = false,
+    val effectiveEmulatorName: String? = null
 ) {
     val hasInstalledEmulators: Boolean get() = availableEmulators.isNotEmpty()
+    val isRetroArchSelected: Boolean get() = selectedEmulatorPackage?.startsWith("com.retroarch") == true
+    val showCoreSelection: Boolean get() = effectiveEmulatorIsRetroArch && availableCores.isNotEmpty()
 }
 
 data class EmulatorPickerInfo(
@@ -108,6 +117,13 @@ data class EmulatorPickerInfo(
     val installedEmulators: List<InstalledEmulator>,
     val downloadableEmulators: List<EmulatorDef>,
     val selectedEmulatorName: String?
+)
+
+data class CorePickerInfo(
+    val platformId: String,
+    val platformName: String,
+    val availableCores: List<RetroArchCore>,
+    val selectedCoreId: String?
 )
 
 data class DisplayState(
@@ -294,7 +310,9 @@ class SettingsViewModel @Inject constructor(
 
             val installedPackages = installedEmulators.map { it.def.packageName }.toSet()
 
-            val platformConfigs = platforms.map { platform ->
+            val platformConfigs = platforms
+                .filter { it.id != "steam" }
+                .map { platform ->
                 val defaultConfig = emulatorConfigDao.getDefaultForPlatform(platform.id)
                 val available = installedEmulators.filter { platform.id in it.def.supportedPlatforms }
                 val isUserConfigured = defaultConfig != null
@@ -304,12 +322,35 @@ class SettingsViewModel @Inject constructor(
                     .mapNotNull { EmulatorRegistry.getById(it) }
                     .filter { it.packageName !in installedPackages && it.downloadUrl != null }
 
+                val selectedEmulatorDef = defaultConfig?.packageName?.let { EmulatorRegistry.getByPackage(it) }
+                val autoResolvedEmulator = emulatorDetector.getPreferredEmulator(platform.id)?.def
+                val effectiveEmulatorDef = selectedEmulatorDef ?: autoResolvedEmulator
+                val isRetroArch = effectiveEmulatorDef?.launchConfig is LaunchConfig.RetroArch
+                val availableCores = if (isRetroArch) {
+                    EmulatorRegistry.getCoresForPlatform(platform.id)
+                } else {
+                    emptyList()
+                }
+
+                val selectedCore = if (isRetroArch && defaultConfig?.coreName != null) {
+                    defaultConfig.coreName
+                } else if (isRetroArch) {
+                    EmulatorRegistry.getDefaultCore(platform.id)?.id
+                } else {
+                    null
+                }
+
                 PlatformEmulatorConfig(
                     platform = platform,
                     selectedEmulator = defaultConfig?.displayName,
+                    selectedEmulatorPackage = defaultConfig?.packageName,
+                    selectedCore = selectedCore,
                     isUserConfigured = isUserConfigured,
                     availableEmulators = available,
-                    downloadableEmulators = downloadable
+                    downloadableEmulators = downloadable,
+                    availableCores = availableCores,
+                    effectiveEmulatorIsRetroArch = isRetroArch,
+                    effectiveEmulatorName = effectiveEmulatorDef?.displayName
                 )
             }
 
@@ -449,6 +490,19 @@ class SettingsViewModel @Inject constructor(
             )
         }
         soundManager.play(SoundType.CLOSE_MODAL)
+    }
+
+    fun cycleCoreForPlatform(config: PlatformEmulatorConfig, direction: Int) {
+        if (config.availableCores.isEmpty()) return
+        viewModelScope.launch {
+            val currentIndex = config.selectedCore?.let { selectedId ->
+                config.availableCores.indexOfFirst { it.id == selectedId }.takeIf { it >= 0 }
+            } ?: -1
+            val nextIndex = (currentIndex + direction + config.availableCores.size) % config.availableCores.size
+            val nextCore = config.availableCores[nextIndex]
+            configureEmulatorUseCase.setCoreForPlatform(config.platform.id, nextCore.id)
+            loadSettings()
+        }
     }
 
     fun moveEmulatorPickerFocus(delta: Int) {
@@ -1817,6 +1871,15 @@ class SettingsViewModel @Inject constructor(
                     return InputResult.HANDLED
                 }
             }
+            if (state.currentSection == SettingsSection.EMULATORS) {
+                val focusOffset = if (state.emulators.canAutoAssign) 1 else 0
+                val platformIndex = state.focusedIndex - focusOffset
+                val config = state.emulators.platforms.getOrNull(platformIndex)
+                if (config?.showCoreSelection == true) {
+                    cycleCoreForPlatform(config, -1)
+                    return InputResult.HANDLED
+                }
+            }
             return InputResult.UNHANDLED
         }
 
@@ -1842,6 +1905,15 @@ class SettingsViewModel @Inject constructor(
                 val launcherIndex = state.focusedIndex - 1
                 if (launcherIndex >= 0 && launcherIndex < state.steam.installedLaunchers.size) {
                     moveLauncherActionFocus(1)
+                    return InputResult.HANDLED
+                }
+            }
+            if (state.currentSection == SettingsSection.EMULATORS) {
+                val focusOffset = if (state.emulators.canAutoAssign) 1 else 0
+                val platformIndex = state.focusedIndex - focusOffset
+                val config = state.emulators.platforms.getOrNull(platformIndex)
+                if (config?.showCoreSelection == true) {
+                    cycleCoreForPlatform(config, 1)
                     return InputResult.HANDLED
                 }
             }

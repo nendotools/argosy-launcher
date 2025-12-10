@@ -18,7 +18,7 @@ class ConfigureEmulatorUseCase @Inject constructor(
                 gameId = gameId,
                 packageName = emulator.def.packageName,
                 displayName = emulator.def.displayName,
-                coreName = EmulatorRegistry.getRetroArchCores()[platformId],
+                coreName = EmulatorRegistry.getRetroArchCorePatterns()[platformId]?.firstOrNull(),
                 isDefault = false
             )
             emulatorConfigDao.insert(config)
@@ -34,7 +34,7 @@ class ConfigureEmulatorUseCase @Inject constructor(
                 gameId = null,
                 packageName = emulator.def.packageName,
                 displayName = emulator.def.displayName,
-                coreName = EmulatorRegistry.getRetroArchCores()[platformId],
+                coreName = EmulatorRegistry.getRetroArchCorePatterns()[platformId]?.firstOrNull(),
                 isDefault = true
             )
             emulatorConfigDao.insert(config)
@@ -47,5 +47,34 @@ class ConfigureEmulatorUseCase @Inject constructor(
 
     suspend fun clearForPlatform(platformId: String) {
         emulatorConfigDao.clearPlatformDefaults(platformId)
+    }
+
+    suspend fun setCoreForPlatform(platformId: String, coreId: String?) {
+        val existing = emulatorConfigDao.getDefaultForPlatform(platformId)
+        if (existing != null) {
+            emulatorConfigDao.updateCoreNameForPlatform(platformId, coreId)
+        } else {
+            val config = EmulatorConfigEntity(
+                platformId = platformId,
+                gameId = null,
+                packageName = null,
+                displayName = null,
+                coreName = coreId,
+                isDefault = true
+            )
+            emulatorConfigDao.insert(config)
+        }
+    }
+
+    suspend fun setCoreForGame(gameId: Long, coreId: String?) {
+        emulatorConfigDao.updateCoreNameForGame(gameId, coreId)
+    }
+
+    suspend fun getConfigForPlatform(platformId: String): EmulatorConfigEntity? {
+        return emulatorConfigDao.getDefaultForPlatform(platformId)
+    }
+
+    suspend fun getConfigForGame(gameId: Long): EmulatorConfigEntity? {
+        return emulatorConfigDao.getByGameId(gameId)
     }
 }

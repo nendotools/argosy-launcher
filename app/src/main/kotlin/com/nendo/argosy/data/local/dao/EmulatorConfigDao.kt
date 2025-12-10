@@ -33,4 +33,13 @@ interface EmulatorConfigDao {
 
     @Query("UPDATE emulator_configs SET isDefault = 1 WHERE id = :configId")
     suspend fun setAsDefault(configId: Long)
+
+    @Query("UPDATE emulator_configs SET coreName = :coreName WHERE id = :configId")
+    suspend fun updateCoreName(configId: Long, coreName: String?)
+
+    @Query("UPDATE emulator_configs SET coreName = :coreName WHERE gameId = :gameId")
+    suspend fun updateCoreNameForGame(gameId: Long, coreName: String?)
+
+    @Query("UPDATE emulator_configs SET coreName = :coreName WHERE platformId = :platformId AND gameId IS NULL AND isDefault = 1")
+    suspend fun updateCoreNameForPlatform(platformId: String, coreName: String?)
 }

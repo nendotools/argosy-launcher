@@ -37,7 +37,7 @@ import com.nendo.argosy.data.local.entity.SaveSyncEntity
         EmulatorSaveConfigEntity::class,
         GameDiscEntity::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -240,6 +240,32 @@ abstract class ALauncherDatabase : RoomDatabase() {
 
                 db.execSQL("ALTER TABLE download_queue ADD COLUMN discId INTEGER")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_download_queue_discId ON download_queue(discId)")
+            }
+        }
+
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS emulator_configs_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        platformId TEXT,
+                        gameId INTEGER,
+                        packageName TEXT,
+                        displayName TEXT,
+                        coreName TEXT,
+                        isDefault INTEGER NOT NULL DEFAULT 0,
+                        FOREIGN KEY (platformId) REFERENCES platforms(id) ON DELETE CASCADE,
+                        FOREIGN KEY (gameId) REFERENCES games(id) ON DELETE CASCADE
+                    )
+                """)
+                db.execSQL("""
+                    INSERT INTO emulator_configs_new (id, platformId, gameId, packageName, displayName, coreName, isDefault)
+                    SELECT id, platformId, gameId, packageName, displayName, coreName, isDefault FROM emulator_configs
+                """)
+                db.execSQL("DROP TABLE emulator_configs")
+                db.execSQL("ALTER TABLE emulator_configs_new RENAME TO emulator_configs")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_emulator_configs_platformId ON emulator_configs(platformId)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_emulator_configs_gameId ON emulator_configs(gameId)")
             }
         }
     }
