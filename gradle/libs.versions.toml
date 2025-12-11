@@ -1,23 +1,23 @@
 [versions]
-agp = "8.2.2"
-kotlin = "1.9.22"
-ksp = "1.9.22-1.0.17"
-coreKtx = "1.12.0"
-lifecycleRuntimeKtx = "2.7.0"
-activityCompose = "1.8.2"
-composeBom = "2024.02.00"
-hilt = "2.50"
-hiltNavigation = "1.1.0"
+agp = "8.7.3"
+kotlin = "2.0.21"
+ksp = "2.0.21-1.0.28"
+coreKtx = "1.15.0"
+lifecycleRuntimeKtx = "2.8.7"
+activityCompose = "1.9.3"
+composeBom = "2024.12.01"
+hilt = "2.54"
+hiltNavigation = "1.2.0"
 room = "2.6.1"
-datastore = "1.0.0"
-navigation = "2.7.7"
-coil = "2.5.0"
+datastore = "1.1.1"
+navigation = "2.8.5"
+coil = "2.7.0"
 retrofit = "2.9.0"
 okhttp = "4.12.0"
 moshi = "1.15.0"
-workManager = "2.9.0"
-coroutines = "1.7.3"
-mockk = "1.13.9"
+workManager = "2.10.0"
+coroutines = "1.9.0"
+mockk = "1.13.14"
 tvFoundation = "1.0.0-alpha11"
 tvMaterial = "1.0.0"
 
@@ -89,6 +89,7 @@ androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 

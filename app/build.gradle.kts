@@ -3,6 +3,7 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
 }
@@ -16,12 +17,12 @@ val keystoreProperties = Properties().apply {
 
 android {
     namespace = "com.nendo.argosy"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.nendo.argosy"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 39
         versionName = "0.9.0"
 
@@ -78,10 +79,6 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
-    }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.8"
     }
 
     packaging {

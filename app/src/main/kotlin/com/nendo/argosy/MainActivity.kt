@@ -69,8 +69,8 @@ class MainActivity : ComponentActivity() {
     }
 
     @SuppressLint("RestrictedApi")
-    override fun dispatchKeyEvent(event: KeyEvent?): Boolean {
-        if (event != null && gamepadInputHandler.handleKeyEvent(event)) {
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (gamepadInputHandler.handleKeyEvent(event)) {
             return true
         }
         return super.dispatchKeyEvent(event)
