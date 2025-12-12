@@ -40,7 +40,7 @@ import com.nendo.argosy.data.local.entity.SaveSyncEntity
         GameDiscEntity::class,
         AchievementEntity::class
     ],
-    version = 16,
+    version = 17,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -303,6 +303,13 @@ abstract class ALauncherDatabase : RoomDatabase() {
         val MIGRATION_15_16 = object : Migration(15, 16) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE games ADD COLUMN earnedAchievementCount INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE achievements ADD COLUMN cachedBadgeUrl TEXT")
+                db.execSQL("ALTER TABLE achievements ADD COLUMN cachedBadgeUrlLock TEXT")
             }
         }
     }

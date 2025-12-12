@@ -28,5 +28,7 @@ data class AchievementEntity(
     val type: String?,
     val badgeUrl: String?,
     val badgeUrlLock: String?,
+    val cachedBadgeUrl: String? = null,
+    val cachedBadgeUrlLock: String? = null,
     val isUnlocked: Boolean = false
 )

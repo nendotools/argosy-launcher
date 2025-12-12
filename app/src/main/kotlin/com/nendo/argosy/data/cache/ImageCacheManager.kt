@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.util.Log
+import com.nendo.argosy.data.local.dao.AchievementDao
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.dao.PlatformDao
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -58,12 +59,19 @@ data class PlatformLogoCacheRequest(
     val logoUrl: String
 )
 
+data class AchievementBadgeCacheRequest(
+    val achievementId: Long,
+    val badgeUrl: String,
+    val badgeUrlLock: String?
+)
+
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @Singleton
 class ImageCacheManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val gameDao: GameDao,
-    private val platformDao: PlatformDao
+    private val platformDao: PlatformDao,
+    private val achievementDao: AchievementDao
 ) {
     private val cacheDir: File by lazy {
         File(context.cacheDir, "images").also { it.mkdirs() }
@@ -507,6 +515,89 @@ class ImageCacheManager @Inject constructor(
                 val url = game.coverPath ?: return@forEach
                 val rommId = game.rommId ?: return@forEach
                 queueCoverCache(url, rommId, game.title)
+            }
+        }
+    }
+
+    private val badgeQueue = Channel<AchievementBadgeCacheRequest>(Channel.UNLIMITED)
+    private var isProcessingBadges = false
+
+    fun queueBadgeCache(achievementId: Long, badgeUrl: String, badgeUrlLock: String?) {
+        scope.launch {
+            badgeQueue.send(AchievementBadgeCacheRequest(achievementId, badgeUrl, badgeUrlLock))
+            startBadgeProcessingIfNeeded()
+        }
+    }
+
+    private fun startBadgeProcessingIfNeeded() {
+        if (isProcessingBadges) return
+        isProcessingBadges = true
+
+        scope.launch {
+            Log.d(TAG, "Starting achievement badge cache processing")
+
+            for (request in badgeQueue) {
+                try {
+                    processBadgeRequest(request)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to process badge for achievement ${request.achievementId}: ${e.message}")
+                }
+
+                if (badgeQueue.isEmpty) break
+            }
+            isProcessingBadges = false
+        }
+    }
+
+    private suspend fun processBadgeRequest(request: AchievementBadgeCacheRequest) {
+        val unlockedFileName = "badge_${request.achievementId}_${request.badgeUrl.md5Hash()}.png"
+        val unlockedFile = File(cacheDir, unlockedFileName)
+
+        if (!unlockedFile.exists()) {
+            val bitmap = downloadBitmap(request.badgeUrl)
+            if (bitmap != null) {
+                FileOutputStream(unlockedFile).use { out ->
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                }
+                bitmap.recycle()
+                Log.d(TAG, "Cached unlocked badge for achievement ${request.achievementId}")
+            }
+        }
+
+        if (unlockedFile.exists()) {
+            achievementDao.updateCachedBadgeUrl(request.achievementId, unlockedFile.absolutePath)
+        }
+
+        if (request.badgeUrlLock != null) {
+            val lockedFileName = "badge_lock_${request.achievementId}_${request.badgeUrlLock.md5Hash()}.png"
+            val lockedFile = File(cacheDir, lockedFileName)
+
+            if (!lockedFile.exists()) {
+                val bitmap = downloadBitmap(request.badgeUrlLock)
+                if (bitmap != null) {
+                    FileOutputStream(lockedFile).use { out ->
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                    }
+                    bitmap.recycle()
+                    Log.d(TAG, "Cached locked badge for achievement ${request.achievementId}")
+                }
+            }
+
+            if (lockedFile.exists()) {
+                achievementDao.updateCachedBadgeUrlLock(request.achievementId, lockedFile.absolutePath)
+            }
+        }
+    }
+
+    fun resumePendingBadgeCache() {
+        scope.launch {
+            val uncached = achievementDao.getWithUncachedBadges()
+            if (uncached.isEmpty()) return@launch
+
+            Log.d(TAG, "Resuming cache for ${uncached.size} achievements with uncached badges")
+            uncached.forEach { achievement ->
+                val url = achievement.badgeUrl ?: return@forEach
+                queueBadgeCache(achievement.id, url, achievement.badgeUrlLock)
             }
         }
     }

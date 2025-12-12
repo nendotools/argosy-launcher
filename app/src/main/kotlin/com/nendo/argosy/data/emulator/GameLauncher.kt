@@ -227,8 +227,6 @@ class GameLauncher @Inject constructor(
             putExtra("DATADIR", dataDir)
             putExtra("SDCARD", "/storage/emulated/0")
             putExtra("EXTERNAL", externalDir)
-            // QUITFOCUS tells RetroArch to exit when focus is lost, allowing new ROM to launch
-            putExtra("QUITFOCUS", "")
             addFlags(
                 Intent.FLAG_ACTIVITY_NEW_TASK or
                 Intent.FLAG_ACTIVITY_SINGLE_TOP

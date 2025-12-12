@@ -2,6 +2,7 @@ package com.nendo.argosy
 
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.util.Log
 import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.nendo.argosy.data.cache.ImageCacheManager
+import com.nendo.argosy.data.emulator.LaunchRetryTracker
 import com.nendo.argosy.data.remote.romm.RomMRepository
 import com.nendo.argosy.ui.ArgosyApp
 import com.nendo.argosy.ui.input.GamepadInputHandler
@@ -37,6 +39,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var romMRepository: RomMRepository
 
+    @Inject
+    lateinit var launchRetryTracker: LaunchRetryTracker
+
     private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var hasResumedBefore = false
 
@@ -47,6 +52,14 @@ class MainActivity : ComponentActivity() {
         imageCacheManager.resumePendingCache()
         imageCacheManager.resumePendingCoverCache()
         imageCacheManager.resumePendingLogoCache()
+        imageCacheManager.resumePendingBadgeCache()
+
+        activityScope.launch {
+            launchRetryTracker.retryEvents.collect { intent ->
+                Log.d("MainActivity", "Retrying launch intent after quick return")
+                startActivity(intent)
+            }
+        }
 
         setContent {
             ALauncherTheme {
@@ -81,6 +94,9 @@ class MainActivity : ComponentActivity() {
         if (hasFocus) {
             hideSystemUI()
             window.decorView.requestFocus()
+            launchRetryTracker.onFocusGained()
+        } else {
+            launchRetryTracker.onFocusLost()
         }
     }
 

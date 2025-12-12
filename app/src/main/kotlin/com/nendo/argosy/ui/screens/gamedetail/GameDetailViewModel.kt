@@ -3,6 +3,7 @@ package com.nendo.argosy.ui.screens.gamedetail
 import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nendo.argosy.data.cache.ImageCacheManager
 import com.nendo.argosy.data.download.DownloadManager
 import com.nendo.argosy.data.download.DownloadState
 import com.nendo.argosy.data.emulator.EmulatorDetector
@@ -160,7 +161,8 @@ class GameDetailViewModel @Inject constructor(
     private val romMRepository: RomMRepository,
     private val soundManager: SoundFeedbackManager,
     private val gameActions: GameActionsDelegate,
-    private val achievementDao: com.nendo.argosy.data.local.dao.AchievementDao
+    private val achievementDao: com.nendo.argosy.data.local.dao.AchievementDao,
+    private val imageCacheManager: ImageCacheManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GameDetailUiState())
@@ -353,6 +355,13 @@ class GameDetailViewModel @Inject constructor(
                 val earnedCount = entities.count { it.isUnlocked }
                 gameDao.updateAchievementCount(gameId, entities.size, earnedCount)
 
+                val savedAchievements = achievementDao.getByGameId(gameId)
+                savedAchievements.forEach { achievement ->
+                    if (achievement.cachedBadgeUrl == null && achievement.badgeUrl != null) {
+                        imageCacheManager.queueBadgeCache(achievement.id, achievement.badgeUrl, achievement.badgeUrlLock)
+                    }
+                }
+
                 apiAchievements.map { achievement ->
                     val isUnlocked = achievement.badgeId in earnedBadgeIds
                     AchievementUi(
@@ -390,7 +399,11 @@ class GameDetailViewModel @Inject constructor(
         description = description,
         points = points,
         type = type,
-        badgeUrl = badgeUrlLock ?: badgeUrl,
+        badgeUrl = if (isUnlocked) {
+            cachedBadgeUrl ?: badgeUrl
+        } else {
+            cachedBadgeUrlLock ?: badgeUrlLock ?: cachedBadgeUrl ?: badgeUrl
+        },
         isUnlocked = isUnlocked
     )
 

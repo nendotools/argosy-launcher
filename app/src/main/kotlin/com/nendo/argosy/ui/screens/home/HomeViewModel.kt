@@ -3,6 +3,7 @@ package com.nendo.argosy.ui.screens.home
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nendo.argosy.data.cache.ImageCacheManager
 import com.nendo.argosy.data.download.DownloadManager
 import com.nendo.argosy.data.download.DownloadState
 import com.nendo.argosy.data.emulator.LaunchResult
@@ -180,7 +181,8 @@ class HomeViewModel @Inject constructor(
     private val downloadManager: DownloadManager,
     private val soundManager: SoundFeedbackManager,
     private val gameActions: GameActionsDelegate,
-    private val achievementDao: com.nendo.argosy.data.local.dao.AchievementDao
+    private val achievementDao: com.nendo.argosy.data.local.dao.AchievementDao,
+    private val imageCacheManager: ImageCacheManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(restoreInitialState())
@@ -293,6 +295,15 @@ class HomeViewModel @Inject constructor(
                 if (state.currentRow == HomeRow.Continue && gameUis.isEmpty()) {
                     val newRow = newState.availableRows.firstOrNull() ?: HomeRow.Continue
                     newState.copy(currentRow = newRow, focusedGameIndex = 0)
+                } else if (state.currentRow == HomeRow.Continue) {
+                    val focusedGameId = state.focusedGame?.id
+                    val newIndex = if (focusedGameId != null) {
+                        gameUis.indexOfFirst { it.id == focusedGameId }
+                            .takeIf { it >= 0 } ?: state.focusedGameIndex
+                    } else {
+                        state.focusedGameIndex
+                    }
+                    newState.copy(focusedGameIndex = newIndex.coerceIn(0, (gameUis.size - 1).coerceAtLeast(0)))
                 } else {
                     newState
                 }
@@ -789,6 +800,13 @@ class HomeViewModel @Inject constructor(
                     achievementDao.replaceForGame(gameId, entities)
                     val earnedCount = entities.count { it.isUnlocked }
                     gameDao.updateAchievementCount(gameId, entities.size, earnedCount)
+
+                    val savedAchievements = achievementDao.getByGameId(gameId)
+                    savedAchievements.forEach { achievement ->
+                        if (achievement.cachedBadgeUrl == null && achievement.badgeUrl != null) {
+                            imageCacheManager.queueBadgeCache(achievement.id, achievement.badgeUrl, achievement.badgeUrlLock)
+                        }
+                    }
 
                     _uiState.update { state ->
                         state.copy(
