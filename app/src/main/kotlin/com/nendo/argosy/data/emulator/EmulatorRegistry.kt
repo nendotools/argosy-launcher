@@ -259,7 +259,12 @@ object EmulatorRegistry {
             packageName = "xyz.aethersx2.android",
             displayName = "AetherSX2",
             supportedPlatforms = setOf("ps2"),
-            downloadUrl = "https://www.aethersx2.com/archive/"
+            launchAction = Intent.ACTION_MAIN,
+            launchConfig = LaunchConfig.Custom(
+                activityClass = "xyz.aethersx2.android.EmulationActivity",
+                intentExtras = mapOf("bootPath" to ExtraValue.FilePath)
+            ),
+            downloadUrl = "https://github.com/AetherSX2-backup/AetherSX2-builds"
         ),
         EmulatorDef(
             id = "pcsx2",

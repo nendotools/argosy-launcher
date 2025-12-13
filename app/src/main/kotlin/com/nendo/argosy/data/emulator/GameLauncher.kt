@@ -295,14 +295,24 @@ class GameLauncher @Inject constructor(
                 putExtra("filePath", romFile.absolutePath)
             }
 
+            var hasFileUri = false
             config.intentExtras.forEach { (key, extraValue) ->
                 val value = when (extraValue) {
                     is ExtraValue.FilePath -> romFile.absolutePath
-                    is ExtraValue.FileUri -> getFileUri(romFile).toString()
+                    is ExtraValue.FileUri -> {
+                        hasFileUri = true
+                        getFileUri(romFile).toString()
+                    }
                     is ExtraValue.Platform -> platformId
                     is ExtraValue.Literal -> extraValue.value
                 }
                 putExtra(key, value)
+            }
+
+            if (hasFileUri) {
+                val uri = getFileUri(romFile)
+                clipData = android.content.ClipData.newRawUri(null, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
 
             addFlags(
