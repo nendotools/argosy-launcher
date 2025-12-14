@@ -9,6 +9,17 @@ data class EmulatorDef(
     val supportedPlatforms: Set<String>,
     val launchAction: String = Intent.ACTION_VIEW,
     val launchConfig: LaunchConfig = LaunchConfig.FileUri,
+    val downloadUrl: String? = null,
+    val packagePatterns: List<String> = emptyList()
+)
+
+data class EmulatorFamily(
+    val baseId: String,
+    val displayNamePrefix: String,
+    val packagePatterns: List<String>,
+    val supportedPlatforms: Set<String>,
+    val launchAction: String = Intent.ACTION_VIEW,
+    val launchConfig: LaunchConfig = LaunchConfig.FileUri,
     val downloadUrl: String? = null
 )
 
@@ -117,6 +128,13 @@ object EmulatorRegistry {
             downloadUrl = "https://play.google.com/store/apps/details?id=org.dolphinemu.dolphinemu"
         ),
         EmulatorDef(
+            id = "dolphin_handheld",
+            packageName = "org.dolphinemu.handheld",
+            displayName = "Dolphin (Handheld)",
+            supportedPlatforms = setOf("gc", "ngc", "wii"),
+            downloadUrl = "https://github.com/dolphin-emu/dolphin/releases"
+        ),
+        EmulatorDef(
             id = "cemu",
             packageName = "info.cemu.cemu",
             displayName = "Cemu",
@@ -167,6 +185,16 @@ object EmulatorRegistry {
             downloadUrl = "https://github.com/azahar-emu/azahar/releases"
         ),
         EmulatorDef(
+            id = "borked3ds",
+            packageName = "io.github.borked3ds.android",
+            displayName = "Borked3DS",
+            supportedPlatforms = setOf("3ds"),
+            launchConfig = LaunchConfig.Custom(
+                activityClass = "io.github.borked3ds.android.activities.EmulationActivity"
+            ),
+            downloadUrl = "https://github.com/Borked3DS/Borked3DS/releases"
+        ),
+        EmulatorDef(
             id = "yuzu",
             packageName = "org.yuzu.yuzu_emu",
             displayName = "Yuzu",
@@ -207,6 +235,13 @@ object EmulatorRegistry {
             displayName = "Citron",
             supportedPlatforms = setOf("switch"),
             downloadUrl = "https://git.citron-emu.org/Citron/Citron/releases"
+        ),
+        EmulatorDef(
+            id = "sudachi",
+            packageName = "org.sudachi.sudachi_emu",
+            displayName = "Sudachi",
+            supportedPlatforms = setOf("switch"),
+            downloadUrl = "https://github.com/sudachi-emu/sudachi/releases"
         ),
         EmulatorDef(
             id = "drastic",
@@ -414,12 +449,12 @@ object EmulatorRegistry {
         "vita" to listOf("vita3k-zx", "vita3k"),
         "n64" to listOf("mupen64plus_fz", "retroarch", "retroarch_64"),
         "nds" to listOf("drastic", "melonds", "retroarch", "retroarch_64"),
-        "3ds" to listOf("azahar", "lime3ds", "citra_mmj", "citra"),
-        "gc" to listOf("dolphin", "retroarch", "retroarch_64"),
-        "ngc" to listOf("dolphin", "retroarch", "retroarch_64"),
-        "wii" to listOf("dolphin"),
+        "3ds" to listOf("azahar", "borked3ds", "lime3ds", "citra_mmj", "citra"),
+        "gc" to listOf("dolphin", "dolphin_handheld", "retroarch", "retroarch_64"),
+        "ngc" to listOf("dolphin", "dolphin_handheld", "retroarch", "retroarch_64"),
+        "wii" to listOf("dolphin", "dolphin_handheld"),
         "wiiu" to listOf("cemu"),
-        "switch" to listOf("citron", "ryujinx", "yuzu", "strato", "eden", "skyline"),
+        "switch" to listOf("citron", "sudachi", "ryujinx", "yuzu", "strato", "eden", "skyline"),
         "gba" to listOf("pizza_boy_gba", "retroarch", "retroarch_64"),
         "gb" to listOf("pizza_boy_gb", "retroarch", "retroarch_64"),
         "gbc" to listOf("pizza_boy_gb", "retroarch", "retroarch_64"),
@@ -669,4 +704,194 @@ object EmulatorRegistry {
 
     fun getDefaultCore(platformId: String): RetroArchCore? =
         platformCores[platformId]?.firstOrNull()
+
+    private val emulatorFamilies = listOf(
+        EmulatorFamily(
+            baseId = "dolphin",
+            displayNamePrefix = "Dolphin",
+            packagePatterns = listOf("org.dolphinemu.*"),
+            supportedPlatforms = setOf("gc", "ngc", "wii"),
+            downloadUrl = "https://dolphin-emu.org/download/"
+        ),
+        EmulatorFamily(
+            baseId = "vita3k",
+            displayNamePrefix = "Vita3K",
+            packagePatterns = listOf("org.vita3k.emulator*"),
+            supportedPlatforms = setOf("vita"),
+            launchAction = Intent.ACTION_MAIN,
+            launchConfig = LaunchConfig.Vita3K(),
+            downloadUrl = "https://vita3k.org/"
+        ),
+        EmulatorFamily(
+            baseId = "citra",
+            displayNamePrefix = "Citra",
+            packagePatterns = listOf("org.citra.*", "org.gamerytb.citra.*"),
+            supportedPlatforms = setOf("3ds"),
+            downloadUrl = "https://citra-emu.org/"
+        ),
+        EmulatorFamily(
+            baseId = "lime3ds",
+            displayNamePrefix = "Lime3DS",
+            packagePatterns = listOf("io.github.lime3ds.*"),
+            supportedPlatforms = setOf("3ds")
+        ),
+        EmulatorFamily(
+            baseId = "azahar",
+            displayNamePrefix = "Azahar",
+            packagePatterns = listOf("io.github.azahar_emu.*"),
+            supportedPlatforms = setOf("3ds"),
+            downloadUrl = "https://github.com/azahar-emu/azahar/releases"
+        ),
+        EmulatorFamily(
+            baseId = "borked3ds",
+            displayNamePrefix = "Borked3DS",
+            packagePatterns = listOf("io.github.borked3ds.*"),
+            supportedPlatforms = setOf("3ds"),
+            downloadUrl = "https://github.com/Borked3DS/Borked3DS/releases"
+        ),
+        EmulatorFamily(
+            baseId = "yuzu",
+            displayNamePrefix = "Yuzu",
+            packagePatterns = listOf("org.yuzu.*"),
+            supportedPlatforms = setOf("switch")
+        ),
+        EmulatorFamily(
+            baseId = "sudachi",
+            displayNamePrefix = "Sudachi",
+            packagePatterns = listOf("org.sudachi.*"),
+            supportedPlatforms = setOf("switch"),
+            downloadUrl = "https://github.com/sudachi-emu/sudachi/releases"
+        ),
+        EmulatorFamily(
+            baseId = "citron",
+            displayNamePrefix = "Citron",
+            packagePatterns = listOf("org.citron.*"),
+            supportedPlatforms = setOf("switch"),
+            downloadUrl = "https://git.citron-emu.org/Citron/Citron/releases"
+        ),
+        EmulatorFamily(
+            baseId = "eden",
+            displayNamePrefix = "Eden",
+            packagePatterns = listOf("dev.eden.*", "dev.legacy.eden*"),
+            supportedPlatforms = setOf("switch")
+        ),
+        EmulatorFamily(
+            baseId = "strato",
+            displayNamePrefix = "Strato",
+            packagePatterns = listOf("org.stratoemu.*"),
+            supportedPlatforms = setOf("switch"),
+            downloadUrl = "https://github.com/strato-emu/strato/releases"
+        ),
+        EmulatorFamily(
+            baseId = "skyline",
+            displayNamePrefix = "Skyline",
+            packagePatterns = listOf("skyline.*", "emu.skyline.*"),
+            supportedPlatforms = setOf("switch")
+        ),
+        EmulatorFamily(
+            baseId = "ryujinx",
+            displayNamePrefix = "Ryujinx",
+            packagePatterns = listOf("org.ryujinx.*"),
+            supportedPlatforms = setOf("switch"),
+            downloadUrl = "https://ryujinx.org/download"
+        ),
+        EmulatorFamily(
+            baseId = "ppsspp",
+            displayNamePrefix = "PPSSPP",
+            packagePatterns = listOf("org.ppsspp.*"),
+            supportedPlatforms = setOf("psp"),
+            downloadUrl = "https://www.ppsspp.org/download/"
+        ),
+        EmulatorFamily(
+            baseId = "aethersx2",
+            displayNamePrefix = "AetherSX2",
+            packagePatterns = listOf("xyz.aethersx2.*"),
+            supportedPlatforms = setOf("ps2"),
+            launchAction = Intent.ACTION_MAIN,
+            launchConfig = LaunchConfig.Custom(
+                activityClass = "xyz.aethersx2.android.EmulationActivity",
+                intentExtras = mapOf("bootPath" to ExtraValue.FilePath)
+            )
+        ),
+        EmulatorFamily(
+            baseId = "duckstation",
+            displayNamePrefix = "DuckStation",
+            packagePatterns = listOf("com.github.stenzek.duckstation*"),
+            supportedPlatforms = setOf("psx"),
+            launchConfig = LaunchConfig.Custom(
+                activityClass = "com.github.stenzek.duckstation.EmulationActivity",
+                intentExtras = mapOf("bootPath" to ExtraValue.FileUri)
+            ),
+            downloadUrl = "https://www.duckstation.org/android/"
+        ),
+        EmulatorFamily(
+            baseId = "melonds",
+            displayNamePrefix = "melonDS",
+            packagePatterns = listOf("me.magnum.melonds*"),
+            supportedPlatforms = setOf("nds"),
+            launchConfig = LaunchConfig.Custom(
+                activityClass = "me.magnum.melonds.ui.emulator.EmulatorActivity",
+                intentExtras = mapOf("PATH" to ExtraValue.FilePath)
+            ),
+            downloadUrl = "https://melonds.kuribo64.net/downloads.php"
+        ),
+        EmulatorFamily(
+            baseId = "retroarch",
+            displayNamePrefix = "RetroArch",
+            packagePatterns = listOf("com.retroarch*"),
+            supportedPlatforms = setOf(
+                "nes", "snes", "n64", "gc", "ngc", "gb", "gbc", "gba", "nds",
+                "genesis", "sms", "gg", "scd", "32x",
+                "psx", "psp", "saturn", "dreamcast", "dc",
+                "tg16", "tgcd", "pcfx",
+                "atari2600", "atari5200", "atari7800", "lynx",
+                "ngp", "ngpc", "neogeo",
+                "msx", "msx2",
+                "wonderswan", "wonderswancolor",
+                "arcade"
+            ),
+            launchAction = Intent.ACTION_MAIN,
+            launchConfig = LaunchConfig.RetroArch(),
+            downloadUrl = "https://www.retroarch.com/?page=platforms"
+        )
+    )
+
+    fun getEmulatorFamilies(): List<EmulatorFamily> = emulatorFamilies
+
+    fun matchesFamily(packageName: String, family: EmulatorFamily): Boolean {
+        return family.packagePatterns.any { pattern ->
+            val regex = pattern
+                .replace(".", "\\.")
+                .replace("*", ".*")
+            packageName.matches(Regex(regex))
+        }
+    }
+
+    fun findFamilyForPackage(packageName: String): EmulatorFamily? {
+        return emulatorFamilies.find { matchesFamily(packageName, it) }
+    }
+
+    fun createDefFromFamily(family: EmulatorFamily, packageName: String): EmulatorDef {
+        val suffix = packageName
+            .removePrefix(family.packagePatterns.first().substringBefore("*"))
+            .replace(".", " ")
+            .trim()
+            .replaceFirstChar { it.uppercase() }
+
+        val displayName = if (suffix.isNotEmpty() && suffix.lowercase() != family.displayNamePrefix.lowercase()) {
+            "${family.displayNamePrefix} ($suffix)"
+        } else {
+            family.displayNamePrefix
+        }
+
+        return EmulatorDef(
+            id = "${family.baseId}_${packageName.replace(".", "_")}",
+            packageName = packageName,
+            displayName = displayName,
+            supportedPlatforms = family.supportedPlatforms,
+            launchAction = family.launchAction,
+            launchConfig = family.launchConfig,
+            downloadUrl = family.downloadUrl
+        )
+    }
 }

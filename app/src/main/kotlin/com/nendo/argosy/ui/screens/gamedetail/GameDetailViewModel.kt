@@ -240,7 +240,7 @@ class GameDetailViewModel @Inject constructor(
             val emulatorName = emulatorConfig?.displayName
                 ?: emulatorDetector.getPreferredEmulator(game.platformId)?.def?.displayName
 
-            val emulatorDef = emulatorConfig?.packageName?.let { EmulatorRegistry.getByPackage(it) }
+            val emulatorDef = emulatorConfig?.packageName?.let { emulatorDetector.getByPackage(it) }
                 ?: emulatorDetector.getPreferredEmulator(game.platformId)?.def
             val isRetroArch = emulatorDef?.launchConfig is LaunchConfig.RetroArch
 

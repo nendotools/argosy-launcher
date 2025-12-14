@@ -1,7 +1,9 @@
 package com.nendo.argosy.data.emulator
 
 import android.content.Context
+import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -10,6 +12,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
+
+private const val TAG = "EmulatorDetector"
 
 data class InstalledEmulator(
     val def: EmulatorDef,
@@ -28,30 +32,60 @@ class EmulatorDetector @Inject constructor(
 
     suspend fun detectEmulators(): List<InstalledEmulator> = withContext(Dispatchers.IO) {
         val installed = mutableListOf<InstalledEmulator>()
+        val detectedPackages = mutableSetOf<String>()
 
         for (emulatorDef in EmulatorRegistry.getAll()) {
             try {
                 val packageInfo = packageManager.getPackageInfo(emulatorDef.packageName, 0)
-                val versionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                    packageInfo.longVersionCode
-                } else {
-                    @Suppress("DEPRECATION")
-                    packageInfo.versionCode.toLong()
-                }
-
-                installed.add(
-                    InstalledEmulator(
-                        def = emulatorDef,
-                        versionName = packageInfo.versionName,
-                        versionCode = versionCode
-                    )
-                )
+                installed.add(createInstalledEmulator(emulatorDef, packageInfo))
+                detectedPackages.add(emulatorDef.packageName)
             } catch (_: PackageManager.NameNotFoundException) {
             }
         }
 
+        detectEmulatorFamilies(installed, detectedPackages)
+
         _installedEmulators.value = installed
         installed
+    }
+
+    private fun detectEmulatorFamilies(
+        installed: MutableList<InstalledEmulator>,
+        detectedPackages: MutableSet<String>
+    ) {
+        @Suppress("DEPRECATION")
+        val allPackages = try {
+            packageManager.getInstalledPackages(0)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to get installed packages", e)
+            return
+        }
+
+        for (packageInfo in allPackages) {
+            val packageName = packageInfo.packageName
+            if (packageName in detectedPackages) continue
+
+            val family = EmulatorRegistry.findFamilyForPackage(packageName)
+            if (family != null) {
+                val def = EmulatorRegistry.createDefFromFamily(family, packageName)
+                installed.add(createInstalledEmulator(def, packageInfo))
+                detectedPackages.add(packageName)
+            }
+        }
+    }
+
+    private fun createInstalledEmulator(def: EmulatorDef, packageInfo: PackageInfo): InstalledEmulator {
+        val versionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+            packageInfo.longVersionCode
+        } else {
+            @Suppress("DEPRECATION")
+            packageInfo.versionCode.toLong()
+        }
+        return InstalledEmulator(
+            def = def,
+            versionName = packageInfo.versionName,
+            versionCode = versionCode
+        )
     }
 
     fun isInstalled(packageName: String): Boolean {
@@ -86,5 +120,15 @@ class EmulatorDetector @Inject constructor(
 
     fun hasAnyEmulator(platformId: String): Boolean {
         return _installedEmulators.value.any { platformId in it.def.supportedPlatforms }
+    }
+
+    fun getByPackage(packageName: String): EmulatorDef? {
+        EmulatorRegistry.getByPackage(packageName)?.let { return it }
+
+        _installedEmulators.value
+            .find { it.def.packageName == packageName }
+            ?.let { return it.def }
+
+        return null
     }
 }

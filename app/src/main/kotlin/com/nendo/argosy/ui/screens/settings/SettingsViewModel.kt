@@ -328,7 +328,7 @@ class SettingsViewModel @Inject constructor(
                     .mapNotNull { EmulatorRegistry.getById(it) }
                     .filter { it.packageName !in installedPackages && it.downloadUrl != null }
 
-                val selectedEmulatorDef = defaultConfig?.packageName?.let { EmulatorRegistry.getByPackage(it) }
+                val selectedEmulatorDef = defaultConfig?.packageName?.let { emulatorDetector.getByPackage(it) }
                 val autoResolvedEmulator = emulatorDetector.getPreferredEmulator(platform.id)?.def
                 val effectiveEmulatorDef = selectedEmulatorDef ?: autoResolvedEmulator
                 val isRetroArch = effectiveEmulatorDef?.launchConfig is LaunchConfig.RetroArch

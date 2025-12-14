@@ -1,5 +1,6 @@
 package com.nendo.argosy.domain.usecase.save
 
+import com.nendo.argosy.data.emulator.EmulatorDetector
 import com.nendo.argosy.data.emulator.EmulatorRegistry
 import com.nendo.argosy.data.local.dao.EmulatorConfigDao
 import com.nendo.argosy.data.local.dao.GameDao
@@ -12,7 +13,8 @@ import javax.inject.Inject
 class SyncSaveOnSessionEndUseCase @Inject constructor(
     private val saveSyncRepository: SaveSyncRepository,
     private val gameDao: GameDao,
-    private val emulatorConfigDao: EmulatorConfigDao
+    private val emulatorConfigDao: EmulatorConfigDao,
+    private val emulatorDetector: EmulatorDetector
 ) {
     sealed class Result {
         data object Uploaded : Result()
@@ -34,10 +36,8 @@ class SyncSaveOnSessionEndUseCase @Inject constructor(
         val emulatorConfig = emulatorConfigDao.getByGameId(gameId)
             ?: emulatorConfigDao.getDefaultForPlatform(game.platformId)
 
-        val emulatorId = emulatorConfig?.packageName?.let { pkg ->
-            EmulatorRegistry.getByPackage(pkg)?.id
-        } ?: EmulatorRegistry.getByPackage(emulatorPackage)?.id
-        ?: return Result.NotConfigured
+        val emulatorId = resolveEmulatorId(emulatorConfig?.packageName, emulatorPackage)
+            ?: return Result.NotConfigured
 
         val savePath = saveSyncRepository.discoverSavePath(emulatorId, game.title, game.platformId)
             ?: return Result.NoSaveFound
@@ -69,5 +69,18 @@ class SyncSaveOnSessionEndUseCase @Inject constructor(
             is SaveSyncResult.NoSaveFound -> Result.NoSaveFound
             is SaveSyncResult.NotConfigured -> Result.NotConfigured
         }
+    }
+
+    private fun resolveEmulatorId(configPackage: String?, launchPackage: String): String? {
+        val packageToResolve = configPackage ?: launchPackage
+
+        EmulatorRegistry.getByPackage(packageToResolve)?.let { return it.id }
+
+        val family = EmulatorRegistry.findFamilyForPackage(packageToResolve)
+        if (family != null) {
+            return family.baseId
+        }
+
+        return emulatorDetector.getByPackage(packageToResolve)?.id
     }
 }

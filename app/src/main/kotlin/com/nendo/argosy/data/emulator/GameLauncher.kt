@@ -163,18 +163,18 @@ class GameLauncher @Inject constructor(
     }
 
     private suspend fun resolveEmulator(game: GameEntity): EmulatorDef? {
+        if (emulatorDetector.installedEmulators.value.isEmpty()) {
+            emulatorDetector.detectEmulators()
+        }
+
         val gameOverride = emulatorConfigDao.getByGameId(game.id)
         if (gameOverride?.packageName != null) {
-            return EmulatorRegistry.getByPackage(gameOverride.packageName)
+            return emulatorDetector.getByPackage(gameOverride.packageName)
         }
 
         val platformDefault = emulatorConfigDao.getDefaultForPlatform(game.platformId)
         if (platformDefault?.packageName != null) {
-            return EmulatorRegistry.getByPackage(platformDefault.packageName)
-        }
-
-        if (emulatorDetector.installedEmulators.value.isEmpty()) {
-            emulatorDetector.detectEmulators()
+            return emulatorDetector.getByPackage(platformDefault.packageName)
         }
 
         return emulatorDetector.getPreferredEmulator(game.platformId)?.def
