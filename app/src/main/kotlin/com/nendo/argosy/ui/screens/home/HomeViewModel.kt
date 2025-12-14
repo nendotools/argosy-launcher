@@ -6,7 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.nendo.argosy.data.cache.ImageCacheManager
 import com.nendo.argosy.data.download.DownloadManager
 import com.nendo.argosy.data.download.DownloadState
+import com.nendo.argosy.data.emulator.EmulatorDetector
+import com.nendo.argosy.data.emulator.EmulatorRegistry
 import com.nendo.argosy.data.emulator.LaunchResult
+import com.nendo.argosy.data.emulator.PlaySessionTracker
+import com.nendo.argosy.data.emulator.SavePathRegistry
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.dao.PlatformDao
 import com.nendo.argosy.data.local.entity.GameEntity
@@ -15,10 +19,12 @@ import com.nendo.argosy.data.model.GameSource
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.remote.romm.RomMRepository
 import com.nendo.argosy.data.remote.romm.RomMResult
+import com.nendo.argosy.domain.model.SyncState
 import com.nendo.argosy.domain.usecase.download.DownloadGameUseCase
 import com.nendo.argosy.domain.usecase.download.DownloadResult
 import com.nendo.argosy.domain.usecase.game.DeleteGameUseCase
 import com.nendo.argosy.domain.usecase.game.LaunchGameUseCase
+import com.nendo.argosy.domain.usecase.game.LaunchWithSyncUseCase
 import com.nendo.argosy.domain.usecase.sync.SyncLibraryResult
 import com.nendo.argosy.domain.usecase.sync.SyncLibraryUseCase
 import com.nendo.argosy.ui.input.InputHandler
@@ -117,6 +123,11 @@ sealed class HomeRow {
     data object Continue : HomeRow()
 }
 
+data class SyncOverlayState(
+    val gameTitle: String,
+    val syncState: SyncState
+)
+
 data class HomeUiState(
     val platforms: List<HomePlatformUi> = emptyList(),
     val platformItems: List<HomeRowItem> = emptyList(),
@@ -133,7 +144,8 @@ data class HomeUiState(
     val backgroundSaturation: Int = 100,
     val backgroundOpacity: Int = 100,
     val useGameBackground: Boolean = true,
-    val customBackgroundPath: String? = null
+    val customBackgroundPath: String? = null,
+    val syncOverlayState: SyncOverlayState? = null
 ) {
     val availableRows: List<HomeRow>
         get() = buildList {
@@ -185,11 +197,15 @@ class HomeViewModel @Inject constructor(
     private val gameNavigationContext: GameNavigationContext,
     private val syncLibraryUseCase: SyncLibraryUseCase,
     private val launchGameUseCase: LaunchGameUseCase,
+    private val launchWithSyncUseCase: LaunchWithSyncUseCase,
     private val downloadManager: DownloadManager,
     private val soundManager: SoundFeedbackManager,
     private val gameActions: GameActionsDelegate,
     private val achievementDao: com.nendo.argosy.data.local.dao.AchievementDao,
-    private val imageCacheManager: ImageCacheManager
+    private val imageCacheManager: ImageCacheManager,
+    private val playSessionTracker: PlaySessionTracker,
+    private val emulatorDetector: EmulatorDetector,
+    private val emulatorConfigDao: com.nendo.argosy.data.local.dao.EmulatorConfigDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(restoreInitialState())
@@ -412,6 +428,67 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             loadPlatforms()
         }
+    }
+
+    fun onResume() {
+        val session = playSessionTracker.activeSession.value
+        if (session == null) {
+            android.util.Log.d("HomeViewModel", "onResume: no active session")
+            return
+        }
+        if (_uiState.value.syncOverlayState != null) {
+            android.util.Log.d("HomeViewModel", "onResume: overlay already showing")
+            return
+        }
+
+        val emulatorId = resolveEmulatorId(session.emulatorPackage)
+        android.util.Log.d("HomeViewModel", "onResume: package=${session.emulatorPackage}, emulatorId=$emulatorId")
+        if (emulatorId == null) return
+
+        val config = SavePathRegistry.getConfig(emulatorId)
+        android.util.Log.d("HomeViewModel", "onResume: saveConfig=$config")
+        if (config == null) {
+            playSessionTracker.endSession()
+            return
+        }
+
+        viewModelScope.launch {
+            val game = gameDao.getById(session.gameId)
+            val gameTitle = game?.title ?: "Game"
+
+            android.util.Log.d("HomeViewModel", "onResume: showing overlay for $gameTitle")
+            _uiState.update {
+                it.copy(syncOverlayState = SyncOverlayState(gameTitle, SyncState.Uploading))
+            }
+
+            val syncStartTime = System.currentTimeMillis()
+
+            playSessionTracker.endSession()
+
+            val elapsed = System.currentTimeMillis() - syncStartTime
+            val minDisplayTime = 2000L
+            if (elapsed < minDisplayTime) {
+                delay(minDisplayTime - elapsed)
+            }
+
+            _uiState.update { it.copy(syncOverlayState = null) }
+        }
+    }
+
+    private fun resolveEmulatorId(packageName: String): String? {
+        EmulatorRegistry.getByPackage(packageName)?.let { return it.id }
+        EmulatorRegistry.findFamilyForPackage(packageName)?.let { return it.baseId }
+        return emulatorDetector.getByPackage(packageName)?.id
+    }
+
+    private suspend fun getEmulatorPackageForGame(gameId: Long, platformId: String): String? {
+        val config = emulatorConfigDao.getByGameId(gameId)
+            ?: emulatorConfigDao.getDefaultForPlatform(platformId)
+        if (config?.packageName != null) return config.packageName
+        if (emulatorDetector.installedEmulators.value.isEmpty()) {
+            emulatorDetector.detectEmulators()
+        }
+        return emulatorDetector.getPreferredEmulator(platformId)?.def?.packageName
     }
 
     private fun loadGamesForPlatform(platformId: String, platformIndex: Int) {
@@ -719,8 +796,42 @@ class HomeViewModel @Inject constructor(
     }
 
     fun launchGame(gameId: Long) {
+        if (_uiState.value.syncOverlayState != null) return
+
         saveCurrentState()
         viewModelScope.launch {
+            val game = gameDao.getById(gameId) ?: return@launch
+            val gameTitle = game.title
+
+            val emulatorPackage = getEmulatorPackageForGame(gameId, game.platformId)
+            val emulatorId = emulatorPackage?.let { resolveEmulatorId(it) }
+            val canSync = emulatorId != null && SavePathRegistry.getConfig(emulatorId) != null
+
+            val syncStartTime = if (canSync) {
+                _uiState.update {
+                    it.copy(syncOverlayState = SyncOverlayState(gameTitle, SyncState.CheckingConnection))
+                }
+                System.currentTimeMillis()
+            } else null
+
+            launchWithSyncUseCase.invoke(gameId).collect { state ->
+                if (canSync && state != SyncState.Skipped && state != SyncState.Idle) {
+                    _uiState.update {
+                        it.copy(syncOverlayState = SyncOverlayState(gameTitle, state))
+                    }
+                }
+            }
+
+            syncStartTime?.let { startTime ->
+                val elapsed = System.currentTimeMillis() - startTime
+                val minDisplayTime = 2000L
+                if (elapsed < minDisplayTime) {
+                    delay(minDisplayTime - elapsed)
+                }
+            }
+
+            _uiState.update { it.copy(syncOverlayState = null) }
+
             when (val result = launchGameUseCase(gameId)) {
                 is LaunchResult.Success -> {
                     soundManager.play(SoundType.LAUNCH_GAME)

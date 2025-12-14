@@ -17,11 +17,17 @@ import com.nendo.argosy.data.model.GameSource
 import com.nendo.argosy.data.preferences.UiDensity
 import com.nendo.argosy.data.remote.romm.RomMResult
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
+import com.nendo.argosy.data.emulator.EmulatorDetector
+import com.nendo.argosy.data.emulator.EmulatorRegistry
 import com.nendo.argosy.data.emulator.LaunchResult
+import com.nendo.argosy.data.emulator.PlaySessionTracker
+import com.nendo.argosy.data.emulator.SavePathRegistry
+import com.nendo.argosy.domain.model.SyncState
 import com.nendo.argosy.domain.usecase.download.DownloadGameUseCase
 import com.nendo.argosy.domain.usecase.download.DownloadResult
 import com.nendo.argosy.domain.usecase.game.DeleteGameUseCase
 import com.nendo.argosy.domain.usecase.game.LaunchGameUseCase
+import com.nendo.argosy.domain.usecase.game.LaunchWithSyncUseCase
 import com.nendo.argosy.ui.input.InputHandler
 import com.nendo.argosy.ui.input.InputResult
 import com.nendo.argosy.ui.input.SoundFeedbackManager
@@ -34,6 +40,7 @@ import com.nendo.argosy.ui.screens.common.GameActionsDelegate
 import com.nendo.argosy.ui.screens.home.HomePlatformUi
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -122,11 +129,17 @@ data class LibraryGameUi(
         }
 }
 
+data class SyncOverlayState(
+    val gameTitle: String,
+    val syncState: SyncState
+)
+
 data class LibraryUiState(
     val platforms: List<HomePlatformUi> = emptyList(),
     val currentPlatformIndex: Int = -1,
     val games: List<LibraryGameUi> = emptyList(),
     val focusedIndex: Int = 0,
+    val lastFocusMove: FocusMove? = null,
     val currentFilter: LibraryFilter = LibraryFilter.ALL,
     val showFilterMenu: Boolean = false,
     val showQuickMenu: Boolean = false,
@@ -136,7 +149,8 @@ data class LibraryUiState(
     val activeFilters: ActiveFilters = ActiveFilters(),
     val filterOptions: FilterOptions = FilterOptions(),
     val filterCategoryIndex: Int = 0,
-    val filterOptionIndex: Int = 0
+    val filterOptionIndex: Int = 0,
+    val syncOverlayState: SyncOverlayState? = null
 ) {
     val columnsCount: Int
         get() = when (uiDensity) {
@@ -221,10 +235,14 @@ class LibraryViewModel @Inject constructor(
     private val gameDao: GameDao,
     private val gameNavigationContext: GameNavigationContext,
     private val launchGameUseCase: LaunchGameUseCase,
+    private val launchWithSyncUseCase: LaunchWithSyncUseCase,
     private val notificationManager: NotificationManager,
     private val preferencesRepository: UserPreferencesRepository,
     private val soundManager: SoundFeedbackManager,
-    private val gameActions: GameActionsDelegate
+    private val gameActions: GameActionsDelegate,
+    private val playSessionTracker: PlaySessionTracker,
+    private val emulatorDetector: EmulatorDetector,
+    private val emulatorConfigDao: com.nendo.argosy.data.local.dao.EmulatorConfigDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LibraryUiState())
@@ -264,6 +282,54 @@ class LibraryViewModel @Inject constructor(
                 loadGames()
             }
         }
+    }
+
+    fun onResume() {
+        val session = playSessionTracker.activeSession.value ?: return
+        if (_uiState.value.syncOverlayState != null) return
+
+        val emulatorId = resolveEmulatorId(session.emulatorPackage) ?: return
+        if (SavePathRegistry.getConfig(emulatorId) == null) {
+            playSessionTracker.endSession()
+            return
+        }
+
+        viewModelScope.launch {
+            val game = gameDao.getById(session.gameId)
+            val gameTitle = game?.title ?: "Game"
+
+            _uiState.update {
+                it.copy(syncOverlayState = SyncOverlayState(gameTitle, SyncState.Uploading))
+            }
+
+            val syncStartTime = System.currentTimeMillis()
+
+            playSessionTracker.endSession()
+
+            val elapsed = System.currentTimeMillis() - syncStartTime
+            val minDisplayTime = 2000L
+            if (elapsed < minDisplayTime) {
+                delay(minDisplayTime - elapsed)
+            }
+
+            _uiState.update { it.copy(syncOverlayState = null) }
+        }
+    }
+
+    private fun resolveEmulatorId(packageName: String): String? {
+        EmulatorRegistry.getByPackage(packageName)?.let { return it.id }
+        EmulatorRegistry.findFamilyForPackage(packageName)?.let { return it.baseId }
+        return emulatorDetector.getByPackage(packageName)?.id
+    }
+
+    private suspend fun getEmulatorPackageForGame(gameId: Long, platformId: String): String? {
+        val config = emulatorConfigDao.getByGameId(gameId)
+            ?: emulatorConfigDao.getDefaultForPlatform(platformId)
+        if (config?.packageName != null) return config.packageName
+        if (emulatorDetector.installedEmulators.value.isEmpty()) {
+            emulatorDetector.detectEmulators()
+        }
+        return emulatorDetector.getPreferredEmulator(platformId)?.def?.packageName
     }
 
     private fun loadFilterOptions() {
@@ -414,7 +480,7 @@ class LibraryViewModel @Inject constructor(
         if (newIndex == null) return false
 
         Log.d(TAG, "moveFocus: $direction, $current -> $newIndex (cols=$cols, total=$total)")
-        _uiState.update { it.copy(focusedIndex = newIndex) }
+        _uiState.update { it.copy(focusedIndex = newIndex, lastFocusMove = direction) }
         return true
     }
 
@@ -628,7 +694,41 @@ class LibraryViewModel @Inject constructor(
     }
 
     fun launchGame(gameId: Long) {
+        if (_uiState.value.syncOverlayState != null) return
+
         viewModelScope.launch {
+            val game = gameDao.getById(gameId) ?: return@launch
+            val gameTitle = game.title
+
+            val emulatorPackage = getEmulatorPackageForGame(gameId, game.platformId)
+            val emulatorId = emulatorPackage?.let { resolveEmulatorId(it) }
+            val canSync = emulatorId != null && SavePathRegistry.getConfig(emulatorId) != null
+
+            val syncStartTime = if (canSync) {
+                _uiState.update {
+                    it.copy(syncOverlayState = SyncOverlayState(gameTitle, SyncState.CheckingConnection))
+                }
+                System.currentTimeMillis()
+            } else null
+
+            launchWithSyncUseCase.invoke(gameId).collect { state ->
+                if (canSync && state != SyncState.Skipped && state != SyncState.Idle) {
+                    _uiState.update {
+                        it.copy(syncOverlayState = SyncOverlayState(gameTitle, state))
+                    }
+                }
+            }
+
+            syncStartTime?.let { startTime ->
+                val elapsed = System.currentTimeMillis() - startTime
+                val minDisplayTime = 2000L
+                if (elapsed < minDisplayTime) {
+                    delay(minDisplayTime - elapsed)
+                }
+            }
+
+            _uiState.update { it.copy(syncOverlayState = null) }
+
             when (val result = launchGameUseCase(gameId)) {
                 is LaunchResult.Success -> {
                     soundManager.play(SoundType.LAUNCH_GAME)

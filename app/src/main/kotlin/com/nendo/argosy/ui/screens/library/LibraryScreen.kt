@@ -59,6 +59,7 @@ import com.nendo.argosy.ui.theme.Motion
 import com.nendo.argosy.data.model.GameSource
 import com.nendo.argosy.ui.components.FooterBar
 import com.nendo.argosy.ui.components.InputButton
+import com.nendo.argosy.ui.components.SyncOverlay
 import com.nendo.argosy.ui.icons.InputIcons
 import com.nendo.argosy.ui.input.LocalInputDispatcher
 import com.nendo.argosy.ui.navigation.Screen
@@ -101,8 +102,9 @@ fun LibraryScreen(
         }
     }
 
-    LaunchedEffect(uiState.focusedIndex) {
+    LaunchedEffect(uiState.focusedIndex, uiState.lastFocusMove) {
         if (uiState.games.isEmpty()) return@LaunchedEffect
+        if (uiState.lastFocusMove == FocusMove.LEFT || uiState.lastFocusMove == FocusMove.RIGHT) return@LaunchedEffect
 
         val layoutInfo = gridState.layoutInfo
         val visibleItems = layoutInfo.visibleItemsInfo
@@ -171,6 +173,7 @@ fun LibraryScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 inputDispatcher.subscribeView(inputHandler, forRoute = Screen.ROUTE_LIBRARY)
+                viewModel.onResume()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -180,7 +183,7 @@ fun LibraryScreen(
         }
     }
 
-    val showAnyOverlay = uiState.showFilterMenu || uiState.showQuickMenu
+    val showAnyOverlay = uiState.showFilterMenu || uiState.showQuickMenu || uiState.syncOverlayState != null
     val modalBlur by animateDpAsState(
         targetValue = if (showAnyOverlay) Motion.blurRadiusModal else 0.dp,
         animationSpec = Motion.focusSpringDp,
@@ -290,6 +293,11 @@ fun LibraryScreen(
                 )
             }
         }
+
+        SyncOverlay(
+            syncState = uiState.syncOverlayState?.syncState,
+            gameTitle = uiState.syncOverlayState?.gameTitle
+        )
     }
 }
 

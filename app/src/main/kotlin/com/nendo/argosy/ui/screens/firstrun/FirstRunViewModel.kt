@@ -17,7 +17,6 @@ import javax.inject.Inject
 
 enum class FirstRunStep {
     WELCOME,
-    ROMM_CHOICE,
     ROMM_LOGIN,
     ROMM_SUCCESS,
     ROM_PATH,
@@ -37,7 +36,6 @@ data class FirstRunUiState(
     val romStoragePath: String? = null,
     val folderSelected: Boolean = false,
     val launchFolderPicker: Boolean = false,
-    val skippedRomm: Boolean = false,
     val saveSyncEnabled: Boolean = false,
     val hasStoragePermission: Boolean = false
 )
@@ -54,11 +52,10 @@ class FirstRunViewModel @Inject constructor(
     fun nextStep() {
         _uiState.update { state ->
             val nextStep = when (state.currentStep) {
-                FirstRunStep.WELCOME -> FirstRunStep.ROMM_CHOICE
-                FirstRunStep.ROMM_CHOICE -> FirstRunStep.ROMM_LOGIN
+                FirstRunStep.WELCOME -> FirstRunStep.ROMM_LOGIN
                 FirstRunStep.ROMM_LOGIN -> FirstRunStep.ROMM_SUCCESS
                 FirstRunStep.ROMM_SUCCESS -> FirstRunStep.ROM_PATH
-                FirstRunStep.ROM_PATH -> if (state.skippedRomm) FirstRunStep.COMPLETE else FirstRunStep.SAVE_SYNC
+                FirstRunStep.ROM_PATH -> FirstRunStep.SAVE_SYNC
                 FirstRunStep.SAVE_SYNC -> FirstRunStep.COMPLETE
                 FirstRunStep.COMPLETE -> FirstRunStep.COMPLETE
             }
@@ -70,23 +67,13 @@ class FirstRunViewModel @Inject constructor(
         _uiState.update { state ->
             val prevStep = when (state.currentStep) {
                 FirstRunStep.WELCOME -> FirstRunStep.WELCOME
-                FirstRunStep.ROMM_CHOICE -> FirstRunStep.WELCOME
-                FirstRunStep.ROMM_LOGIN -> FirstRunStep.ROMM_CHOICE
+                FirstRunStep.ROMM_LOGIN -> FirstRunStep.WELCOME
                 FirstRunStep.ROMM_SUCCESS -> FirstRunStep.ROMM_LOGIN
-                FirstRunStep.ROM_PATH -> if (state.skippedRomm) FirstRunStep.ROMM_CHOICE else FirstRunStep.ROMM_SUCCESS
+                FirstRunStep.ROM_PATH -> FirstRunStep.ROMM_SUCCESS
                 FirstRunStep.SAVE_SYNC -> FirstRunStep.ROM_PATH
-                FirstRunStep.COMPLETE -> if (state.skippedRomm) FirstRunStep.ROM_PATH else FirstRunStep.SAVE_SYNC
+                FirstRunStep.COMPLETE -> FirstRunStep.SAVE_SYNC
             }
             state.copy(currentStep = prevStep)
-        }
-    }
-
-    fun skipRomm() {
-        _uiState.update { state ->
-            state.copy(
-                currentStep = FirstRunStep.ROM_PATH,
-                skippedRomm = true
-            )
         }
     }
 

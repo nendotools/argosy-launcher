@@ -1472,9 +1472,13 @@ class SettingsViewModel @Inject constructor(
     private fun applyStoragePath(uriString: String) {
         viewModelScope.launch {
             preferencesRepository.setRomStoragePath(uriString)
+            val availableSpace = gameRepository.getAvailableStorageBytes()
             _uiState.update {
                 it.copy(
-                    storage = it.storage.copy(romStoragePath = uriString),
+                    storage = it.storage.copy(
+                        romStoragePath = uriString,
+                        availableSpace = availableSpace
+                    ),
                     pendingStoragePath = null
                 )
             }
@@ -1924,6 +1928,10 @@ class SettingsViewModel @Inject constructor(
                         } else {
                             checkForUpdates()
                         }
+                    }
+                    4 -> {
+                        setBetaUpdatesEnabled(!state.betaUpdatesEnabled)
+                        return InputResult.handled(SoundType.TOGGLE)
                     }
                 }
                 InputResult.HANDLED

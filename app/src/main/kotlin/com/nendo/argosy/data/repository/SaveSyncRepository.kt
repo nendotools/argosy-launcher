@@ -1,7 +1,9 @@
 package com.nendo.argosy.data.repository
 
 import android.content.Context
+import android.util.Log
 import com.nendo.argosy.data.emulator.EmulatorRegistry
+import com.nendo.argosy.data.emulator.RetroArchConfigParser
 import com.nendo.argosy.data.emulator.SavePathRegistry
 import com.nendo.argosy.data.local.dao.EmulatorSaveConfigDao
 import com.nendo.argosy.data.local.dao.GameDao
@@ -26,6 +28,8 @@ import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private const val TAG = "SaveSyncRepository"
+
 sealed class SaveSyncResult {
     data object Success : SaveSyncResult()
     data class Conflict(
@@ -44,7 +48,8 @@ class SaveSyncRepository @Inject constructor(
     private val saveSyncDao: SaveSyncDao,
     private val pendingSaveSyncDao: PendingSaveSyncDao,
     private val emulatorSaveConfigDao: EmulatorSaveConfigDao,
-    private val gameDao: GameDao
+    private val gameDao: GameDao,
+    private val retroArchConfigParser: RetroArchConfigParser
 ) {
     private var api: RomMApi? = null
 
@@ -59,7 +64,8 @@ class SaveSyncRepository @Inject constructor(
     suspend fun discoverSavePath(
         emulatorId: String,
         gameTitle: String,
-        platformId: String
+        platformId: String,
+        romPath: String? = null
     ): String? = withContext(Dispatchers.IO) {
         val userConfig = emulatorSaveConfigDao.getByEmulator(emulatorId)
         if (userConfig?.isUserOverride == true) {
@@ -67,7 +73,15 @@ class SaveSyncRepository @Inject constructor(
         }
 
         val config = SavePathRegistry.getConfig(emulatorId) ?: return@withContext null
-        val paths = SavePathRegistry.resolvePath(config, platformId)
+
+        val paths = if (emulatorId == "retroarch" || emulatorId == "retroarch_64") {
+            val packageName = if (emulatorId == "retroarch_64") "com.retroarch.aarch64" else "com.retroarch"
+            val coreName = SavePathRegistry.getRetroArchCore(platformId)
+            val contentDir = romPath?.let { File(it).parent }
+            retroArchConfigParser.resolveSavePaths(packageName, platformId, coreName, contentDir)
+        } else {
+            SavePathRegistry.resolvePath(config, platformId)
+        }
 
         for (basePath in paths) {
             val saveFile = findSaveInPath(basePath, gameTitle, config.saveExtensions)
@@ -96,8 +110,9 @@ class SaveSyncRepository @Inject constructor(
         if (!dir.exists() || !dir.isDirectory) return null
 
         val sanitizedTitle = sanitizeFileName(gameTitle).lowercase()
+        val files = dir.listFiles() ?: return null
 
-        return dir.listFiles()?.firstOrNull { file ->
+        return files.firstOrNull { file ->
             val name = file.nameWithoutExtension.lowercase()
             val ext = file.extension.lowercase()
             val matchesName = name == sanitizedTitle ||
@@ -113,6 +128,145 @@ class SaveSyncRepository @Inject constructor(
             .replace(Regex("[^a-zA-Z0-9\\s-]"), "")
             .replace(Regex("\\s+"), " ")
             .trim()
+    }
+
+    fun constructSavePath(
+        emulatorId: String,
+        gameTitle: String,
+        platformId: String,
+        romPath: String?
+    ): String? {
+        val config = SavePathRegistry.getConfig(emulatorId) ?: return null
+
+        if (emulatorId == "retroarch" || emulatorId == "retroarch_64") {
+            return constructRetroArchSavePath(emulatorId, gameTitle, platformId, romPath)
+        }
+
+        val resolvedPaths = SavePathRegistry.resolvePath(config, platformId)
+        val baseDir = resolvedPaths.firstOrNull { File(it).exists() }
+            ?: resolvedPaths.firstOrNull()
+            ?: return null
+
+        val extension = config.saveExtensions.firstOrNull { it != "*" } ?: "sav"
+        val sanitizedName = sanitizeFileName(gameTitle)
+        val fileName = "$sanitizedName.$extension"
+
+        return "$baseDir/$fileName"
+    }
+
+    private fun constructRetroArchSavePath(
+        emulatorId: String,
+        gameTitle: String,
+        platformId: String,
+        romPath: String?
+    ): String? {
+        val packageName = when (emulatorId) {
+            "retroarch_64" -> "com.retroarch.aarch64"
+            else -> "com.retroarch"
+        }
+
+        val raConfig = retroArchConfigParser.parse(packageName)
+        val coreName = SavePathRegistry.getRetroArchCore(platformId) ?: return null
+        val saveConfig = SavePathRegistry.getConfig(emulatorId) ?: return null
+        val extension = saveConfig.saveExtensions.firstOrNull() ?: "srm"
+
+        val baseDir = when {
+            raConfig?.savefilesInContentDir == true && romPath != null -> {
+                File(romPath).parent
+            }
+            raConfig?.savefileDirectory != null -> {
+                if (raConfig.sortSavefilesByContentEnable) {
+                    "${raConfig.savefileDirectory}/$coreName"
+                } else {
+                    raConfig.savefileDirectory
+                }
+            }
+            else -> {
+                val defaultPaths = SavePathRegistry.resolvePath(saveConfig, platformId)
+                defaultPaths.firstOrNull { File(it).exists() }
+                    ?: defaultPaths.firstOrNull()
+            }
+        } ?: return null
+
+        val fileName = buildRetroArchFileName(gameTitle, romPath, extension)
+        return "$baseDir/$fileName"
+    }
+
+    private fun buildRetroArchFileName(
+        gameTitle: String,
+        romPath: String?,
+        extension: String
+    ): String {
+        if (romPath != null) {
+            val romFile = File(romPath)
+            val romName = romFile.nameWithoutExtension
+            return "$romName.$extension"
+        }
+
+        val sanitized = gameTitle
+            .replace(Regex("[^a-zA-Z0-9\\s]"), "")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+        return "$sanitized.$extension"
+    }
+
+    fun constructSavePathWithFileName(
+        emulatorId: String,
+        platformId: String,
+        romPath: String?,
+        serverFileName: String
+    ): String? {
+        val baseDir = getSaveDirectory(emulatorId, platformId, romPath) ?: return null
+        return "$baseDir/$serverFileName"
+    }
+
+    private fun getSaveDirectory(
+        emulatorId: String,
+        platformId: String,
+        romPath: String?
+    ): String? {
+        val config = SavePathRegistry.getConfig(emulatorId) ?: return null
+
+        if (emulatorId == "retroarch" || emulatorId == "retroarch_64") {
+            return getRetroArchSaveDirectory(emulatorId, platformId, romPath)
+        }
+
+        val resolvedPaths = SavePathRegistry.resolvePath(config, platformId)
+        return resolvedPaths.firstOrNull { File(it).exists() }
+            ?: resolvedPaths.firstOrNull()
+    }
+
+    private fun getRetroArchSaveDirectory(
+        emulatorId: String,
+        platformId: String,
+        romPath: String?
+    ): String? {
+        val packageName = when (emulatorId) {
+            "retroarch_64" -> "com.retroarch.aarch64"
+            else -> "com.retroarch"
+        }
+
+        val raConfig = retroArchConfigParser.parse(packageName)
+        val coreName = SavePathRegistry.getRetroArchCore(platformId)
+        val saveConfig = SavePathRegistry.getConfig(emulatorId) ?: return null
+
+        return when {
+            raConfig?.savefilesInContentDir == true && romPath != null -> {
+                File(romPath).parent
+            }
+            raConfig?.savefileDirectory != null -> {
+                if (raConfig.sortSavefilesByContentEnable && coreName != null) {
+                    "${raConfig.savefileDirectory}/$coreName"
+                } else {
+                    raConfig.savefileDirectory
+                }
+            }
+            else -> {
+                val defaultPaths = SavePathRegistry.resolvePath(saveConfig, platformId)
+                defaultPaths.firstOrNull { File(it).exists() }
+                    ?: defaultPaths.firstOrNull()
+            }
+        }
     }
 
     suspend fun getSyncStatus(gameId: Long, emulatorId: String): SaveSyncEntity? {
@@ -207,7 +361,7 @@ class SaveSyncRepository @Inject constructor(
         val rommId = game.rommId ?: return@withContext SaveSyncResult.NotConfigured
 
         val localPath = syncEntity?.localSavePath
-            ?: discoverSavePath(emulatorId, game.title, game.platformId)
+            ?: discoverSavePath(emulatorId, game.title, game.platformId, game.localPath)
             ?: return@withContext SaveSyncResult.NoSaveFound
 
         val file = File(localPath)
@@ -219,23 +373,17 @@ class SaveSyncRepository @Inject constructor(
             syncEntity.serverUpdatedAt.isAfter(syncEntity.lastSyncedAt ?: Instant.EPOCH) &&
             syncEntity.serverUpdatedAt.isAfter(localModified)
         ) {
-            return@withContext SaveSyncResult.Conflict(
-                gameId,
-                localModified,
-                syncEntity.serverUpdatedAt
-            )
+            return@withContext SaveSyncResult.Conflict(gameId, localModified, syncEntity.serverUpdatedAt)
         }
 
         try {
             val requestBody = file.asRequestBody("application/octet-stream".toMediaType())
             val filePart = MultipartBody.Part.createFormData("saveFile", file.name, requestBody)
-            val romIdBody = rommId.toString().toRequestBody("text/plain".toMediaType())
-            val emulatorBody = emulatorId.toRequestBody("text/plain".toMediaType())
 
             val response = if (syncEntity?.rommSaveId != null) {
                 api.updateSave(syncEntity.rommSaveId, filePart)
             } else {
-                api.uploadSave(romIdBody, emulatorBody, filePart)
+                api.uploadSave(rommId, emulatorId, filePart)
             }
 
             if (response.isSuccessful) {
@@ -256,9 +404,11 @@ class SaveSyncRepository @Inject constructor(
                 )
                 SaveSyncResult.Success
             } else {
+                Log.e(TAG, "uploadSave failed: ${response.code()}")
                 SaveSyncResult.Error("Upload failed: ${response.code()}")
             }
         } catch (e: Exception) {
+            Log.e(TAG, "uploadSave exception", e)
             SaveSyncResult.Error(e.message ?: "Upload failed")
         }
     }
@@ -272,22 +422,28 @@ class SaveSyncRepository @Inject constructor(
         val saveId = syncEntity.rommSaveId
             ?: return@withContext SaveSyncResult.Error("No server save ID")
 
-        val game = gameDao.getById(gameId) ?: return@withContext SaveSyncResult.Error("Game not found")
+        val game = gameDao.getById(gameId)
+            ?: return@withContext SaveSyncResult.Error("Game not found")
 
         val serverSave = try {
-            val resp = api.getSave(saveId)
-            resp.body()
+            api.getSave(saveId).body()
         } catch (e: Exception) {
+            Log.e(TAG, "downloadSave: getSave failed", e)
             return@withContext SaveSyncResult.Error("Failed to get save info: ${e.message}")
         } ?: return@withContext SaveSyncResult.Error("Save not found on server")
 
         val targetPath = syncEntity.localSavePath
-            ?: discoverSavePath(emulatorId, game.title, game.platformId)
+            ?: discoverSavePath(emulatorId, game.title, game.platformId, game.localPath)
+            ?: constructSavePathWithFileName(emulatorId, platformId = game.platformId, romPath = game.localPath, serverFileName = serverSave.fileName)
             ?: return@withContext SaveSyncResult.Error("Cannot determine save path")
 
         try {
-            val response = api.downloadSaveContent(saveId, serverSave.fileName)
+            val downloadPath = serverSave.downloadPath
+                ?: return@withContext SaveSyncResult.Error("No download path available")
+
+            val response = api.downloadRaw(downloadPath)
             if (!response.isSuccessful) {
+                Log.e(TAG, "downloadSave failed: ${response.code()}")
                 return@withContext SaveSyncResult.Error("Download failed: ${response.code()}")
             }
 
@@ -311,6 +467,7 @@ class SaveSyncRepository @Inject constructor(
 
             SaveSyncResult.Success
         } catch (e: Exception) {
+            Log.e(TAG, "downloadSave exception", e)
             SaveSyncResult.Error(e.message ?: "Download failed")
         }
     }
@@ -397,21 +554,19 @@ class SaveSyncRepository @Inject constructor(
 
     suspend fun preLaunchSync(gameId: Long, rommId: Long, emulatorId: String): PreLaunchSyncResult =
         withContext(Dispatchers.IO) {
-            val api = this@SaveSyncRepository.api
-            if (api == null) return@withContext PreLaunchSyncResult.NoConnection
+            val api = this@SaveSyncRepository.api ?: return@withContext PreLaunchSyncResult.NoConnection
 
             try {
                 val serverSaves = checkSavesForGame(gameId, rommId)
                 val serverSave = serverSaves.find { it.emulator == emulatorId || it.emulator == null }
-
-                if (serverSave == null) {
-                    return@withContext PreLaunchSyncResult.NoServerSave
-                }
+                    ?: return@withContext PreLaunchSyncResult.NoServerSave
 
                 val serverTime = parseTimestamp(serverSave.updatedAt)
                 val existing = saveSyncDao.getByGameAndEmulator(gameId, emulatorId)
 
-                if (existing?.localUpdatedAt != null && !serverTime.isAfter(existing.localUpdatedAt)) {
+                val localFileExists = existing?.localSavePath?.let { File(it).exists() } ?: false
+
+                if (localFileExists && existing?.localUpdatedAt != null && !serverTime.isAfter(existing.localUpdatedAt)) {
                     return@withContext PreLaunchSyncResult.LocalIsNewer
                 }
 

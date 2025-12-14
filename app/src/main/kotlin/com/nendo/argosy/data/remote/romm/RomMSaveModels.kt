@@ -15,6 +15,7 @@ data class RomMSave(
     @Json(name = "file_extension") val fileExtension: String? = null,
     @Json(name = "file_path") val filePath: String? = null,
     @Json(name = "file_size_bytes") val fileSizeBytes: Long = 0,
+    @Json(name = "download_path") val downloadPath: String? = null,
     @Json(name = "updated_at") val updatedAt: String,
     @Json(name = "created_at") val createdAt: String? = null
 )

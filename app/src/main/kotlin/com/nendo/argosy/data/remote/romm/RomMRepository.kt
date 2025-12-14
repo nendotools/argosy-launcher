@@ -175,7 +175,7 @@ class RomMRepository @Inject constructor(
         val currentApi = api ?: return RomMResult.Error("Not connected")
 
         return try {
-            val scope = "me.read me.write platforms.read roms.read assets.read roms.user.read roms.user.write"
+            val scope = "me.read me.write platforms.read roms.read assets.read assets.write roms.user.read roms.user.write"
             val response = currentApi.login(username, password, scope)
             if (response.isSuccessful) {
                 val token = response.body()?.accessToken

@@ -104,10 +104,6 @@ fun FirstRunScreen(
                 FirstRunStep.WELCOME -> WelcomeStep(
                     onGetStarted = { viewModel.nextStep() }
                 )
-                FirstRunStep.ROMM_CHOICE -> RommChoiceStep(
-                    onConnectRomm = { viewModel.nextStep() },
-                    onSkip = { viewModel.skipRomm() }
-                )
                 FirstRunStep.ROMM_LOGIN -> RommLoginStep(
                     url = uiState.rommUrl,
                     username = uiState.rommUsername,
@@ -146,7 +142,6 @@ fun FirstRunScreen(
                     onSkip = { viewModel.skipSaveSync() }
                 )
                 FirstRunStep.COMPLETE -> CompleteStep(
-                    rommConnected = !uiState.skippedRomm,
                     gameCount = uiState.rommGameCount,
                     platformCount = uiState.rommPlatformCount,
                     onStart = {
@@ -186,36 +181,6 @@ private fun WelcomeStep(onGetStarted: () -> Unit) {
 }
 
 @Composable
-private fun RommChoiceStep(
-    onConnectRomm: () -> Unit,
-    onSkip: () -> Unit
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(32.dp)
-    ) {
-        StepHeader(step = 1, title = "Connect to Rom Manager?")
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Rom Manager lets you sync your game library from a self-hosted server.",
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(32.dp))
-        Button(onClick = onConnectRomm) {
-            Icon(Icons.Default.Cloud, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Yes, connect to Rom Manager")
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        OutlinedButton(onClick = onSkip) {
-            Text("Skip, use local files only")
-        }
-    }
-}
-
-@Composable
 private fun RommLoginStep(
     url: String,
     username: String,
@@ -232,7 +197,7 @@ private fun RommLoginStep(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.padding(32.dp)
     ) {
-        StepHeader(step = 1, title = "Rom Manager Login")
+        StepHeader(step = 1, title = "Rom Manager Login", totalSteps = 3)
         Spacer(modifier = Modifier.height(24.dp))
 
         OutlinedTextField(
@@ -347,7 +312,7 @@ private fun RomPathStep(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.padding(32.dp)
     ) {
-        StepHeader(step = 2, title = "Storage Access")
+        StepHeader(step = 2, title = "Storage Access", totalSteps = 3)
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "Grant storage access to download and manage your game files.",
@@ -476,7 +441,7 @@ private fun SaveSyncStep(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.padding(32.dp)
     ) {
-        StepHeader(step = 3, title = "Save Data Sync")
+        StepHeader(step = 3, title = "Save Data Sync", totalSteps = 3)
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "Sync your game saves with your RomM server to continue playing across multiple devices.",
@@ -512,7 +477,6 @@ private fun SaveSyncStep(
 
 @Composable
 private fun CompleteStep(
-    rommConnected: Boolean,
     gameCount: Int,
     platformCount: Int,
     onStart: () -> Unit
@@ -534,27 +498,18 @@ private fun CompleteStep(
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (rommConnected) {
-            Text(
-                text = "$gameCount games across $platformCount platforms ready to sync",
-                style = MaterialTheme.typography.titleMedium,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Sync your library from Collection settings to get started.",
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        } else {
-            Text(
-                text = "Configure Rom Manager in Collection settings to sync your library.",
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        Text(
+            text = "$gameCount games across $platformCount platforms ready to sync",
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Sync your library from Collection settings to get started.",
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
 
         Spacer(modifier = Modifier.height(32.dp))
         Button(onClick = onStart) {
@@ -564,10 +519,10 @@ private fun CompleteStep(
 }
 
 @Composable
-private fun StepHeader(step: Int, title: String) {
+private fun StepHeader(step: Int, title: String, totalSteps: Int = 3) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
-            text = "SETUP $step/3",
+            text = "SETUP $step/$totalSteps",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.primary
         )

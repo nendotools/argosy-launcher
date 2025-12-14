@@ -84,10 +84,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.nendo.argosy.data.emulator.InstalledEmulator
 import com.nendo.argosy.data.emulator.RetroArchCore
+import com.nendo.argosy.domain.model.SyncState
 import com.nendo.argosy.ui.input.LocalInputDispatcher
 import com.nendo.argosy.ui.navigation.Screen
 import com.nendo.argosy.ui.components.FooterBar
 import com.nendo.argosy.ui.components.InputButton
+import com.nendo.argosy.ui.components.SyncOverlay
 import com.nendo.argosy.ui.theme.Motion
 import kotlinx.coroutines.flow.collectLatest
 
@@ -251,6 +253,7 @@ fun GameDetailScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 inputDispatcher.subscribeView(inputHandler, forRoute = Screen.ROUTE_GAME_DETAIL)
+                viewModel.onResume()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -296,7 +299,7 @@ private fun GameDetailContent(
     onAchievementPositioned: (Int) -> Unit
 ) {
     val showAnyOverlay = uiState.showMoreOptions || uiState.showEmulatorPicker || uiState.showCorePicker ||
-        uiState.showRatingPicker || uiState.showDiscPicker || uiState.showMissingDiscPrompt
+        uiState.showRatingPicker || uiState.showDiscPicker || uiState.showMissingDiscPrompt || uiState.isSyncing
     val modalBlur by animateDpAsState(
         targetValue = if (showAnyOverlay) Motion.blurRadiusModal else 0.dp,
         animationSpec = Motion.focusSpringDp,
@@ -766,6 +769,11 @@ private fun GameDetailContent(
             )
         }
 
+        SyncOverlay(
+            syncState = if (uiState.isSyncing) uiState.syncState else null,
+            gameTitle = game.title
+        )
+
         AnimatedVisibility(
             visible = !showAnyOverlay,
             enter = fadeIn(),
@@ -775,13 +783,15 @@ private fun GameDetailContent(
             FooterBar(
                 hints = listOf(
                     InputButton.LB_RB to "Prev/Next Game",
-                    InputButton.SOUTH to when (uiState.downloadStatus) {
-                        GameDownloadStatus.DOWNLOADED -> "Play"
-                        GameDownloadStatus.NOT_DOWNLOADED -> "Download"
-                        GameDownloadStatus.QUEUED -> "Queued"
-                        GameDownloadStatus.WAITING_FOR_STORAGE -> "No Space"
-                        GameDownloadStatus.DOWNLOADING -> "Downloading"
-                        GameDownloadStatus.PAUSED -> "Paused"
+                    InputButton.SOUTH to when {
+                        uiState.isSyncing -> "Syncing..."
+                        uiState.downloadStatus == GameDownloadStatus.DOWNLOADED -> "Play"
+                        uiState.downloadStatus == GameDownloadStatus.NOT_DOWNLOADED -> "Download"
+                        uiState.downloadStatus == GameDownloadStatus.QUEUED -> "Queued"
+                        uiState.downloadStatus == GameDownloadStatus.WAITING_FOR_STORAGE -> "No Space"
+                        uiState.downloadStatus == GameDownloadStatus.DOWNLOADING -> "Downloading"
+                        uiState.downloadStatus == GameDownloadStatus.PAUSED -> "Paused"
+                        else -> "Play"
                     },
                     InputButton.EAST to "Back",
                     InputButton.NORTH to if (uiState.game?.isFavorite == true) "Unfavorite" else "Favorite"

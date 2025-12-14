@@ -17,7 +17,9 @@ class LaunchGameUseCase @Inject constructor(
             is LaunchResult.Success -> {
                 playSessionTracker.startSession(
                     gameId = gameId,
-                    emulatorPackage = result.intent.`package` ?: ""
+                    emulatorPackage = result.intent.component?.packageName
+                        ?: result.intent.`package`
+                        ?: ""
                 )
                 launchRetryTracker.onLaunchStarted(result.intent)
                 result

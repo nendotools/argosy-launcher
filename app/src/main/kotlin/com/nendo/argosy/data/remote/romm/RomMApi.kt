@@ -94,8 +94,8 @@ interface RomMApi {
     @Multipart
     @POST("api/saves")
     suspend fun uploadSave(
-        @Part("rom_id") romId: RequestBody,
-        @Part("emulator") emulator: RequestBody?,
+        @Query("rom_id") romId: Long,
+        @Query("emulator") emulator: String?,
         @Part saveFile: MultipartBody.Part
     ): Response<RomMSave>
 
@@ -111,5 +111,11 @@ interface RomMApi {
     suspend fun downloadSaveContent(
         @Path("id") saveId: Long,
         @Path("fileName", encoded = true) fileName: String
+    ): Response<ResponseBody>
+
+    @Streaming
+    @GET
+    suspend fun downloadRaw(
+        @retrofit2.http.Url url: String
     ): Response<ResponseBody>
 }

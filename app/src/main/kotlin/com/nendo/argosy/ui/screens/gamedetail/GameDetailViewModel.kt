@@ -11,7 +11,9 @@ import com.nendo.argosy.data.emulator.EmulatorRegistry
 import com.nendo.argosy.data.emulator.InstalledEmulator
 import com.nendo.argosy.data.emulator.LaunchConfig
 import com.nendo.argosy.data.emulator.LaunchResult
+import com.nendo.argosy.data.emulator.PlaySessionTracker
 import com.nendo.argosy.data.emulator.RetroArchCore
+import com.nendo.argosy.data.emulator.SavePathRegistry
 import com.nendo.argosy.data.launcher.SteamLaunchers
 import com.nendo.argosy.data.local.dao.EmulatorConfigDao
 import com.nendo.argosy.data.model.GameSource
@@ -24,9 +26,12 @@ import com.nendo.argosy.data.remote.romm.RomMResult
 import com.nendo.argosy.data.repository.GameRepository
 import com.nendo.argosy.domain.usecase.download.DownloadGameUseCase
 import com.nendo.argosy.domain.usecase.download.DownloadResult
+import com.nendo.argosy.domain.model.SyncState
 import com.nendo.argosy.domain.usecase.game.ConfigureEmulatorUseCase
 import com.nendo.argosy.domain.usecase.game.DeleteGameUseCase
 import com.nendo.argosy.domain.usecase.game.LaunchGameUseCase
+import com.nendo.argosy.domain.usecase.game.LaunchWithSyncUseCase
+import kotlinx.coroutines.delay
 import com.nendo.argosy.ui.input.InputHandler
 import com.nendo.argosy.ui.input.InputResult
 import com.nendo.argosy.ui.input.SoundFeedbackManager
@@ -139,7 +144,9 @@ data class GameDetailUiState(
     val showDiscPicker: Boolean = false,
     val discPickerFocusIndex: Int = 0,
     val showMissingDiscPrompt: Boolean = false,
-    val missingDiscNumbers: List<Int> = emptyList()
+    val missingDiscNumbers: List<Int> = emptyList(),
+    val syncState: SyncState = SyncState.Idle,
+    val isSyncing: Boolean = false
 ) {
     val hasPreviousGame: Boolean get() = currentGameIndex > 0
     val hasNextGame: Boolean get() = currentGameIndex >= 0 && currentGameIndex < siblingGameIds.size - 1
@@ -158,12 +165,14 @@ class GameDetailViewModel @Inject constructor(
     private val gameRepository: GameRepository,
     private val gameNavigationContext: GameNavigationContext,
     private val launchGameUseCase: LaunchGameUseCase,
+    private val launchWithSyncUseCase: LaunchWithSyncUseCase,
     private val configureEmulatorUseCase: ConfigureEmulatorUseCase,
     private val romMRepository: RomMRepository,
     private val soundManager: SoundFeedbackManager,
     private val gameActions: GameActionsDelegate,
     private val achievementDao: com.nendo.argosy.data.local.dao.AchievementDao,
-    private val imageCacheManager: ImageCacheManager
+    private val imageCacheManager: ImageCacheManager,
+    private val playSessionTracker: PlaySessionTracker
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GameDetailUiState())
@@ -422,6 +431,49 @@ class GameDetailViewModel @Inject constructor(
         }
     }
 
+    fun onResume() {
+        val session = playSessionTracker.activeSession.value ?: return
+        if (_uiState.value.isSyncing) return
+
+        val emulatorId = resolveEmulatorId(session.emulatorPackage) ?: return
+        if (SavePathRegistry.getConfig(emulatorId) == null) {
+            playSessionTracker.endSession()
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSyncing = true, syncState = SyncState.Uploading) }
+
+            val syncStartTime = System.currentTimeMillis()
+
+            playSessionTracker.endSession()
+
+            val elapsed = System.currentTimeMillis() - syncStartTime
+            val minDisplayTime = 2000L
+            if (elapsed < minDisplayTime) {
+                delay(minDisplayTime - elapsed)
+            }
+
+            _uiState.update { it.copy(isSyncing = false, syncState = SyncState.Idle) }
+        }
+    }
+
+    private fun resolveEmulatorId(packageName: String): String? {
+        EmulatorRegistry.getByPackage(packageName)?.let { return it.id }
+        EmulatorRegistry.findFamilyForPackage(packageName)?.let { return it.baseId }
+        return emulatorDetector.getByPackage(packageName)?.id
+    }
+
+    private suspend fun getEmulatorPackageForGame(gameId: Long, platformId: String): String? {
+        val config = emulatorConfigDao.getByGameId(gameId)
+            ?: emulatorConfigDao.getDefaultForPlatform(platformId)
+        if (config?.packageName != null) return config.packageName
+        if (emulatorDetector.installedEmulators.value.isEmpty()) {
+            emulatorDetector.detectEmulators()
+        }
+        return emulatorDetector.getPreferredEmulator(platformId)?.def?.packageName
+    }
+
     fun primaryAction() {
         val now = System.currentTimeMillis()
         if (now - lastActionTime < actionDebounceMs) return
@@ -441,8 +493,35 @@ class GameDetailViewModel @Inject constructor(
     }
 
     fun playGame(discId: Long? = null) {
+        if (_uiState.value.isSyncing) return
+
         viewModelScope.launch {
             val game = _uiState.value.game ?: return@launch
+
+            val emulatorPackage = getEmulatorPackageForGame(currentGameId, game.platformId)
+            val emulatorId = emulatorPackage?.let { resolveEmulatorId(it) }
+            val canSync = emulatorId != null && SavePathRegistry.getConfig(emulatorId) != null
+
+            val syncStartTime = if (canSync) {
+                _uiState.update { it.copy(isSyncing = true, syncState = SyncState.CheckingConnection) }
+                System.currentTimeMillis()
+            } else null
+
+            launchWithSyncUseCase.invoke(currentGameId).collect { state ->
+                if (canSync && state != SyncState.Skipped && state != SyncState.Idle) {
+                    _uiState.update { it.copy(isSyncing = true, syncState = state) }
+                }
+            }
+
+            syncStartTime?.let { startTime ->
+                val elapsed = System.currentTimeMillis() - startTime
+                val minDisplayTime = 2000L
+                if (elapsed < minDisplayTime) {
+                    delay(minDisplayTime - elapsed)
+                }
+            }
+
+            _uiState.update { it.copy(isSyncing = false, syncState = SyncState.Idle) }
 
             when (val result = launchGameUseCase(currentGameId, discId)) {
                 is LaunchResult.Success -> {

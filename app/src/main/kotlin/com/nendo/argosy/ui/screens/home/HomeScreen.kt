@@ -82,6 +82,7 @@ import com.nendo.argosy.ui.components.FooterHint
 import com.nendo.argosy.ui.components.GameCard
 import com.nendo.argosy.ui.components.InputButton
 import com.nendo.argosy.ui.components.SubtleFooterBar
+import com.nendo.argosy.ui.components.SyncOverlay
 import com.nendo.argosy.ui.components.SystemStatusBar
 import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.Motion
@@ -147,6 +148,7 @@ fun HomeScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 inputDispatcher.subscribeView(inputHandler, forRoute = Screen.ROUTE_HOME)
+                viewModel.onResume()
                 viewModel.refreshPlatforms()
                 viewModel.refreshFavorites()
                 viewModel.refreshRecentGames()
@@ -330,6 +332,11 @@ fun HomeScreen(
                 )
             }
         }
+
+        SyncOverlay(
+            syncState = uiState.syncOverlayState?.syncState,
+            gameTitle = uiState.syncOverlayState?.gameTitle
+        )
     }
 }
 
