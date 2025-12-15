@@ -128,31 +128,28 @@ class GetUnifiedSavesUseCase @Inject constructor(
         return if (channelName != null) {
             channelName.equals(serverBaseName, ignoreCase = true)
         } else {
-            romBaseName != null && serverBaseName.equals(romBaseName, ignoreCase = true)
+            serverBaseName.equals(DEFAULT_SAVE_NAME, ignoreCase = true) ||
+                (romBaseName != null && serverBaseName.equals(romBaseName, ignoreCase = true))
         }
+    }
+
+    private fun isReservedSaveName(baseName: String, romBaseName: String?): Boolean {
+        if (baseName.equals(DEFAULT_SAVE_NAME, ignoreCase = true)) return true
+        if (romBaseName != null && baseName.equals(romBaseName, ignoreCase = true)) return true
+        if (TIMESTAMP_ONLY_PATTERN.matches(baseName)) return true
+        return false
     }
 
     private fun parseServerChannelName(fileName: String, romBaseName: String?): String? {
         val baseName = File(fileName).nameWithoutExtension
-
-        if (romBaseName != null && baseName.equals(romBaseName, ignoreCase = true)) {
-            return null
-        }
-
-        if (romBaseName != null && baseName.startsWith(romBaseName, ignoreCase = true)) {
-            val suffix = baseName.substring(romBaseName.length)
-            if (TIMESTAMP_PATTERN.matches(suffix)) {
-                return null
-            }
-        }
-
+        if (isReservedSaveName(baseName, romBaseName)) return null
         return baseName
     }
 
     private fun isLatestFileName(fileName: String, romBaseName: String?): Boolean {
-        if (romBaseName == null) return false
         val baseName = File(fileName).nameWithoutExtension
-        return baseName.equals(romBaseName, ignoreCase = true)
+        return baseName.equals(DEFAULT_SAVE_NAME, ignoreCase = true) ||
+            (romBaseName != null && baseName.equals(romBaseName, ignoreCase = true))
     }
 
     private fun sortEntries(entries: List<UnifiedSaveEntry>): List<UnifiedSaveEntry> {
@@ -185,7 +182,8 @@ class GetUnifiedSavesUseCase @Inject constructor(
     }
 
     companion object {
-        private val TIMESTAMP_PATTERN = Regex("""_\d{8}_\d{6}$""")
+        private const val DEFAULT_SAVE_NAME = "argosy-latest"
+        private val TIMESTAMP_ONLY_PATTERN = Regex("""^\d{4}-\d{2}-\d{2}[_-]\d{2}[_-]\d{2}[_-]\d{2}$""")
         private const val TIMESTAMP_TOLERANCE_SECONDS = 60L
     }
 }

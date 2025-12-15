@@ -34,6 +34,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val TAG = "SaveSyncRepository"
+private const val DEFAULT_SAVE_NAME = "argosy-latest"
 
 sealed class SaveSyncResult {
     data object Success : SaveSyncResult()
@@ -496,7 +497,8 @@ class SaveSyncRepository @Inject constructor(
                 val ext = fileToUpload.extension
                 if (ext.isNotEmpty()) "$channelName.$ext" else channelName
             } else {
-                fileToUpload.name
+                val ext = fileToUpload.extension
+                if (ext.isNotEmpty()) "$DEFAULT_SAVE_NAME.$ext" else DEFAULT_SAVE_NAME
             }
 
             val romBaseName = game.localPath?.let { File(it).nameWithoutExtension }
@@ -506,7 +508,8 @@ class SaveSyncRepository @Inject constructor(
                 if (channelName != null) {
                     baseName.equals(channelName, ignoreCase = true)
                 } else {
-                    baseName.equals(romBaseName, ignoreCase = true)
+                    baseName.equals(DEFAULT_SAVE_NAME, ignoreCase = true) ||
+                        (romBaseName != null && baseName.equals(romBaseName, ignoreCase = true))
                 }
             }
 
@@ -795,6 +798,20 @@ class SaveSyncRepository @Inject constructor(
         }
 
         processed
+    }
+
+    suspend fun downloadPendingServerSaves(): Int = withContext(Dispatchers.IO) {
+        val pendingDownloads = saveSyncDao.getPendingDownloads()
+        var downloaded = 0
+
+        for (syncEntity in pendingDownloads) {
+            when (downloadSave(syncEntity.gameId, syncEntity.emulatorId)) {
+                is SaveSyncResult.Success -> downloaded++
+                else -> {}
+            }
+        }
+
+        downloaded
     }
 
     suspend fun updateSyncEntity(

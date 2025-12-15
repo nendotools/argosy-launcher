@@ -232,17 +232,21 @@ class SyncSettingsDelegate @Inject constructor(
 
     fun runSaveSyncNow(scope: CoroutineScope) {
         scope.launch {
-            notificationManager.show("Checking for save updates...")
+            notificationManager.show("Syncing saves...")
             try {
                 saveSyncRepository.checkForAllServerUpdates()
                 val uploaded = saveSyncRepository.processPendingUploads()
+                val downloaded = saveSyncRepository.downloadPendingServerSaves()
                 val pendingCount = pendingSaveSyncDao.getCount()
                 _state.update { it.copy(pendingUploadsCount = pendingCount) }
-                if (uploaded > 0) {
-                    notificationManager.show("Uploaded $uploaded saves")
-                } else {
-                    notificationManager.show("Saves are up to date")
+
+                val message = when {
+                    uploaded > 0 && downloaded > 0 -> "Uploaded $uploaded, downloaded $downloaded saves"
+                    uploaded > 0 -> "Uploaded $uploaded saves"
+                    downloaded > 0 -> "Downloaded $downloaded saves"
+                    else -> "Saves are up to date"
                 }
+                notificationManager.show(message)
             } catch (e: Exception) {
                 notificationManager.showError("Save sync failed: ${e.message}")
             }
