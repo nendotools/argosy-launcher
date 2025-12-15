@@ -13,7 +13,7 @@ class TitleIdExtractor @Inject constructor() {
 
     fun extractTitleId(romFile: File, platformId: String): String? {
         return when (platformId) {
-            "psvita" -> extractVitaTitleId(romFile)
+            "vita", "psvita" -> extractVitaTitleId(romFile)
             "psp" -> extractPSPTitleId(romFile)
             "switch" -> extractSwitchTitleId(romFile)
             "3ds" -> extract3DSTitleId(romFile)

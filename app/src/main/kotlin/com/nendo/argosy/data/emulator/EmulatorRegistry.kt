@@ -348,7 +348,7 @@ object EmulatorRegistry {
             id = "vita3k",
             packageName = "org.vita3k.emulator",
             displayName = "Vita3K",
-            supportedPlatforms = setOf("vita"),
+            supportedPlatforms = setOf("vita", "psvita"),
             launchAction = Intent.ACTION_MAIN,
             launchConfig = LaunchConfig.Vita3K(),
             downloadUrl = "https://github.com/Vita3K/Vita3K-Android/releases"
@@ -357,7 +357,7 @@ object EmulatorRegistry {
             id = "vita3k-zx",
             packageName = "org.vita3k.emulator.ikhoeyZX",
             displayName = "Vita3K ZX",
-            supportedPlatforms = setOf("vita"),
+            supportedPlatforms = setOf("vita", "psvita"),
             launchAction = Intent.ACTION_MAIN,
             launchConfig = LaunchConfig.Vita3K(),
             downloadUrl = "https://github.com/ikhoeyZX/Vita3K-Android/releases"
@@ -457,6 +457,7 @@ object EmulatorRegistry {
         "ps2" to listOf("aethersx2", "pcsx2"),
         "psp" to listOf("ppsspp_gold", "ppsspp", "retroarch", "retroarch_64"),
         "vita" to listOf("vita3k-zx", "vita3k"),
+        "psvita" to listOf("vita3k-zx", "vita3k"),
         "n64" to listOf("mupen64plus_fz", "retroarch", "retroarch_64"),
         "nds" to listOf("drastic", "melonds", "retroarch", "retroarch_64"),
         "3ds" to listOf("azahar", "borked3ds", "lime3ds", "citra_mmj", "citra"),
@@ -732,7 +733,7 @@ object EmulatorRegistry {
             baseId = "vita3k",
             displayNamePrefix = "Vita3K",
             packagePatterns = listOf("org.vita3k.emulator*"),
-            supportedPlatforms = setOf("vita"),
+            supportedPlatforms = setOf("vita", "psvita"),
             launchAction = Intent.ACTION_MAIN,
             launchConfig = LaunchConfig.Vita3K(),
             downloadUrl = "https://vita3k.org/"

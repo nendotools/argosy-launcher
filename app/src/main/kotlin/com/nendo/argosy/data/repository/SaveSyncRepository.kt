@@ -146,7 +146,7 @@ class SaveSyncRepository @Inject constructor(
         if (!baseDir.exists()) return null
 
         when (platformId) {
-            "psvita" -> {
+            "vita", "psvita" -> {
                 val saveFolder = File(baseDir, titleId)
                 if (saveFolder.exists() && saveFolder.isDirectory) {
                     return saveFolder.absolutePath
@@ -714,7 +714,7 @@ class SaveSyncRepository @Inject constructor(
             ?: return null
 
         return when (platformId) {
-            "psvita" -> "$baseDir/$titleId"
+            "vita", "psvita" -> "$baseDir/$titleId"
             "switch" -> {
                 val existingUserFolder = File(baseDir).listFiles()?.firstOrNull { it.isDirectory }
                 if (existingUserFolder != null) {
