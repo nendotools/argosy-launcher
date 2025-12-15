@@ -34,6 +34,9 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarOutline
 import androidx.compose.material.icons.filled.Warning
@@ -45,6 +48,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -85,6 +89,7 @@ import coil.compose.AsyncImage
 import com.nendo.argosy.data.emulator.InstalledEmulator
 import com.nendo.argosy.data.emulator.RetroArchCore
 import com.nendo.argosy.domain.model.SyncState
+import com.nendo.argosy.domain.model.UnifiedSaveEntry
 import com.nendo.argosy.ui.input.LocalInputDispatcher
 import com.nendo.argosy.ui.navigation.Screen
 import com.nendo.argosy.ui.components.FooterBar
@@ -299,7 +304,8 @@ private fun GameDetailContent(
     onAchievementPositioned: (Int) -> Unit
 ) {
     val showAnyOverlay = uiState.showMoreOptions || uiState.showEmulatorPicker || uiState.showCorePicker ||
-        uiState.showRatingPicker || uiState.showDiscPicker || uiState.showMissingDiscPrompt || uiState.isSyncing
+        uiState.showRatingPicker || uiState.showDiscPicker || uiState.showMissingDiscPrompt || uiState.isSyncing ||
+        uiState.showSaveCacheDialog || uiState.showRenameDialog
     val modalBlur by animateDpAsState(
         targetValue = if (showAnyOverlay) Motion.blurRadiusModal else 0.dp,
         animationSpec = Motion.focusSpringDp,
@@ -769,6 +775,24 @@ private fun GameDetailContent(
             )
         }
 
+        AnimatedVisibility(
+            visible = uiState.showSaveCacheDialog,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            SaveCacheDialogOverlay(
+                entries = uiState.saveCacheEntries,
+                focusIndex = uiState.saveCacheFocusIndex,
+                isLoading = uiState.isLoadingSaveCache,
+                showRestoreConfirmation = uiState.showRestoreConfirmation,
+                restoreEntry = uiState.restoreSelectedEntry,
+                showRenameDialog = uiState.showRenameDialog,
+                renameText = uiState.renameText,
+                onRenameTextChange = viewModel::updateRenameText,
+                activeChannel = uiState.activeChannel
+            )
+        }
+
         SyncOverlay(
             syncState = if (uiState.isSyncing) uiState.syncState else null,
             gameTitle = game.title
@@ -1036,6 +1060,11 @@ private fun MoreOptionsOverlay(
                     icon = Icons.Default.Whatshot,
                     label = "Set Difficulty",
                     value = if (game.userDifficulty > 0) "${game.userDifficulty}/10" else "Not set",
+                    isFocused = focusIndex == currentIndex++
+                )
+                OptionItem(
+                    icon = Icons.Default.Save,
+                    label = "Manage Cached Saves",
                     isFocused = focusIndex == currentIndex++
                 )
             }
@@ -1542,6 +1571,373 @@ private fun AchievementColumn(
     Column(modifier = modifier) {
         achievements.forEach { achievement ->
             AchievementRow(achievement)
+        }
+    }
+}
+
+@Composable
+private fun SaveCacheDialogOverlay(
+    entries: List<UnifiedSaveEntry>,
+    focusIndex: Int,
+    isLoading: Boolean,
+    showRestoreConfirmation: Boolean,
+    restoreEntry: UnifiedSaveEntry?,
+    showRenameDialog: Boolean,
+    renameText: String,
+    onRenameTextChange: (String) -> Unit,
+    activeChannel: String?
+) {
+    val listState = rememberLazyListState()
+    val itemHeight = 56.dp
+    val maxVisibleItems = 5
+    val focusedEntry = entries.getOrNull(focusIndex)
+
+    LaunchedEffect(focusIndex) {
+        if (entries.isNotEmpty()) {
+            listState.animateScrollToItem(focusIndex.coerceIn(0, (entries.size - 1).coerceAtLeast(0)))
+        }
+    }
+
+    val yButtonHint = when {
+        focusedEntry?.isChannel == true -> {
+            if (focusedEntry.channelName == activeChannel) "Deactivate" else "Use Channel"
+        }
+        focusedEntry?.canBecomeChannel == true -> "Create Channel"
+        else -> null
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.7f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .background(
+                    MaterialTheme.colorScheme.surface,
+                    RoundedCornerShape(12.dp)
+                )
+                .padding(24.dp)
+                .width(450.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "SAVE CHANNELS",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Select a save to restore",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (activeChannel != null) {
+                    Text(
+                        text = "Active: $activeChannel",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(itemHeight * 3),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else if (entries.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(itemHeight * 2),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No cached saves found",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                androidx.compose.foundation.lazy.LazyColumn(
+                    state = listState,
+                    modifier = Modifier.heightIn(max = itemHeight * maxVisibleItems)
+                ) {
+                    items(entries.size) { index ->
+                        val entry = entries[index]
+                        SaveCacheEntryRow(
+                            entry = entry,
+                            isFocused = focusIndex == index,
+                            isActiveChannel = entry.channelName == activeChannel
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            val hints = mutableListOf(
+                InputButton.DPAD_VERTICAL to "Select",
+                InputButton.SOUTH to "Restore"
+            )
+            if (yButtonHint != null) {
+                hints.add(InputButton.NORTH to yButtonHint)
+            }
+            hints.add(InputButton.EAST to "Cancel")
+
+            FooterBar(hints = hints)
+        }
+
+        if (showRestoreConfirmation && restoreEntry != null) {
+            RestoreConfirmationOverlay(entry = restoreEntry)
+        }
+
+        if (showRenameDialog) {
+            RenameChannelOverlay(
+                text = renameText,
+                onTextChange = onRenameTextChange
+            )
+        }
+    }
+}
+
+@Composable
+private fun SaveCacheEntryRow(
+    entry: UnifiedSaveEntry,
+    isFocused: Boolean,
+    isActiveChannel: Boolean
+) {
+    val dateFormatter = remember {
+        java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy HH:mm")
+            .withZone(java.time.ZoneId.systemDefault())
+    }
+    val formattedDate = remember(entry.timestamp) {
+        dateFormatter.format(entry.timestamp)
+    }
+    val formattedSize = remember(entry.size) {
+        when {
+            entry.size < 1024 -> "${entry.size} B"
+            entry.size < 1024 * 1024 -> "${entry.size / 1024} KB"
+            else -> String.format("%.1f MB", entry.size / (1024.0 * 1024.0))
+        }
+    }
+
+    val backgroundColor = when {
+        isFocused -> MaterialTheme.colorScheme.primaryContainer
+        isActiveChannel -> MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+        else -> Color.Transparent
+    }
+    val contentColor = if (isFocused) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
+    val sourceText = when (entry.source) {
+        UnifiedSaveEntry.Source.LOCAL -> "Local"
+        UnifiedSaveEntry.Source.SERVER -> "Server"
+        UnifiedSaveEntry.Source.BOTH -> "Synced"
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(backgroundColor)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        when {
+            entry.isChannel -> {
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = "Channel",
+                    tint = if (isActiveChannel) MaterialTheme.colorScheme.primary else contentColor.copy(alpha = 0.7f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            entry.isLatest -> {
+                Icon(
+                    imageVector = Icons.Default.Save,
+                    contentDescription = "Latest",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            else -> {
+                Spacer(modifier = Modifier.width(20.dp))
+            }
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = entry.displayName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = contentColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                if (isActiveChannel) {
+                    Text(
+                        text = "[ACTIVE]",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (entry.isChannel) {
+                    Text(
+                        text = formattedDate,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = contentColor.copy(alpha = 0.7f)
+                    )
+                }
+                Text(
+                    text = formattedSize,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = contentColor.copy(alpha = 0.7f)
+                )
+            }
+        }
+
+        Text(
+            text = "[$sourceText]",
+            style = MaterialTheme.typography.bodySmall,
+            color = when (entry.source) {
+                UnifiedSaveEntry.Source.LOCAL -> MaterialTheme.colorScheme.tertiary
+                UnifiedSaveEntry.Source.SERVER -> MaterialTheme.colorScheme.secondary
+                UnifiedSaveEntry.Source.BOTH -> MaterialTheme.colorScheme.primary
+            }
+        )
+    }
+}
+
+@Composable
+private fun RestoreConfirmationOverlay(entry: UnifiedSaveEntry) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.5f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .background(
+                    MaterialTheme.colorScheme.surface,
+                    RoundedCornerShape(12.dp)
+                )
+                .padding(24.dp)
+                .width(400.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "RESTORE SAVE",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "How would you like to restore this save?",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            FooterBar(
+                hints = listOf(
+                    InputButton.DPAD_LEFT to "Local Only",
+                    InputButton.DPAD_RIGHT to "Sync to Server",
+                    InputButton.EAST to "Cancel"
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun RenameChannelOverlay(
+    text: String,
+    onTextChange: (String) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.5f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .background(
+                    MaterialTheme.colorScheme.surface,
+                    RoundedCornerShape(12.dp)
+                )
+                .padding(24.dp)
+                .width(400.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "CREATE CHANNEL",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Enter a name for this save channel",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            androidx.compose.material3.OutlinedTextField(
+                value = text,
+                onValueChange = onTextChange,
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = {
+                    Text("Channel name")
+                },
+                singleLine = true,
+                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                )
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            FooterBar(
+                hints = listOf(
+                    InputButton.SOUTH to "Confirm",
+                    InputButton.EAST to "Cancel"
+                )
+            )
         }
     }
 }

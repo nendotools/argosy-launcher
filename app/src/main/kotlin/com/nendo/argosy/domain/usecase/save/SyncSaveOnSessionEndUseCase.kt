@@ -49,7 +49,11 @@ class SyncSaveOnSessionEndUseCase @Inject constructor(
         val emulatorId = resolveEmulatorId(emulatorConfig?.packageName, emulatorPackage)
             ?: return false
 
-        return SavePathRegistry.getConfig(emulatorId) != null
+        return SavePathRegistry.canSyncWithSettings(
+            emulatorId,
+            prefs.saveSyncEnabled,
+            prefs.experimentalFolderSaveSync
+        )
     }
 
     suspend operator fun invoke(gameId: Long, emulatorPackage: String): Result {
@@ -82,7 +86,9 @@ class SyncSaveOnSessionEndUseCase @Inject constructor(
             localUpdatedAt = localModified
         )
 
-        return when (val syncResult = saveSyncRepository.uploadSave(gameId, emulatorId)) {
+        val activeChannel = game.activeSaveChannel
+
+        return when (val syncResult = saveSyncRepository.uploadSave(gameId, emulatorId, activeChannel)) {
             is SaveSyncResult.Success -> Result.Uploaded
             is SaveSyncResult.Conflict -> Result.Conflict(
                 syncResult.gameId,

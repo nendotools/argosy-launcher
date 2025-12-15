@@ -80,5 +80,7 @@ data class GameEntity(
     val m3uPath: String? = null,
 
     val achievementCount: Int = 0,
-    val earnedAchievementCount: Int = 0
+    val earnedAchievementCount: Int = 0,
+
+    val activeSaveChannel: String? = null
 )

@@ -27,10 +27,14 @@ import com.nendo.argosy.data.repository.GameRepository
 import com.nendo.argosy.domain.usecase.download.DownloadGameUseCase
 import com.nendo.argosy.domain.usecase.download.DownloadResult
 import com.nendo.argosy.domain.model.SyncState
+import com.nendo.argosy.domain.model.UnifiedSaveEntry
 import com.nendo.argosy.domain.usecase.game.ConfigureEmulatorUseCase
 import com.nendo.argosy.domain.usecase.game.DeleteGameUseCase
 import com.nendo.argosy.domain.usecase.game.LaunchGameUseCase
 import com.nendo.argosy.domain.usecase.game.LaunchWithSyncUseCase
+import com.nendo.argosy.domain.usecase.save.GetUnifiedSavesUseCase
+import com.nendo.argosy.domain.usecase.save.RestoreCachedSaveUseCase
+import com.nendo.argosy.data.repository.SaveCacheManager
 import kotlinx.coroutines.delay
 import com.nendo.argosy.ui.input.InputHandler
 import com.nendo.argosy.ui.input.InputResult
@@ -48,6 +52,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -146,7 +151,17 @@ data class GameDetailUiState(
     val showMissingDiscPrompt: Boolean = false,
     val missingDiscNumbers: List<Int> = emptyList(),
     val syncState: SyncState = SyncState.Idle,
-    val isSyncing: Boolean = false
+    val isSyncing: Boolean = false,
+    val showSaveCacheDialog: Boolean = false,
+    val saveCacheEntries: List<UnifiedSaveEntry> = emptyList(),
+    val saveCacheFocusIndex: Int = 0,
+    val isLoadingSaveCache: Boolean = false,
+    val showRestoreConfirmation: Boolean = false,
+    val restoreSelectedEntry: UnifiedSaveEntry? = null,
+    val showRenameDialog: Boolean = false,
+    val renameEntry: UnifiedSaveEntry? = null,
+    val renameText: String = "",
+    val activeChannel: String? = null
 ) {
     val hasPreviousGame: Boolean get() = currentGameIndex > 0
     val hasNextGame: Boolean get() = currentGameIndex >= 0 && currentGameIndex < siblingGameIds.size - 1
@@ -172,7 +187,11 @@ class GameDetailViewModel @Inject constructor(
     private val gameActions: GameActionsDelegate,
     private val achievementDao: com.nendo.argosy.data.local.dao.AchievementDao,
     private val imageCacheManager: ImageCacheManager,
-    private val playSessionTracker: PlaySessionTracker
+    private val playSessionTracker: PlaySessionTracker,
+    private val preferencesRepository: com.nendo.argosy.data.preferences.UserPreferencesRepository,
+    private val getUnifiedSavesUseCase: GetUnifiedSavesUseCase,
+    private val restoreCachedSaveUseCase: RestoreCachedSaveUseCase,
+    private val saveCacheManager: SaveCacheManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GameDetailUiState())
@@ -328,7 +347,8 @@ class GameDetailViewModel @Inject constructor(
                     currentGameIndex = currentIndex,
                     discs = discsUi,
                     availableCores = if (isRetroArch) EmulatorRegistry.getCoresForPlatform(game.platformId) else emptyList(),
-                    selectedCoreId = selectedCoreId
+                    selectedCoreId = selectedCoreId,
+                    activeChannel = game.activeSaveChannel
                 )
             }
 
@@ -500,7 +520,12 @@ class GameDetailViewModel @Inject constructor(
 
             val emulatorPackage = getEmulatorPackageForGame(currentGameId, game.platformId)
             val emulatorId = emulatorPackage?.let { resolveEmulatorId(it) }
-            val canSync = emulatorId != null && SavePathRegistry.getConfig(emulatorId) != null
+            val prefs = preferencesRepository.preferences.first()
+            val canSync = emulatorId != null && SavePathRegistry.canSyncWithSettings(
+                emulatorId,
+                prefs.saveSyncEnabled,
+                prefs.experimentalFolderSaveSync
+            )
 
             val syncStartTime = if (canSync) {
                 _uiState.update { it.copy(isSyncing = true, syncState = SyncState.CheckingConnection) }
@@ -586,7 +611,7 @@ class GameDetailViewModel @Inject constructor(
             var optionCount = 2  // Base: Emulator + Hide
             if (isMultiDisc) optionCount++  // Select Disc
             if (isRetroArch) optionCount++  // Change Core
-            if (isRommGame) optionCount += 3  // Refresh + Rate + Difficulty
+            if (isRommGame) optionCount += 4  // Refresh + Rate + Difficulty + Save Cache
             if (isDownloaded) optionCount++  // Delete
             val maxIndex = optionCount - 1
             val newIndex = (it.moreOptionsFocusIndex + delta).coerceIn(0, maxIndex)
@@ -609,6 +634,7 @@ class GameDetailViewModel @Inject constructor(
         val refreshIdx = if (isRommGame) currentIdx++ else -1
         val rateIdx = if (isRommGame) currentIdx++ else -1
         val difficultyIdx = if (isRommGame) currentIdx++ else -1
+        val saveCacheIdx = if (isRommGame) currentIdx++ else -1
         val deleteIdx = if (isDownloaded) currentIdx++ else -1
         val hideIdx = currentIdx
 
@@ -619,6 +645,7 @@ class GameDetailViewModel @Inject constructor(
             refreshIdx -> refreshGameData()
             rateIdx -> showRatingPicker(RatingType.OPINION)
             difficultyIdx -> showRatingPicker(RatingType.DIFFICULTY)
+            saveCacheIdx -> showSaveCacheDialog()
             deleteIdx -> { toggleMoreOptions(); deleteLocalFile() }
             hideIdx -> { hideGame(); onBack() }
             else -> toggleMoreOptions()
@@ -850,6 +877,183 @@ class GameDetailViewModel @Inject constructor(
         }
     }
 
+    fun showSaveCacheDialog() {
+        val game = _uiState.value.game ?: return
+        _uiState.update {
+            it.copy(
+                showMoreOptions = false,
+                showSaveCacheDialog = true,
+                saveCacheFocusIndex = 0,
+                isLoadingSaveCache = true
+            )
+        }
+        soundManager.play(SoundType.OPEN_MODAL)
+
+        viewModelScope.launch {
+            val entries = getUnifiedSavesUseCase(currentGameId)
+            _uiState.update {
+                it.copy(
+                    saveCacheEntries = entries,
+                    isLoadingSaveCache = false
+                )
+            }
+        }
+    }
+
+    fun dismissSaveCacheDialog() {
+        _uiState.update {
+            it.copy(
+                showSaveCacheDialog = false,
+                saveCacheEntries = emptyList(),
+                showRestoreConfirmation = false,
+                restoreSelectedEntry = null
+            )
+        }
+        soundManager.play(SoundType.CLOSE_MODAL)
+    }
+
+    fun moveSaveCacheFocus(delta: Int) {
+        _uiState.update { state ->
+            val maxIndex = (state.saveCacheEntries.size - 1).coerceAtLeast(0)
+            val newIndex = (state.saveCacheFocusIndex + delta).coerceIn(0, maxIndex)
+            state.copy(saveCacheFocusIndex = newIndex)
+        }
+    }
+
+    fun confirmSaveCacheSelection() {
+        val state = _uiState.value
+        val entry = state.saveCacheEntries.getOrNull(state.saveCacheFocusIndex) ?: return
+        _uiState.update {
+            it.copy(
+                showRestoreConfirmation = true,
+                restoreSelectedEntry = entry
+            )
+        }
+    }
+
+    fun dismissRestoreConfirmation() {
+        _uiState.update {
+            it.copy(
+                showRestoreConfirmation = false,
+                restoreSelectedEntry = null
+            )
+        }
+    }
+
+    fun restoreSave(syncToServer: Boolean) {
+        val state = _uiState.value
+        val entry = state.restoreSelectedEntry ?: return
+        val game = state.game ?: return
+
+        viewModelScope.launch {
+            val emulatorPackage = getEmulatorPackageForGame(currentGameId, game.platformId)
+            val emulatorId = emulatorPackage?.let { resolveEmulatorId(it) }
+
+            if (emulatorId == null) {
+                notificationManager.showError("Cannot determine emulator for save restore")
+                return@launch
+            }
+
+            _uiState.update {
+                it.copy(
+                    showRestoreConfirmation = false,
+                    showSaveCacheDialog = false
+                )
+            }
+
+            when (val result = restoreCachedSaveUseCase(entry, currentGameId, emulatorId, syncToServer)) {
+                is RestoreCachedSaveUseCase.Result.Restored -> {
+                    notificationManager.showSuccess("Save restored")
+                }
+                is RestoreCachedSaveUseCase.Result.RestoredAndSynced -> {
+                    notificationManager.showSuccess("Save restored and synced")
+                }
+                is RestoreCachedSaveUseCase.Result.Error -> {
+                    notificationManager.showError(result.message)
+                }
+            }
+        }
+    }
+
+    fun showRenameDialog() {
+        val state = _uiState.value
+        val entry = state.saveCacheEntries.getOrNull(state.saveCacheFocusIndex) ?: return
+        if (!entry.canBecomeChannel) return
+
+        _uiState.update {
+            it.copy(
+                showRenameDialog = true,
+                renameEntry = entry,
+                renameText = entry.channelName ?: ""
+            )
+        }
+    }
+
+    fun dismissRenameDialog() {
+        _uiState.update {
+            it.copy(
+                showRenameDialog = false,
+                renameEntry = null,
+                renameText = ""
+            )
+        }
+    }
+
+    fun updateRenameText(text: String) {
+        _uiState.update { it.copy(renameText = text) }
+    }
+
+    fun confirmRename() {
+        val state = _uiState.value
+        val entry = state.renameEntry ?: return
+        val cacheId = entry.localCacheId ?: return
+        val newName = state.renameText.trim()
+
+        if (newName.isBlank()) {
+            notificationManager.showError("Channel name cannot be empty")
+            return
+        }
+
+        viewModelScope.launch {
+            saveCacheManager.renameSave(cacheId, newName)
+            val entries = getUnifiedSavesUseCase(currentGameId)
+            _uiState.update {
+                it.copy(
+                    saveCacheEntries = entries,
+                    showRenameDialog = false,
+                    renameEntry = null,
+                    renameText = ""
+                )
+            }
+            notificationManager.showSuccess("Save converted to channel '$newName'")
+        }
+    }
+
+    fun setActiveChannel(channelName: String?) {
+        viewModelScope.launch {
+            gameDao.updateActiveSaveChannel(currentGameId, channelName)
+            _uiState.update { it.copy(activeChannel = channelName) }
+            if (channelName != null) {
+                notificationManager.showSuccess("Active channel: $channelName")
+            } else {
+                notificationManager.showSuccess("Using latest save")
+            }
+        }
+    }
+
+    fun toggleActiveChannel() {
+        val state = _uiState.value
+        val entry = state.saveCacheEntries.getOrNull(state.saveCacheFocusIndex) ?: return
+        val channelName = entry.channelName ?: return
+
+        val currentActive = state.activeChannel
+        if (currentActive == channelName) {
+            setActiveChannel(null)
+        } else {
+            setActiveChannel(channelName)
+        }
+    }
+
     fun refreshGameData() {
         if (_uiState.value.isRefreshingGameData) return
         viewModelScope.launch {
@@ -951,6 +1155,12 @@ class GameDetailViewModel @Inject constructor(
         override fun onUp(): InputResult {
             val state = _uiState.value
             return when {
+                state.showRenameDialog -> InputResult.UNHANDLED
+                state.showRestoreConfirmation -> InputResult.UNHANDLED
+                state.showSaveCacheDialog -> {
+                    moveSaveCacheFocus(-1)
+                    InputResult.HANDLED
+                }
                 state.showRatingPicker -> InputResult.UNHANDLED
                 state.showMissingDiscPrompt -> InputResult.UNHANDLED
                 state.showCorePicker -> {
@@ -978,6 +1188,12 @@ class GameDetailViewModel @Inject constructor(
         override fun onDown(): InputResult {
             val state = _uiState.value
             return when {
+                state.showRenameDialog -> InputResult.UNHANDLED
+                state.showRestoreConfirmation -> InputResult.UNHANDLED
+                state.showSaveCacheDialog -> {
+                    moveSaveCacheFocus(1)
+                    InputResult.HANDLED
+                }
                 state.showRatingPicker -> InputResult.UNHANDLED
                 state.showMissingDiscPrompt -> InputResult.UNHANDLED
                 state.showCorePicker -> {
@@ -1005,11 +1221,15 @@ class GameDetailViewModel @Inject constructor(
         override fun onLeft(): InputResult {
             val state = _uiState.value
             when {
+                state.showRestoreConfirmation -> {
+                    restoreSave(syncToServer = false)
+                    return InputResult.HANDLED
+                }
                 state.showRatingPicker -> {
                     changeRatingValue(-1)
                     return InputResult.HANDLED
                 }
-                state.showMoreOptions || state.showEmulatorPicker || state.showCorePicker || state.showDiscPicker || state.showMissingDiscPrompt -> {
+                state.showSaveCacheDialog || state.showMoreOptions || state.showEmulatorPicker || state.showCorePicker || state.showDiscPicker || state.showMissingDiscPrompt -> {
                     return InputResult.UNHANDLED
                 }
                 else -> {
@@ -1022,11 +1242,15 @@ class GameDetailViewModel @Inject constructor(
         override fun onRight(): InputResult {
             val state = _uiState.value
             when {
+                state.showRestoreConfirmation -> {
+                    restoreSave(syncToServer = true)
+                    return InputResult.HANDLED
+                }
                 state.showRatingPicker -> {
                     changeRatingValue(1)
                     return InputResult.HANDLED
                 }
-                state.showMoreOptions || state.showEmulatorPicker || state.showCorePicker || state.showDiscPicker || state.showMissingDiscPrompt -> {
+                state.showSaveCacheDialog || state.showMoreOptions || state.showEmulatorPicker || state.showCorePicker || state.showDiscPicker || state.showMissingDiscPrompt -> {
                     return InputResult.UNHANDLED
                 }
                 else -> {
@@ -1038,7 +1262,8 @@ class GameDetailViewModel @Inject constructor(
 
         override fun onPrevSection(): InputResult {
             val state = _uiState.value
-            if (state.showRatingPicker || state.showMoreOptions || state.showEmulatorPicker ||
+            if (state.showSaveCacheDialog || state.showRestoreConfirmation ||
+                state.showRatingPicker || state.showMoreOptions || state.showEmulatorPicker ||
                 state.showCorePicker || state.showDiscPicker || state.showMissingDiscPrompt) {
                 return InputResult.UNHANDLED
             }
@@ -1048,7 +1273,8 @@ class GameDetailViewModel @Inject constructor(
 
         override fun onNextSection(): InputResult {
             val state = _uiState.value
-            if (state.showRatingPicker || state.showMoreOptions || state.showEmulatorPicker ||
+            if (state.showSaveCacheDialog || state.showRestoreConfirmation ||
+                state.showRatingPicker || state.showMoreOptions || state.showEmulatorPicker ||
                 state.showCorePicker || state.showDiscPicker || state.showMissingDiscPrompt) {
                 return InputResult.UNHANDLED
             }
@@ -1059,6 +1285,9 @@ class GameDetailViewModel @Inject constructor(
         override fun onConfirm(): InputResult {
             val state = _uiState.value
             when {
+                state.showRenameDialog -> confirmRename()
+                state.showRestoreConfirmation -> restoreSave(syncToServer = false)
+                state.showSaveCacheDialog -> confirmSaveCacheSelection()
                 state.showRatingPicker -> confirmRating()
                 state.showMissingDiscPrompt -> repairAndPlay()
                 state.showCorePicker -> confirmCoreSelection()
@@ -1073,6 +1302,9 @@ class GameDetailViewModel @Inject constructor(
         override fun onBack(): InputResult {
             val state = _uiState.value
             when {
+                state.showRenameDialog -> dismissRenameDialog()
+                state.showRestoreConfirmation -> dismissRestoreConfirmation()
+                state.showSaveCacheDialog -> dismissSaveCacheDialog()
                 state.showRatingPicker -> dismissRatingPicker()
                 state.showMissingDiscPrompt -> dismissMissingDiscPrompt()
                 state.showCorePicker -> dismissCorePicker()
@@ -1086,6 +1318,18 @@ class GameDetailViewModel @Inject constructor(
 
         override fun onMenu(): InputResult {
             val state = _uiState.value
+            if (state.showRenameDialog) {
+                dismissRenameDialog()
+                return InputResult.UNHANDLED
+            }
+            if (state.showRestoreConfirmation) {
+                dismissRestoreConfirmation()
+                return InputResult.UNHANDLED
+            }
+            if (state.showSaveCacheDialog) {
+                dismissSaveCacheDialog()
+                return InputResult.UNHANDLED
+            }
             if (state.showRatingPicker) {
                 dismissRatingPicker()
                 return InputResult.UNHANDLED
@@ -1114,6 +1358,18 @@ class GameDetailViewModel @Inject constructor(
         }
 
         override fun onSecondaryAction(): InputResult {
+            val state = _uiState.value
+            if (state.showSaveCacheDialog && !state.showRestoreConfirmation && !state.showRenameDialog) {
+                val entry = state.saveCacheEntries.getOrNull(state.saveCacheFocusIndex)
+                if (entry != null) {
+                    if (entry.isChannel) {
+                        toggleActiveChannel()
+                    } else if (entry.canBecomeChannel) {
+                        showRenameDialog()
+                    }
+                }
+                return InputResult.HANDLED
+            }
             toggleFavorite()
             return InputResult.HANDLED
         }

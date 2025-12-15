@@ -1,0 +1,25 @@
+package com.nendo.argosy.data.local.entity
+
+import androidx.room.Entity
+import androidx.room.Index
+import androidx.room.PrimaryKey
+import java.time.Instant
+
+@Entity(
+    tableName = "save_cache",
+    indices = [
+        Index("gameId"),
+        Index("cachedAt")
+    ]
+)
+data class SaveCacheEntity(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val gameId: Long,
+    val emulatorId: String,
+    val cachedAt: Instant,
+    val saveSize: Long,
+    val cachePath: String,
+    val isLocked: Boolean = false,
+    val note: String? = null
+)

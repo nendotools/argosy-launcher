@@ -4,7 +4,11 @@ import android.content.Context
 import android.util.Log
 import com.nendo.argosy.data.emulator.EmulatorRegistry
 import com.nendo.argosy.data.emulator.RetroArchConfigParser
+import com.nendo.argosy.data.emulator.SavePathConfig
 import com.nendo.argosy.data.emulator.SavePathRegistry
+import com.nendo.argosy.data.emulator.TitleIdExtractor
+import com.nendo.argosy.data.preferences.UserPreferencesRepository
+import com.nendo.argosy.data.sync.SaveArchiver
 import com.nendo.argosy.data.local.dao.EmulatorSaveConfigDao
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.dao.PendingSaveSyncDao
@@ -17,6 +21,7 @@ import com.nendo.argosy.data.remote.romm.RomMSave
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -49,12 +54,21 @@ class SaveSyncRepository @Inject constructor(
     private val pendingSaveSyncDao: PendingSaveSyncDao,
     private val emulatorSaveConfigDao: EmulatorSaveConfigDao,
     private val gameDao: GameDao,
-    private val retroArchConfigParser: RetroArchConfigParser
+    private val retroArchConfigParser: RetroArchConfigParser,
+    private val titleIdExtractor: TitleIdExtractor,
+    private val saveArchiver: SaveArchiver,
+    private val userPreferencesRepository: UserPreferencesRepository,
+    private val saveCacheManager: dagger.Lazy<SaveCacheManager>
 ) {
     private var api: RomMApi? = null
 
     fun setApi(api: RomMApi?) {
         this.api = api
+    }
+
+    private suspend fun isFolderSaveSyncEnabled(): Boolean {
+        val prefs = userPreferencesRepository.preferences.first()
+        return prefs.saveSyncEnabled && prefs.experimentalFolderSaveSync
     }
 
     fun observeNewSavesCount(): Flow<Int> = saveSyncDao.observeNewSavesCount()
@@ -72,7 +86,14 @@ class SaveSyncRepository @Inject constructor(
             return@withContext findSaveInPath(userConfig.savePathPattern, gameTitle)
         }
 
-        val config = SavePathRegistry.getConfig(emulatorId) ?: return@withContext null
+        val config = SavePathRegistry.getConfigIncludingUnsupported(emulatorId) ?: return@withContext null
+
+        if (config.usesFolderBasedSaves && romPath != null) {
+            if (!isFolderSaveSyncEnabled()) {
+                return@withContext null
+            }
+            return@withContext discoverFolderSavePath(config, platformId, romPath)
+        }
 
         val paths = if (emulatorId == "retroarch" || emulatorId == "retroarch_64") {
             val packageName = if (emulatorId == "retroarch_64") "com.retroarch.aarch64" else "com.retroarch"
@@ -99,6 +120,71 @@ class SaveSyncRepository @Inject constructor(
         }
 
         null
+    }
+
+    private fun discoverFolderSavePath(
+        config: SavePathConfig,
+        platformId: String,
+        romPath: String
+    ): String? {
+        val romFile = File(romPath)
+        val titleId = titleIdExtractor.extractTitleId(romFile, platformId) ?: return null
+
+        for (basePath in config.defaultPaths) {
+            val saveFolder = findSaveFolderByTitleId(basePath, titleId, platformId)
+            if (saveFolder != null) return saveFolder
+        }
+        return null
+    }
+
+    private fun findSaveFolderByTitleId(
+        basePath: String,
+        titleId: String,
+        platformId: String
+    ): String? {
+        val baseDir = File(basePath)
+        if (!baseDir.exists()) return null
+
+        when (platformId) {
+            "psvita" -> {
+                val saveFolder = File(baseDir, titleId)
+                if (saveFolder.exists() && saveFolder.isDirectory) {
+                    return saveFolder.absolutePath
+                }
+            }
+            "switch" -> {
+                baseDir.listFiles()?.forEach { userFolder ->
+                    if (userFolder.isDirectory) {
+                        val saveFolder = File(userFolder, titleId)
+                        if (saveFolder.exists() && saveFolder.isDirectory) {
+                            return saveFolder.absolutePath
+                        }
+                    }
+                }
+            }
+            "3ds" -> {
+                baseDir.listFiles()?.forEach { folder1 ->
+                    if (folder1.isDirectory) {
+                        folder1.listFiles()?.forEach { folder2 ->
+                            if (folder2.isDirectory) {
+                                val titleFolder = File(folder2, "title/00040000/$titleId/data")
+                                if (titleFolder.exists() && titleFolder.isDirectory) {
+                                    return titleFolder.absolutePath
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            "psp" -> {
+                baseDir.listFiles()?.forEach { folder ->
+                    if (folder.isDirectory && folder.name.startsWith(titleId)) {
+                        return folder.absolutePath
+                    }
+                }
+            }
+        }
+        return null
     }
 
     private fun findSaveInPath(
@@ -353,7 +439,11 @@ class SaveSyncRepository @Inject constructor(
         }
     }
 
-    suspend fun uploadSave(gameId: Long, emulatorId: String): SaveSyncResult = withContext(Dispatchers.IO) {
+    suspend fun uploadSave(
+        gameId: Long,
+        emulatorId: String,
+        channelName: String? = null
+    ): SaveSyncResult = withContext(Dispatchers.IO) {
         val api = this@SaveSyncRepository.api ?: return@withContext SaveSyncResult.NotConfigured
 
         val syncEntity = saveSyncDao.getByGameAndEmulator(gameId, emulatorId)
@@ -364,21 +454,48 @@ class SaveSyncRepository @Inject constructor(
             ?: discoverSavePath(emulatorId, game.title, game.platformId, game.localPath)
             ?: return@withContext SaveSyncResult.NoSaveFound
 
-        val file = File(localPath)
-        if (!file.exists()) return@withContext SaveSyncResult.NoSaveFound
+        val saveLocation = File(localPath)
+        if (!saveLocation.exists()) return@withContext SaveSyncResult.NoSaveFound
 
-        val localModified = Instant.ofEpochMilli(file.lastModified())
+        val config = SavePathRegistry.getConfigIncludingUnsupported(emulatorId)
+        val isFolderBased = config?.usesFolderBasedSaves == true && saveLocation.isDirectory
 
-        if (syncEntity?.serverUpdatedAt != null &&
+        if (isFolderBased && !isFolderSaveSyncEnabled()) {
+            return@withContext SaveSyncResult.NotConfigured
+        }
+
+        val localModified = Instant.ofEpochMilli(saveLocation.lastModified())
+
+        if (channelName == null &&
+            syncEntity?.serverUpdatedAt != null &&
             syncEntity.serverUpdatedAt.isAfter(syncEntity.lastSyncedAt ?: Instant.EPOCH) &&
             syncEntity.serverUpdatedAt.isAfter(localModified)
         ) {
             return@withContext SaveSyncResult.Conflict(gameId, localModified, syncEntity.serverUpdatedAt)
         }
 
+        var tempZipFile: File? = null
+
         try {
-            val requestBody = file.asRequestBody("application/octet-stream".toMediaType())
-            val filePart = MultipartBody.Part.createFormData("saveFile", file.name, requestBody)
+            val fileToUpload = if (isFolderBased) {
+                tempZipFile = File(context.cacheDir, "${saveLocation.name}.zip")
+                if (!saveArchiver.zipFolder(saveLocation, tempZipFile)) {
+                    return@withContext SaveSyncResult.Error("Failed to zip save folder")
+                }
+                tempZipFile
+            } else {
+                saveLocation
+            }
+
+            val uploadFileName = if (channelName != null) {
+                val ext = fileToUpload.extension
+                if (ext.isNotEmpty()) "$channelName.$ext" else channelName
+            } else {
+                fileToUpload.name
+            }
+
+            val requestBody = fileToUpload.asRequestBody("application/octet-stream".toMediaType())
+            val filePart = MultipartBody.Part.createFormData("saveFile", uploadFileName, requestBody)
 
             val response = if (syncEntity?.rommSaveId != null) {
                 api.updateSave(syncEntity.rommSaveId, filePart)
@@ -410,6 +527,8 @@ class SaveSyncRepository @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "uploadSave exception", e)
             SaveSyncResult.Error(e.message ?: "Upload failed")
+        } finally {
+            tempZipFile?.delete()
         }
     }
 
@@ -432,10 +551,34 @@ class SaveSyncRepository @Inject constructor(
             return@withContext SaveSyncResult.Error("Failed to get save info: ${e.message}")
         } ?: return@withContext SaveSyncResult.Error("Save not found on server")
 
-        val targetPath = syncEntity.localSavePath
-            ?: discoverSavePath(emulatorId, game.title, game.platformId, game.localPath)
-            ?: constructSavePathWithFileName(emulatorId, platformId = game.platformId, romPath = game.localPath, serverFileName = serverSave.fileName)
-            ?: return@withContext SaveSyncResult.Error("Cannot determine save path")
+        val config = SavePathRegistry.getConfigIncludingUnsupported(emulatorId)
+        val isFolderBased = config?.usesFolderBasedSaves == true &&
+            serverSave.fileName.endsWith(".zip", ignoreCase = true)
+
+        if (isFolderBased && !isFolderSaveSyncEnabled()) {
+            return@withContext SaveSyncResult.NotConfigured
+        }
+
+        val targetPath = if (isFolderBased) {
+            syncEntity.localSavePath
+                ?: constructFolderSavePath(emulatorId, game.platformId, game.localPath)
+        } else {
+            syncEntity.localSavePath
+                ?: discoverSavePath(emulatorId, game.title, game.platformId, game.localPath)
+                ?: constructSavePathWithFileName(emulatorId, platformId = game.platformId, romPath = game.localPath, serverFileName = serverSave.fileName)
+        } ?: return@withContext SaveSyncResult.Error("Cannot determine save path")
+
+        val targetFile = File(targetPath)
+        if (targetFile.exists()) {
+            try {
+                saveCacheManager.get().cacheCurrentSave(gameId, emulatorId, targetPath)
+                Log.d(TAG, "Cached existing save before download for game $gameId")
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to cache existing save before download", e)
+            }
+        }
+
+        var tempZipFile: File? = null
 
         try {
             val downloadPath = serverSave.downloadPath
@@ -447,12 +590,28 @@ class SaveSyncRepository @Inject constructor(
                 return@withContext SaveSyncResult.Error("Download failed: ${response.code()}")
             }
 
-            val targetFile = File(targetPath)
-            targetFile.parentFile?.mkdirs()
+            if (isFolderBased) {
+                tempZipFile = File(context.cacheDir, serverSave.fileName)
+                response.body()?.byteStream()?.use { input ->
+                    tempZipFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
 
-            response.body()?.byteStream()?.use { input ->
-                targetFile.outputStream().use { output ->
-                    input.copyTo(output)
+                val targetFolder = File(targetPath)
+                targetFolder.mkdirs()
+
+                if (!saveArchiver.unzipSingleFolder(tempZipFile, targetFolder)) {
+                    return@withContext SaveSyncResult.Error("Failed to unzip save")
+                }
+            } else {
+                val targetFile = File(targetPath)
+                targetFile.parentFile?.mkdirs()
+
+                response.body()?.byteStream()?.use { input ->
+                    targetFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
                 }
             }
 
@@ -469,6 +628,114 @@ class SaveSyncRepository @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "downloadSave exception", e)
             SaveSyncResult.Error(e.message ?: "Download failed")
+        } finally {
+            tempZipFile?.delete()
+        }
+    }
+
+    suspend fun downloadSaveById(
+        serverSaveId: Long,
+        targetPath: String,
+        emulatorId: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        val api = this@SaveSyncRepository.api ?: return@withContext false
+
+        val serverSave = try {
+            api.getSave(serverSaveId).body()
+        } catch (e: Exception) {
+            Log.e(TAG, "downloadSaveById: getSave failed", e)
+            return@withContext false
+        } ?: return@withContext false
+
+        val config = SavePathRegistry.getConfigIncludingUnsupported(emulatorId)
+        val isFolderBased = config?.usesFolderBasedSaves == true &&
+            serverSave.fileName.endsWith(".zip", ignoreCase = true)
+
+        var tempZipFile: File? = null
+
+        try {
+            val downloadPath = serverSave.downloadPath ?: return@withContext false
+
+            val response = api.downloadRaw(downloadPath)
+            if (!response.isSuccessful) {
+                Log.e(TAG, "downloadSaveById failed: ${response.code()}")
+                return@withContext false
+            }
+
+            if (isFolderBased) {
+                tempZipFile = File(context.cacheDir, serverSave.fileName)
+                response.body()?.byteStream()?.use { input ->
+                    tempZipFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+
+                val targetFolder = File(targetPath)
+                targetFolder.mkdirs()
+
+                if (!saveArchiver.unzipSingleFolder(tempZipFile, targetFolder)) {
+                    return@withContext false
+                }
+            } else {
+                val targetFile = File(targetPath)
+                targetFile.parentFile?.mkdirs()
+
+                response.body()?.byteStream()?.use { input ->
+                    targetFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+            }
+
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "downloadSaveById exception", e)
+            false
+        } finally {
+            tempZipFile?.delete()
+        }
+    }
+
+    private fun constructFolderSavePath(
+        emulatorId: String,
+        platformId: String,
+        romPath: String?
+    ): String? {
+        if (romPath == null) return null
+
+        val config = SavePathRegistry.getConfigIncludingUnsupported(emulatorId) ?: return null
+        if (!config.usesFolderBasedSaves) return null
+
+        val romFile = File(romPath)
+        val titleId = titleIdExtractor.extractTitleId(romFile, platformId) ?: return null
+
+        val baseDir = config.defaultPaths.firstOrNull { File(it).exists() }
+            ?: config.defaultPaths.firstOrNull()
+            ?: return null
+
+        return when (platformId) {
+            "psvita" -> "$baseDir/$titleId"
+            "switch" -> {
+                val existingUserFolder = File(baseDir).listFiles()?.firstOrNull { it.isDirectory }
+                if (existingUserFolder != null) {
+                    "${existingUserFolder.absolutePath}/$titleId"
+                } else {
+                    "$baseDir/0000000000000001/$titleId"
+                }
+            }
+            "3ds" -> {
+                val nintendo3dsDir = File(baseDir)
+                val userFolders = nintendo3dsDir.listFiles()?.filter { it.isDirectory }
+                val folder1 = userFolders?.firstOrNull()
+                val folder2 = folder1?.listFiles()?.firstOrNull { it.isDirectory }
+                if (folder2 != null) {
+                    "${folder2.absolutePath}/title/00040000/$titleId/data"
+                } else {
+                    null
+                }
+            }
+            "psp" -> "$baseDir/$titleId"
+            else -> null
         }
     }
 

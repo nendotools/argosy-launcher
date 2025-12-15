@@ -58,6 +58,8 @@ class UserPreferencesRepository @Inject constructor(
         val SOUND_CONFIGS = stringPreferencesKey("sound_configs")
         val BETA_UPDATES_ENABLED = booleanPreferencesKey("beta_updates_enabled")
         val SAVE_SYNC_ENABLED = booleanPreferencesKey("save_sync_enabled")
+        val EXPERIMENTAL_FOLDER_SAVE_SYNC = booleanPreferencesKey("experimental_folder_save_sync")
+        val SAVE_CACHE_LIMIT = intPreferencesKey("save_cache_limit")
 
         val BACKGROUND_BLUR = intPreferencesKey("background_blur")
         val BACKGROUND_SATURATION = intPreferencesKey("background_saturation")
@@ -126,7 +128,9 @@ class UserPreferencesRepository @Inject constructor(
             uiDensity = UiDensity.fromString(prefs[Keys.UI_DENSITY]),
             soundConfigs = parseSoundConfigs(prefs[Keys.SOUND_CONFIGS]),
             betaUpdatesEnabled = prefs[Keys.BETA_UPDATES_ENABLED] ?: false,
-            saveSyncEnabled = prefs[Keys.SAVE_SYNC_ENABLED] ?: false
+            saveSyncEnabled = prefs[Keys.SAVE_SYNC_ENABLED] ?: false,
+            experimentalFolderSaveSync = prefs[Keys.EXPERIMENTAL_FOLDER_SAVE_SYNC] ?: false,
+            saveCacheLimit = prefs[Keys.SAVE_CACHE_LIMIT] ?: 10
         )
     }
 
@@ -397,6 +401,18 @@ class UserPreferencesRepository @Inject constructor(
         }
     }
 
+    suspend fun setExperimentalFolderSaveSync(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.EXPERIMENTAL_FOLDER_SAVE_SYNC] = enabled
+        }
+    }
+
+    suspend fun setSaveCacheLimit(limit: Int) {
+        dataStore.edit { prefs ->
+            prefs[Keys.SAVE_CACHE_LIMIT] = limit
+        }
+    }
+
     suspend fun setBackgroundBlur(blur: Int) {
         dataStore.edit { prefs ->
             prefs[Keys.BACKGROUND_BLUR] = blur.coerceIn(0, 100)
@@ -459,6 +475,8 @@ data class UserPreferences(
     val soundConfigs: Map<SoundType, SoundConfig> = emptyMap(),
     val betaUpdatesEnabled: Boolean = false,
     val saveSyncEnabled: Boolean = false,
+    val experimentalFolderSaveSync: Boolean = false,
+    val saveCacheLimit: Int = 10,
     val backgroundBlur: Int = 0,
     val backgroundSaturation: Int = 100,
     val backgroundOpacity: Int = 100,

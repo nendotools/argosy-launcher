@@ -48,6 +48,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -702,7 +703,12 @@ class LibraryViewModel @Inject constructor(
 
             val emulatorPackage = getEmulatorPackageForGame(gameId, game.platformId)
             val emulatorId = emulatorPackage?.let { resolveEmulatorId(it) }
-            val canSync = emulatorId != null && SavePathRegistry.getConfig(emulatorId) != null
+            val prefs = preferencesRepository.userPreferences.first()
+            val canSync = emulatorId != null && SavePathRegistry.canSyncWithSettings(
+                emulatorId,
+                prefs.saveSyncEnabled,
+                prefs.experimentalFolderSaveSync
+            )
 
             val syncStartTime = if (canSync) {
                 _uiState.update {

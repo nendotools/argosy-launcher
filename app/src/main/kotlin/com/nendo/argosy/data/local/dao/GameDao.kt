@@ -255,4 +255,10 @@ interface GameDao {
 
     @Query("UPDATE games SET achievementCount = :count, earnedAchievementCount = :earnedCount WHERE id = :gameId")
     suspend fun updateAchievementCount(gameId: Long, count: Int, earnedCount: Int = 0)
+
+    @Query("UPDATE games SET activeSaveChannel = :channelName WHERE id = :gameId")
+    suspend fun updateActiveSaveChannel(gameId: Long, channelName: String?)
+
+    @Query("SELECT activeSaveChannel FROM games WHERE id = :gameId")
+    suspend fun getActiveSaveChannel(gameId: Long): String?
 }

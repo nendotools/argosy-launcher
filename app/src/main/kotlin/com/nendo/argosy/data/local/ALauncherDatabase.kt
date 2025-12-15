@@ -16,7 +16,9 @@ import com.nendo.argosy.data.local.dao.PendingSyncDao
 import com.nendo.argosy.data.local.dao.PlatformDao
 import com.nendo.argosy.data.local.dao.SaveSyncDao
 import com.nendo.argosy.data.local.dao.AchievementDao
+import com.nendo.argosy.data.local.dao.SaveCacheDao
 import com.nendo.argosy.data.local.entity.AchievementEntity
+import com.nendo.argosy.data.local.entity.SaveCacheEntity
 import com.nendo.argosy.data.local.entity.DownloadQueueEntity
 import com.nendo.argosy.data.local.entity.EmulatorConfigEntity
 import com.nendo.argosy.data.local.entity.EmulatorSaveConfigEntity
@@ -38,9 +40,10 @@ import com.nendo.argosy.data.local.entity.SaveSyncEntity
         PendingSaveSyncEntity::class,
         EmulatorSaveConfigEntity::class,
         GameDiscEntity::class,
-        AchievementEntity::class
+        AchievementEntity::class,
+        SaveCacheEntity::class
     ],
-    version = 19,
+    version = 21,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -55,6 +58,7 @@ abstract class ALauncherDatabase : RoomDatabase() {
     abstract fun pendingSaveSyncDao(): PendingSaveSyncDao
     abstract fun emulatorSaveConfigDao(): EmulatorSaveConfigDao
     abstract fun achievementDao(): AchievementDao
+    abstract fun saveCacheDao(): SaveCacheDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -322,6 +326,31 @@ abstract class ALauncherDatabase : RoomDatabase() {
         val MIGRATION_18_19 = object : Migration(18, 19) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE games ADD COLUMN m3uPath TEXT")
+            }
+        }
+
+        val MIGRATION_19_20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS save_cache (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        gameId INTEGER NOT NULL,
+                        emulatorId TEXT NOT NULL,
+                        cachedAt INTEGER NOT NULL,
+                        saveSize INTEGER NOT NULL,
+                        cachePath TEXT NOT NULL,
+                        isLocked INTEGER NOT NULL DEFAULT 0,
+                        note TEXT
+                    )
+                """)
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_save_cache_gameId ON save_cache(gameId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_save_cache_cachedAt ON save_cache(cachedAt)")
+            }
+        }
+
+        val MIGRATION_20_21 = object : Migration(20, 21) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE games ADD COLUMN activeSaveChannel TEXT")
             }
         }
     }

@@ -1635,7 +1635,7 @@ private fun SyncSettingsSection(
     imageCacheProgress: ImageCacheProgress
 ) {
     val listState = rememberLazyListState()
-    val maxIndex = 2
+    val maxIndex = if (uiState.syncSettings.saveSyncEnabled) 3 else 2
 
     LaunchedEffect(uiState.focusedIndex) {
         if (uiState.focusedIndex in 0..maxIndex) {
@@ -1691,6 +1691,25 @@ private fun SyncSettingsSection(
                     subtitle = "Sync game saves with server",
                     isFocused = uiState.focusedIndex == 2,
                     onClick = { viewModel.enableSaveSync() }
+                )
+            }
+        }
+        if (uiState.syncSettings.saveSyncEnabled) {
+            item {
+                SwitchPreference(
+                    title = "Experimental Folder Saves",
+                    subtitle = "Sync folder-based saves (3DS, Switch, PSP, Vita)",
+                    isEnabled = uiState.syncSettings.experimentalFolderSaveSync,
+                    isFocused = uiState.focusedIndex == 3,
+                    onToggle = { viewModel.toggleExperimentalFolderSaveSync() }
+                )
+            }
+            item {
+                CyclePreference(
+                    title = "Local Save Cache",
+                    value = "${uiState.syncSettings.saveCacheLimit} saves per game",
+                    isFocused = uiState.focusedIndex == 4,
+                    onClick = { viewModel.cycleSaveCacheLimit() }
                 )
             }
         }

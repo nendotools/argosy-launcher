@@ -210,6 +210,8 @@ data class SyncSettingsState(
     val totalGames: Int = 0,
     val totalPlatforms: Int = 0,
     val saveSyncEnabled: Boolean = false,
+    val experimentalFolderSaveSync: Boolean = false,
+    val saveCacheLimit: Int = 10,
     val pendingUploadsCount: Int = 0,
     val hasStoragePermission: Boolean = false
 )
@@ -426,6 +428,8 @@ class SettingsViewModel @Inject constructor(
                         totalPlatforms = platforms.count { it.gameCount > 0 },
                         totalGames = platforms.sumOf { it.gameCount },
                         saveSyncEnabled = prefs.saveSyncEnabled,
+                        experimentalFolderSaveSync = prefs.experimentalFolderSaveSync,
+                        saveCacheLimit = prefs.saveCacheLimit,
                         pendingUploadsCount = pendingSaveSyncDao.getCount()
                     ),
                     betaUpdatesEnabled = prefs.betaUpdatesEnabled
@@ -584,6 +588,8 @@ class SettingsViewModel @Inject constructor(
                     syncSettings = it.syncSettings.copy(
                         syncFilters = prefs.syncFilters,
                         saveSyncEnabled = prefs.saveSyncEnabled,
+                        experimentalFolderSaveSync = prefs.experimentalFolderSaveSync,
+                        saveCacheLimit = prefs.saveCacheLimit,
                         hasStoragePermission = hasPermission,
                         pendingUploadsCount = pendingCount
                     )
@@ -897,7 +903,7 @@ class SettingsViewModel @Inject constructor(
                     isConnected -> 3
                     else -> 1
                 }
-                SettingsSection.SYNC_SETTINGS -> 2
+                SettingsSection.SYNC_SETTINGS -> if (state.syncSettings.saveSyncEnabled) 4 else 2
                 SettingsSection.SYNC_FILTERS -> 6
                 SettingsSection.STEAM_SETTINGS -> 2 + state.steam.installedLaunchers.size
                 SettingsSection.STORAGE -> 2
@@ -1375,6 +1381,28 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun toggleExperimentalFolderSaveSync() {
+        viewModelScope.launch {
+            val currentState = _uiState.value.syncSettings
+            val newValue = !currentState.experimentalFolderSaveSync
+
+            preferencesRepository.setExperimentalFolderSaveSync(newValue)
+            _uiState.update { it.copy(syncSettings = it.syncSettings.copy(experimentalFolderSaveSync = newValue)) }
+        }
+    }
+
+    fun cycleSaveCacheLimit() {
+        viewModelScope.launch {
+            val currentLimit = _uiState.value.syncSettings.saveCacheLimit
+            val values = listOf(5, 7, 10, 15, 20)
+            val currentIndex = values.indexOf(currentLimit).takeIf { it >= 0 } ?: 2
+            val newLimit = values[(currentIndex + 1) % values.size]
+
+            preferencesRepository.setSaveCacheLimit(newLimit)
+            _uiState.update { it.copy(syncSettings = it.syncSettings.copy(saveCacheLimit = newLimit)) }
+        }
+    }
+
     fun onStoragePermissionResult(granted: Boolean) {
         viewModelScope.launch {
             _uiState.update { it.copy(syncSettings = it.syncSettings.copy(hasStoragePermission = granted)) }
@@ -1810,6 +1838,18 @@ class SettingsViewModel @Inject constructor(
                             return InputResult.handled(SoundType.TOGGLE)
                         } else {
                             enableSaveSync()
+                        }
+                    }
+                    3 -> {
+                        if (state.syncSettings.saveSyncEnabled) {
+                            toggleExperimentalFolderSaveSync()
+                            return InputResult.handled(SoundType.TOGGLE)
+                        }
+                    }
+                    4 -> {
+                        if (state.syncSettings.saveSyncEnabled) {
+                            cycleSaveCacheLimit()
+                            return InputResult.handled(SoundType.SELECT)
                         }
                     }
                 }

@@ -5,6 +5,8 @@ import android.app.Application
 import android.os.Bundle
 import android.util.Log
 import com.nendo.argosy.data.local.dao.GameDao
+import com.nendo.argosy.data.repository.SaveCacheManager
+import com.nendo.argosy.data.repository.SaveSyncRepository
 import com.nendo.argosy.domain.usecase.save.SyncSaveOnSessionEndUseCase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,7 +39,9 @@ data class SaveConflictEvent(
 class PlaySessionTracker @Inject constructor(
     private val application: Application,
     private val gameDao: GameDao,
-    private val syncSaveOnSessionEndUseCase: dagger.Lazy<SyncSaveOnSessionEndUseCase>
+    private val syncSaveOnSessionEndUseCase: dagger.Lazy<SyncSaveOnSessionEndUseCase>,
+    private val saveCacheManager: dagger.Lazy<SaveCacheManager>,
+    private val saveSyncRepository: dagger.Lazy<SaveSyncRepository>
 ) {
     companion object {
         private const val TAG = "PlaySessionTracker"
@@ -76,6 +80,8 @@ class PlaySessionTracker @Inject constructor(
             if (minutes > 0) {
                 gameDao.addPlayTime(session.gameId, minutes)
             }
+
+            cacheCurrentSave(session)
 
             val result = syncSaveOnSessionEndUseCase.get()(session.gameId, session.emulatorPackage)
             when (result) {
@@ -141,5 +147,43 @@ class PlaySessionTracker @Inject constructor(
     fun getSessionDuration(): Duration? {
         val session = _activeSession.value ?: return null
         return Duration.between(session.startTime, Instant.now())
+    }
+
+    private suspend fun cacheCurrentSave(session: ActiveSession) {
+        try {
+            val game = gameDao.getById(session.gameId) ?: return
+
+            val emulatorId = resolveEmulatorId(session.emulatorPackage)
+            if (emulatorId == null) {
+                Log.d(TAG, "Cannot resolve emulator ID for ${session.emulatorPackage}")
+                return
+            }
+
+            val savePath = saveSyncRepository.get().discoverSavePath(
+                emulatorId,
+                game.title,
+                game.platformId,
+                game.localPath
+            )
+
+            if (savePath != null) {
+                val cached = saveCacheManager.get().cacheCurrentSave(
+                    gameId = session.gameId,
+                    emulatorId = emulatorId,
+                    savePath = savePath
+                )
+                if (cached) {
+                    Log.d(TAG, "Cached save for game ${session.gameId}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to cache save", e)
+        }
+    }
+
+    private fun resolveEmulatorId(packageName: String): String? {
+        EmulatorRegistry.getByPackage(packageName)?.let { return it.id }
+        EmulatorRegistry.findFamilyForPackage(packageName)?.let { return it.baseId }
+        return null
     }
 }

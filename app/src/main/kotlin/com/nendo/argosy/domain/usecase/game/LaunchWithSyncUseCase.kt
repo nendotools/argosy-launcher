@@ -56,8 +56,12 @@ class LaunchWithSyncUseCase @Inject constructor(
             return@flow
         }
 
-        val saveConfig = SavePathRegistry.getConfig(emulatorId)
-        if (saveConfig == null) {
+        if (!SavePathRegistry.canSyncWithSettings(
+                emulatorId,
+                prefs.saveSyncEnabled,
+                prefs.experimentalFolderSaveSync
+            )
+        ) {
             emit(SyncState.Skipped)
             return@flow
         }

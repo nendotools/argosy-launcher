@@ -56,15 +56,14 @@ object SavePathRegistry {
             supported = false
         ),
 
-        // 3DS - folder-based saves, not yet supported
+        // 3DS - folder-based saves
         "citra" to SavePathConfig(
             emulatorId = "citra",
             defaultPaths = listOf(
                 "/storage/emulated/0/Android/data/org.citra.citra_emu/files/sdmc/Nintendo 3DS"
             ),
             saveExtensions = listOf("*"),
-            usesFolderBasedSaves = true,
-            supported = false
+            usesFolderBasedSaves = true
         ),
         "citra_mmj" to SavePathConfig(
             emulatorId = "citra_mmj",
@@ -72,8 +71,7 @@ object SavePathRegistry {
                 "/storage/emulated/0/Android/data/org.citra.emu/files/sdmc/Nintendo 3DS"
             ),
             saveExtensions = listOf("*"),
-            usesFolderBasedSaves = true,
-            supported = false
+            usesFolderBasedSaves = true
         ),
         "lime3ds" to SavePathConfig(
             emulatorId = "lime3ds",
@@ -81,8 +79,7 @@ object SavePathRegistry {
                 "/storage/emulated/0/Android/data/io.github.lime3ds.android/files/sdmc/Nintendo 3DS"
             ),
             saveExtensions = listOf("*"),
-            usesFolderBasedSaves = true,
-            supported = false
+            usesFolderBasedSaves = true
         ),
         "azahar" to SavePathConfig(
             emulatorId = "azahar",
@@ -90,19 +87,25 @@ object SavePathRegistry {
                 "/storage/emulated/0/Android/data/io.github.azahar_emu.azahar/files/sdmc/Nintendo 3DS"
             ),
             saveExtensions = listOf("*"),
-            usesFolderBasedSaves = true,
-            supported = false
+            usesFolderBasedSaves = true
+        ),
+        "borked3ds" to SavePathConfig(
+            emulatorId = "borked3ds",
+            defaultPaths = listOf(
+                "/storage/emulated/0/Android/data/io.github.borked3ds.android/files/sdmc/Nintendo 3DS"
+            ),
+            saveExtensions = listOf("*"),
+            usesFolderBasedSaves = true
         ),
 
-        // Switch - folder-based saves, not yet supported
+        // Switch - folder-based saves
         "yuzu" to SavePathConfig(
             emulatorId = "yuzu",
             defaultPaths = listOf(
                 "/storage/emulated/0/Android/data/org.yuzu.yuzu_emu/files/nand/user/save"
             ),
             saveExtensions = listOf("*"),
-            usesFolderBasedSaves = true,
-            supported = false
+            usesFolderBasedSaves = true
         ),
         "ryujinx" to SavePathConfig(
             emulatorId = "ryujinx",
@@ -110,8 +113,7 @@ object SavePathRegistry {
                 "/storage/emulated/0/Android/data/org.ryujinx.android/files/nand/user/save"
             ),
             saveExtensions = listOf("*"),
-            usesFolderBasedSaves = true,
-            supported = false
+            usesFolderBasedSaves = true
         ),
         "citron" to SavePathConfig(
             emulatorId = "citron",
@@ -119,8 +121,7 @@ object SavePathRegistry {
                 "/storage/emulated/0/Android/data/org.citron.emu/files/nand/user/save"
             ),
             saveExtensions = listOf("*"),
-            usesFolderBasedSaves = true,
-            supported = false
+            usesFolderBasedSaves = true
         ),
         "strato" to SavePathConfig(
             emulatorId = "strato",
@@ -128,8 +129,7 @@ object SavePathRegistry {
                 "/storage/emulated/0/Android/data/org.stratoemu.strato/files/nand/user/save"
             ),
             saveExtensions = listOf("*"),
-            usesFolderBasedSaves = true,
-            supported = false
+            usesFolderBasedSaves = true
         ),
         "eden" to SavePathConfig(
             emulatorId = "eden",
@@ -137,8 +137,7 @@ object SavePathRegistry {
                 "/storage/emulated/0/Android/data/dev.eden.eden_emulator/files/nand/user/save"
             ),
             saveExtensions = listOf("*"),
-            usesFolderBasedSaves = true,
-            supported = false
+            usesFolderBasedSaves = true
         ),
         "skyline" to SavePathConfig(
             emulatorId = "skyline",
@@ -146,8 +145,15 @@ object SavePathRegistry {
                 "/storage/emulated/0/Android/data/skyline.emu/files/nand/user/save"
             ),
             saveExtensions = listOf("*"),
-            usesFolderBasedSaves = true,
-            supported = false
+            usesFolderBasedSaves = true
+        ),
+        "sudachi" to SavePathConfig(
+            emulatorId = "sudachi",
+            defaultPaths = listOf(
+                "/storage/emulated/0/Android/data/org.sudachi.sudachi_emu/files/nand/user/save"
+            ),
+            saveExtensions = listOf("*"),
+            usesFolderBasedSaves = true
         ),
 
         "drastic" to SavePathConfig(
@@ -216,7 +222,7 @@ object SavePathRegistry {
             supported = false
         ),
 
-        // PSP - folder-based saves, not yet supported
+        // PSP - folder-based saves
         "ppsspp" to SavePathConfig(
             emulatorId = "ppsspp",
             defaultPaths = listOf(
@@ -224,8 +230,7 @@ object SavePathRegistry {
                 "/storage/emulated/0/Android/data/org.ppsspp.ppsspp/files/PSP/SAVEDATA"
             ),
             saveExtensions = listOf("*"),
-            usesFolderBasedSaves = true,
-            supported = false
+            usesFolderBasedSaves = true
         ),
         "ppsspp_gold" to SavePathConfig(
             emulatorId = "ppsspp_gold",
@@ -234,19 +239,25 @@ object SavePathRegistry {
                 "/storage/emulated/0/Android/data/org.ppsspp.ppssppgold/files/PSP/SAVEDATA"
             ),
             saveExtensions = listOf("*"),
-            usesFolderBasedSaves = true,
-            supported = false
+            usesFolderBasedSaves = true
         ),
 
-        // PS Vita - folder-based saves, not yet supported
+        // PS Vita - folder-based saves
         "vita3k" to SavePathConfig(
             emulatorId = "vita3k",
             defaultPaths = listOf(
                 "/storage/emulated/0/Android/data/org.vita3k.emulator/files/ux0/user/00/savedata"
             ),
             saveExtensions = listOf("*"),
-            usesFolderBasedSaves = true,
-            supported = false
+            usesFolderBasedSaves = true
+        ),
+        "vita3k-zx" to SavePathConfig(
+            emulatorId = "vita3k-zx",
+            defaultPaths = listOf(
+                "/storage/emulated/0/Android/data/org.vita3k.emulator.ikhoeyZX/files/ux0/user/00/savedata"
+            ),
+            saveExtensions = listOf("*"),
+            usesFolderBasedSaves = true
         ),
 
         // Dreamcast - uses shared VMU files, not yet supported
@@ -331,7 +342,20 @@ object SavePathRegistry {
         return if (config.supported) config else null
     }
 
+    fun getConfigIncludingUnsupported(emulatorId: String): SavePathConfig? = configs[emulatorId]
+
     fun getAllConfigs(): Map<String, SavePathConfig> = configs.filterValues { it.supported }
+
+    fun canSyncWithSettings(
+        emulatorId: String,
+        saveSyncEnabled: Boolean,
+        experimentalFolderSaveSync: Boolean
+    ): Boolean {
+        if (!saveSyncEnabled) return false
+        val config = getConfig(emulatorId) ?: return false
+        if (config.usesFolderBasedSaves && !experimentalFolderSaveSync) return false
+        return true
+    }
 
     fun getRetroArchCore(platformId: String): String? = EmulatorRegistry.getRetroArchCorePatterns()[platformId]?.firstOrNull()
 

@@ -805,7 +805,12 @@ class HomeViewModel @Inject constructor(
 
             val emulatorPackage = getEmulatorPackageForGame(gameId, game.platformId)
             val emulatorId = emulatorPackage?.let { resolveEmulatorId(it) }
-            val canSync = emulatorId != null && SavePathRegistry.getConfig(emulatorId) != null
+            val prefs = preferencesRepository.preferences.first()
+            val canSync = emulatorId != null && SavePathRegistry.canSyncWithSettings(
+                emulatorId,
+                prefs.saveSyncEnabled,
+                prefs.experimentalFolderSaveSync
+            )
 
             val syncStartTime = if (canSync) {
                 _uiState.update {
