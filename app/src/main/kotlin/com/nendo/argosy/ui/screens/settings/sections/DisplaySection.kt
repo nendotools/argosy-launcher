@@ -146,7 +146,8 @@ fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 value = uiState.display.backgroundBlur / 10,
                 minValue = 0,
                 maxValue = 10,
-                isFocused = uiState.focusedIndex == 5 + sliderOffset
+                isFocused = uiState.focusedIndex == 5 + sliderOffset,
+                onClick = { viewModel.cycleBackgroundBlur() }
             )
         }
         item {
@@ -155,7 +156,8 @@ fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 value = uiState.display.backgroundSaturation / 10,
                 minValue = 0,
                 maxValue = 10,
-                isFocused = uiState.focusedIndex == 6 + sliderOffset
+                isFocused = uiState.focusedIndex == 6 + sliderOffset,
+                onClick = { viewModel.cycleBackgroundSaturation() }
             )
         }
         item {
@@ -164,7 +166,8 @@ fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 value = uiState.display.backgroundOpacity / 10,
                 minValue = 0,
                 maxValue = 10,
-                isFocused = uiState.focusedIndex == 7 + sliderOffset
+                isFocused = uiState.focusedIndex == 7 + sliderOffset,
+                onClick = { viewModel.cycleBackgroundOpacity() }
             )
         }
     }

@@ -50,7 +50,8 @@ fun ControlsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                     value = uiState.controls.hapticIntensity.ordinal + 1,
                     minValue = 1,
                     maxValue = 3,
-                    isFocused = uiState.focusedIndex == 1
+                    isFocused = uiState.focusedIndex == 1,
+                    onClick = { viewModel.cycleHapticIntensity() }
                 )
             }
         }

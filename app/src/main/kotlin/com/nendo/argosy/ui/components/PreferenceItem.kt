@@ -27,11 +27,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import com.nendo.argosy.ui.theme.Dimens
 
 private val preferenceShape = RoundedCornerShape(Dimens.radiusLg)
@@ -489,6 +497,7 @@ fun HueSliderPreference(
             }
         }
         Spacer(modifier = Modifier.padding(top = Dimens.spacingSm))
+        var sliderSize by remember { mutableStateOf(IntSize.Zero) }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -497,7 +506,22 @@ fun HueSliderPreference(
                 .background(
                     Brush.horizontalGradient(hueColors)
                 )
-                .clickable { }
+                .onSizeChanged { sliderSize = it }
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            if (event.changes.any { it.pressed }) {
+                                val x = event.changes.first().position.x
+                                val width = sliderSize.width.toFloat()
+                                if (width > 0) {
+                                    val hue = (x / width * 360f).coerceIn(0f, 360f)
+                                    onHueChange(hue)
+                                }
+                            }
+                        }
+                    }
+                }
         ) {
             if (currentHue != null) {
                 val position = currentHue / 360f

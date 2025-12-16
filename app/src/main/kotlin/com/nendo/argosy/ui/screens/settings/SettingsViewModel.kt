@@ -574,6 +574,24 @@ class SettingsViewModel @Inject constructor(
         displayDelegate.adjustBackgroundOpacity(viewModelScope, delta)
     }
 
+    fun cycleBackgroundBlur() {
+        val current = _uiState.value.display.backgroundBlur
+        val next = if (current >= 100) 0 else current + 10
+        displayDelegate.adjustBackgroundBlur(viewModelScope, next - current)
+    }
+
+    fun cycleBackgroundSaturation() {
+        val current = _uiState.value.display.backgroundSaturation
+        val next = if (current >= 100) 0 else current + 10
+        displayDelegate.adjustBackgroundSaturation(viewModelScope, next - current)
+    }
+
+    fun cycleBackgroundOpacity() {
+        val current = _uiState.value.display.backgroundOpacity
+        val next = if (current >= 100) 0 else current + 10
+        displayDelegate.adjustBackgroundOpacity(viewModelScope, next - current)
+    }
+
     fun setUseGameBackground(use: Boolean) {
         displayDelegate.setUseGameBackground(viewModelScope, use)
     }

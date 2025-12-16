@@ -61,13 +61,18 @@ fun SoundsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
         if (uiState.sounds.enabled) {
             item {
                 val volumeLevels = listOf(10, 25, 40, 60, 80)
-                val sliderValue = (volumeLevels.indexOfFirst { it >= uiState.sounds.volume }.takeIf { it >= 0 } ?: 0) + 1
+                val currentIndex = volumeLevels.indexOfFirst { it >= uiState.sounds.volume }.takeIf { it >= 0 } ?: 0
+                val sliderValue = currentIndex + 1
                 SliderPreference(
                     title = "Volume",
                     value = sliderValue,
                     minValue = 1,
                     maxValue = 5,
-                    isFocused = uiState.focusedIndex == 1
+                    isFocused = uiState.focusedIndex == 1,
+                    onClick = {
+                        val nextIndex = (currentIndex + 1) % volumeLevels.size
+                        viewModel.setSoundVolume(volumeLevels[nextIndex])
+                    }
                 )
             }
             item {
