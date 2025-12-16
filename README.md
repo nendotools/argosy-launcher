@@ -44,19 +44,38 @@ Quick access to installed emulators and other apps without leaving the launcher.
 
 ## Screenshots
 
-[IMAGE: Home screen with gamepad navigation]
+### Home Screen
 
-[IMAGE: Game library with cover art grid]
+<img width="400" alt="Screenshot_20251207-214441" src="https://github.com/user-attachments/assets/931e1f4a-e0a1-46a9-a7ce-e712c0d558cc" />
 
-[IMAGE: Library filtering by genre, franchise, player count]
+### Library
 
-[IMAGE: Game details with IGDB metadata]
+<img width="400" alt="Screenshot_20251207-215146" src="https://github.com/user-attachments/assets/b71a0297-c908-45a2-800c-a05bcc264201" />
 
-[IMAGE: Download queue and progress]
+### Library Filtering
 
-[IMAGE: Settings with RomM server connection]
+<img width="400" alt="Screenshot_20251213-143248" src="https://github.com/user-attachments/assets/e9417ee8-a1b9-4f7d-99f0-37587bcfc9b9" />
 
-[IMAGE: Installed emulators and apps]
+### Game Details
+
+<img width="400" alt="Screenshot_20251207-215110" src="https://github.com/user-attachments/assets/7e317d1d-ed5c-4459-a2b9-ac1f2f006789" />
+
+### Download Queue
+
+<img width="400" alt="Screenshot_20251207-215348" src="https://github.com/user-attachments/assets/4235e9d6-ed7c-4be7-b20c-dcd5cbef5d3c" />
+
+### Settings
+
+<img width="400" alt="Screenshot_20251207-215358" src="https://github.com/user-attachments/assets/fa925ef9-533a-48ba-ba71-5631297f43d4" />
+
+### Emulator Autoconfig
+
+<img width="400" alt="Screenshot_20251213-143601" src="https://github.com/user-attachments/assets/188a4296-7cf2-44c0-8501-913dc218bdfe" />
+
+### Built-in Updater
+
+<img width="400" alt="Screenshot_20251213-143614" src="https://github.com/user-attachments/assets/be190b8a-f090-4387-939c-48ab4eb1369c" />
+
 
 ## Getting Started
 
