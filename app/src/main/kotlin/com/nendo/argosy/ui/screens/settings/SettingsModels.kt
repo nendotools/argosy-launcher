@@ -125,7 +125,8 @@ data class StorageState(
     val downloadedGamesSize: Long = 0,
     val downloadedGamesCount: Int = 0,
     val maxConcurrentDownloads: Int = 1,
-    val availableSpace: Long = 0
+    val availableSpace: Long = 0,
+    val hasAllFilesAccess: Boolean = false
 )
 
 data class ServerState(

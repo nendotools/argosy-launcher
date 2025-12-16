@@ -1,5 +1,6 @@
 package com.nendo.argosy.ui.screens.settings.sections
 
+import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -7,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,6 +24,7 @@ import com.nendo.argosy.ui.theme.Motion
 @Composable
 fun StorageSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
     val listState = rememberLazyListState()
+    val showPermissionRow = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
 
     val downloadedText = if (uiState.storage.downloadedGamesCount > 0) {
         val sizeText = formatFileSize(uiState.storage.downloadedGamesSize)
@@ -30,8 +33,9 @@ fun StorageSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
         "No games downloaded"
     }
 
+    val maxIndex = if (showPermissionRow) 3 else 2
     LaunchedEffect(uiState.focusedIndex) {
-        if (uiState.focusedIndex in 0..2) {
+        if (uiState.focusedIndex in 0..maxIndex) {
             val viewportHeight = listState.layoutInfo.viewportSize.height
             val itemHeight = listState.layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 0
             val centerOffset = if (itemHeight > 0) (viewportHeight - itemHeight) / 2 else 0
@@ -45,31 +49,47 @@ fun StorageSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
         modifier = Modifier.fillMaxSize().padding(Dimens.spacingMd),
         verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
+        if (showPermissionRow) {
+            item {
+                val hasAccess = uiState.storage.hasAllFilesAccess
+                ActionPreference(
+                    icon = Icons.Default.Security,
+                    title = "All Files Access",
+                    subtitle = if (hasAccess) "Permission granted" else "Required for extracting archives",
+                    isFocused = uiState.focusedIndex == 0,
+                    trailingText = if (hasAccess) "Enabled" else "Disabled",
+                    onClick = { if (!hasAccess) viewModel.requestStoragePermission() }
+                )
+            }
+        }
         item {
             val availableText = "${formatFileSize(uiState.storage.availableSpace)} free"
+            val focusOffset = if (showPermissionRow) 1 else 0
             ActionPreference(
                 icon = Icons.Default.Folder,
                 title = "Download Location",
                 subtitle = formatStoragePath(uiState.storage.romStoragePath),
-                isFocused = uiState.focusedIndex == 0,
+                isFocused = uiState.focusedIndex == focusOffset,
                 trailingText = availableText,
                 onClick = { viewModel.openFolderPicker() }
             )
         }
         item {
+            val focusOffset = if (showPermissionRow) 2 else 1
             SliderPreference(
                 title = "Max Active Downloads",
                 value = uiState.storage.maxConcurrentDownloads,
                 minValue = 1,
                 maxValue = 5,
-                isFocused = uiState.focusedIndex == 1
+                isFocused = uiState.focusedIndex == focusOffset
             )
         }
         item {
+            val focusOffset = if (showPermissionRow) 3 else 2
             InfoPreference(
                 title = "Downloaded",
                 value = downloadedText,
-                isFocused = uiState.focusedIndex == 2,
+                isFocused = uiState.focusedIndex == focusOffset,
                 icon = Icons.Default.Storage
             )
         }

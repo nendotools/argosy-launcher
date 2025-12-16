@@ -1,6 +1,7 @@
 package com.nendo.argosy.ui.screens.settings
 
 import android.content.Context
+import android.os.Build
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -165,7 +166,8 @@ class SettingsViewModel @Inject constructor(
     private fun observeDelegateEvents() {
         merge(
             syncDelegate.requestStoragePermissionEvent,
-            steamDelegate.requestStoragePermissionEvent
+            steamDelegate.requestStoragePermissionEvent,
+            storageDelegate.requestStoragePermissionEvent
         ).onEach {
             _requestStoragePermissionEvent.emit(Unit)
         }.launchIn(viewModelScope)
@@ -291,6 +293,7 @@ class SettingsViewModel @Inject constructor(
                 maxConcurrentDownloads = prefs.maxConcurrentDownloads,
                 availableSpace = availableSpace
             ))
+            storageDelegate.checkAllFilesAccess()
 
             syncDelegate.updateState(SyncSettingsState(
                 syncFilters = prefs.syncFilters,
@@ -315,6 +318,14 @@ class SettingsViewModel @Inject constructor(
     fun refreshEmulators() {
         emulatorDelegate.refreshEmulators()
         loadSettings()
+    }
+
+    fun checkStoragePermission() {
+        storageDelegate.checkAllFilesAccess()
+    }
+
+    fun requestStoragePermission() {
+        storageDelegate.requestAllFilesAccess(viewModelScope)
     }
 
     fun showEmulatorPicker(config: PlatformEmulatorConfig) {
@@ -492,7 +503,7 @@ class SettingsViewModel @Inject constructor(
                 SettingsSection.SYNC_SETTINGS -> if (state.syncSettings.saveSyncEnabled) 3 else 2
                 SettingsSection.SYNC_FILTERS -> 6
                 SettingsSection.STEAM_SETTINGS -> 2 + state.steam.installedLaunchers.size
-                SettingsSection.STORAGE -> 2
+                SettingsSection.STORAGE -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) 3 else 2
                 SettingsSection.DISPLAY -> if (state.display.useGameBackground) 7 else 8
                 SettingsSection.CONTROLS -> if (state.controls.hapticEnabled) 4 else 3
                 SettingsSection.SOUNDS -> if (state.sounds.enabled) 1 + SoundType.entries.size else 0
@@ -1021,8 +1032,11 @@ class SettingsViewModel @Inject constructor(
                 InputResult.HANDLED
             }
             SettingsSection.STORAGE -> {
+                val hasPermissionRow = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                val folderPickerIndex = if (hasPermissionRow) 1 else 0
                 when (state.focusedIndex) {
-                    0 -> openFolderPicker()
+                    0 -> if (hasPermissionRow && !state.storage.hasAllFilesAccess) requestStoragePermission()
+                    folderPickerIndex -> openFolderPicker()
                 }
                 InputResult.HANDLED
             }

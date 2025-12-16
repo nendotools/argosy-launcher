@@ -1,12 +1,17 @@
 package com.nendo.argosy.ui.screens.settings.delegates
 
+import android.os.Build
+import android.os.Environment
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.repository.GameRepository
 import com.nendo.argosy.domain.usecase.MigrateStorageUseCase
 import com.nendo.argosy.ui.screens.settings.StorageState
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -32,8 +37,26 @@ class StorageSettingsDelegate @Inject constructor(
     private val _isMigrating = MutableStateFlow(false)
     val isMigrating: StateFlow<Boolean> = _isMigrating.asStateFlow()
 
+    private val _requestStoragePermissionEvent = MutableSharedFlow<Unit>()
+    val requestStoragePermissionEvent: SharedFlow<Unit> = _requestStoragePermissionEvent.asSharedFlow()
+
     fun updateState(newState: StorageState) {
         _state.value = newState
+    }
+
+    fun checkAllFilesAccess() {
+        val hasAccess = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
+        } else {
+            true
+        }
+        _state.update { it.copy(hasAllFilesAccess = hasAccess) }
+    }
+
+    fun requestAllFilesAccess(scope: CoroutineScope) {
+        scope.launch {
+            _requestStoragePermissionEvent.emit(Unit)
+        }
     }
 
     fun cycleMaxConcurrentDownloads(scope: CoroutineScope) {
