@@ -52,7 +52,8 @@ enum class FilterCategory(val label: String) {
 
 enum class SourceFilter(val label: String) {
     ALL("All Games"),
-    PLAYABLE("Playable")
+    PLAYABLE("Playable"),
+    FAVORITES("Favorites")
 }
 
 data class ActiveFilters(
@@ -234,6 +235,8 @@ class LibraryViewModel @Inject constructor(
     val events: SharedFlow<LibraryEvent> = _events.asSharedFlow()
 
     private var gamesJob: Job? = null
+    private var pendingInitialPlatformId: String? = null
+    private var pendingInitialSourceFilter: SourceFilter? = null
 
     init {
         loadPlatforms()
@@ -264,12 +267,30 @@ class LibraryViewModel @Inject constructor(
             platformDao.observeVisiblePlatforms().collect { platforms ->
                 Log.d(TAG, "loadPlatforms: received ${platforms.size} platforms")
                 val platformUis = platforms.map { it.toUi() }
+
+                val pendingPlatformIndex = pendingInitialPlatformId?.let { platformId ->
+                    platformUis.indexOfFirst { it.id == platformId }.takeIf { it >= 0 }
+                }
+
                 _uiState.update { state ->
                     state.copy(
                         platforms = platformUis,
+                        currentPlatformIndex = pendingPlatformIndex ?: state.currentPlatformIndex,
                         isLoading = false
                     )
                 }
+
+                if (pendingPlatformIndex != null) {
+                    Log.d(TAG, "loadPlatforms: applied pending platform $pendingInitialPlatformId at index $pendingPlatformIndex")
+                    pendingInitialPlatformId = null
+                }
+
+                pendingInitialSourceFilter?.let { sourceFilter ->
+                    Log.d(TAG, "loadPlatforms: applying pending source filter $sourceFilter")
+                    _uiState.update { it.copy(activeFilters = it.activeFilters.copy(source = sourceFilter)) }
+                    pendingInitialSourceFilter = null
+                }
+
                 loadGames()
             }
         }
@@ -331,6 +352,7 @@ class LibraryViewModel @Inject constructor(
                 else -> when (filters.source) {
                     SourceFilter.ALL -> gameDao.observeAll()
                     SourceFilter.PLAYABLE -> gameDao.observePlayable()
+                    SourceFilter.FAVORITES -> gameDao.observeFavorites()
                 }
             }
 
@@ -391,10 +413,29 @@ class LibraryViewModel @Inject constructor(
 
     fun setInitialPlatform(platformId: String) {
         val state = _uiState.value
+        if (state.platforms.isEmpty()) {
+            Log.d(TAG, "setInitialPlatform: platforms not loaded yet, storing pending platformId=$platformId")
+            pendingInitialPlatformId = platformId
+            return
+        }
         val index = state.platforms.indexOfFirst { it.id == platformId }
         if (index >= 0 && index != state.currentPlatformIndex) {
             Log.d(TAG, "setInitialPlatform: setting platform to $platformId (index $index)")
             _uiState.update { it.copy(currentPlatformIndex = index) }
+            loadGames()
+        }
+    }
+
+    fun setInitialSourceFilter(source: SourceFilter) {
+        val state = _uiState.value
+        if (state.platforms.isEmpty()) {
+            Log.d(TAG, "setInitialSourceFilter: platforms not loaded yet, storing pending source=$source")
+            pendingInitialSourceFilter = source
+            return
+        }
+        if (state.activeFilters.source != source) {
+            Log.d(TAG, "setInitialSourceFilter: setting source to $source")
+            _uiState.update { it.copy(activeFilters = it.activeFilters.copy(source = source)) }
             loadGames()
         }
     }

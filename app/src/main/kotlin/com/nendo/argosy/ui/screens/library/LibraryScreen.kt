@@ -81,6 +81,7 @@ fun LibraryScreen(
     onBack: () -> Unit,
     onDrawerToggle: () -> Unit,
     initialPlatformId: String? = null,
+    initialSource: String? = null,
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -89,6 +90,15 @@ fun LibraryScreen(
     LaunchedEffect(initialPlatformId) {
         if (initialPlatformId != null) {
             viewModel.setInitialPlatform(initialPlatformId)
+        }
+    }
+
+    LaunchedEffect(initialSource) {
+        if (initialSource != null) {
+            val sourceFilter = SourceFilter.entries.find { it.name == initialSource }
+            if (sourceFilter != null) {
+                viewModel.setInitialSourceFilter(sourceFilter)
+            }
         }
     }
 

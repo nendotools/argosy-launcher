@@ -93,7 +93,7 @@ private const val SCROLL_OFFSET = -25
 @Composable
 fun HomeScreen(
     onGameSelect: (Long) -> Unit,
-    onNavigateToLibrary: (String) -> Unit = {},
+    onNavigateToLibrary: (platformId: String?, sourceFilter: String?) -> Unit = { _, _ -> },
     onDrawerToggle: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -129,7 +129,7 @@ fun HomeScreen(
                     }
                 }
                 is HomeEvent.NavigateToLibrary -> {
-                    onNavigateToLibrary(event.platformId)
+                    onNavigateToLibrary(event.platformId, event.sourceFilter)
                 }
             }
         }
@@ -537,7 +537,7 @@ private fun GameRail(
             key = { _, item ->
                 when (item) {
                     is HomeRowItem.Game -> "$rowKey-${item.game.id}"
-                    is HomeRowItem.ViewAll -> "$rowKey-viewall-${item.platformId}"
+                    is HomeRowItem.ViewAll -> "$rowKey-viewall-${item.platformId ?: item.sourceFilter ?: "all"}"
                 }
             }
         ) { index, item ->

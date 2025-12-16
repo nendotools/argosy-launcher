@@ -40,12 +40,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 
 private const val PLATFORM_GAMES_LIMIT = 20
 private const val RECENT_GAMES_LIMIT = 10
+private const val RECENT_GAMES_CANDIDATE_POOL = 40
 private const val AUTO_SYNC_DAYS = 7L
 private const val MENU_INDEX_MAX_DOWNLOADED = 4
 private const val MENU_INDEX_MAX_REMOTE = 3
@@ -93,9 +95,11 @@ data class HomeGameUi(
 sealed class HomeRowItem {
     data class Game(val game: HomeGameUi) : HomeRowItem()
     data class ViewAll(
-        val platformId: String,
-        val platformName: String,
-        val logoPath: String?
+        val platformId: String? = null,
+        val platformName: String? = null,
+        val logoPath: String? = null,
+        val sourceFilter: String? = null,
+        val label: String = "View All"
     ) : HomeRowItem()
 }
 
@@ -143,9 +147,21 @@ data class HomeUiState(
 
     val currentItems: List<HomeRowItem>
         get() = when (currentRow) {
-            HomeRow.Favorites -> favoriteGames.map { HomeRowItem.Game(it) }
+            HomeRow.Favorites -> {
+                if (favoriteGames.isEmpty()) emptyList()
+                else favoriteGames.map { HomeRowItem.Game(it) } + HomeRowItem.ViewAll(
+                    sourceFilter = "FAVORITES",
+                    label = "View All"
+                )
+            }
             is HomeRow.Platform -> platformItems
-            HomeRow.Continue -> recentGames.map { HomeRowItem.Game(it) }
+            HomeRow.Continue -> {
+                if (recentGames.isEmpty()) emptyList()
+                else recentGames.map { HomeRowItem.Game(it) } + HomeRowItem.ViewAll(
+                    sourceFilter = "PLAYABLE",
+                    label = "View All"
+                )
+            }
         }
 
     val focusedItem: HomeRowItem?
@@ -167,7 +183,10 @@ data class HomeUiState(
 
 sealed class HomeEvent {
     data class LaunchGame(val intent: Intent) : HomeEvent()
-    data class NavigateToLibrary(val platformId: String) : HomeEvent()
+    data class NavigateToLibrary(
+        val platformId: String? = null,
+        val sourceFilter: String? = null
+    ) : HomeEvent()
 }
 
 @HiltViewModel
@@ -198,6 +217,9 @@ class HomeViewModel @Inject constructor(
     private val loadViewDebounceMs = 150L
     private var achievementPrefetchJob: kotlinx.coroutines.Job? = null
     private val achievementPrefetchDebounceMs = 300L
+
+    private var cachedValidatedRecentGames: List<HomeGameUi>? = null
+    private var recentGamesCacheInvalid = true
 
     init {
         loadData()
@@ -311,18 +333,30 @@ class HomeViewModel @Inject constructor(
 
     private fun loadData() {
         viewModelScope.launch {
-            // Load all data first
             val platforms = platformDao.getPlatformsWithGames()
-            val recentGames = gameDao.getRecentlyPlayed(RECENT_GAMES_LIMIT)
             val favorites = gameDao.getFavorites()
 
+            val candidatePool = gameDao.getRecentlyPlayed(RECENT_GAMES_CANDIDATE_POOL)
+            val validatedRecent = mutableListOf<HomeGameUi>()
+            for (game in candidatePool) {
+                if (validatedRecent.size >= RECENT_GAMES_LIMIT) break
+                val isPlayable = when {
+                    game.source == GameSource.STEAM -> true
+                    game.localPath != null -> File(game.localPath).exists()
+                    else -> false
+                }
+                if (isPlayable) {
+                    validatedRecent.add(game.toUi())
+                }
+            }
+            cachedValidatedRecentGames = validatedRecent
+            recentGamesCacheInvalid = false
+
             val platformUis = platforms.map { it.toUi() }
-            val recentUis = recentGames.map { it.toUi() }
             val favoriteUis = favorites.map { it.toUi() }
 
-            // Determine starting row: recent -> favorites -> first platform
             val startRow = when {
-                recentUis.isNotEmpty() -> HomeRow.Continue
+                validatedRecent.isNotEmpty() -> HomeRow.Continue
                 favoriteUis.isNotEmpty() -> HomeRow.Favorites
                 platformUis.isNotEmpty() -> HomeRow.Platform(0)
                 else -> HomeRow.Continue
@@ -331,7 +365,7 @@ class HomeViewModel @Inject constructor(
             _uiState.update { state ->
                 state.copy(
                     platforms = platformUis,
-                    recentGames = recentUis,
+                    recentGames = validatedRecent,
                     favoriteGames = favoriteUis,
                     currentRow = startRow,
                     isLoading = false
@@ -383,6 +417,7 @@ class HomeViewModel @Inject constructor(
 
             if (newlyCompleted.isNotEmpty()) {
                 completedGameIds.addAll(newlyCompleted)
+                invalidateRecentGamesCache()
                 refreshCurrentRowInternal()
             }
 
@@ -391,8 +426,31 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun loadRecentGames() {
-        val games = gameDao.getRecentlyPlayed(RECENT_GAMES_LIMIT)
-        val gameUis = games.map { it.toUi() }
+        val gameUis = if (!recentGamesCacheInvalid && cachedValidatedRecentGames != null) {
+            cachedValidatedRecentGames!!
+        } else {
+            val candidatePool = gameDao.getRecentlyPlayed(RECENT_GAMES_CANDIDATE_POOL)
+            val validated = mutableListOf<HomeGameUi>()
+
+            for (game in candidatePool) {
+                if (validated.size >= RECENT_GAMES_LIMIT) break
+
+                val isPlayable = when {
+                    game.source == GameSource.STEAM -> true
+                    game.localPath != null -> File(game.localPath).exists()
+                    else -> false
+                }
+
+                if (isPlayable) {
+                    validated.add(game.toUi())
+                }
+            }
+
+            cachedValidatedRecentGames = validated
+            recentGamesCacheInvalid = false
+            validated
+        }
+
         _uiState.update { state ->
             val newState = state.copy(recentGames = gameUis)
             if (state.currentRow == HomeRow.Continue && gameUis.isEmpty()) {
@@ -453,6 +511,12 @@ class HomeViewModel @Inject constructor(
 
     fun onResume() {
         gameLaunchDelegate.handleSessionEnd(viewModelScope)
+        invalidateRecentGamesCache()
+    }
+
+    private fun invalidateRecentGamesCache() {
+        recentGamesCacheInvalid = true
+        cachedValidatedRecentGames = null
     }
 
     private fun loadGamesForPlatform(platformId: String, platformIndex: Int) {
@@ -576,6 +640,23 @@ class HomeViewModel @Inject constructor(
         return true
     }
 
+    private fun navigateToContinuePlaying(): Boolean {
+        val state = _uiState.value
+
+        if (state.currentRow == HomeRow.Continue) {
+            return false
+        }
+
+        if (state.recentGames.isEmpty()) {
+            return false
+        }
+
+        rowGameIndexes[state.currentRow] = state.focusedGameIndex
+        _uiState.update { it.copy(currentRow = HomeRow.Continue, focusedGameIndex = 0) }
+        saveCurrentState()
+        return true
+    }
+
     fun toggleGameMenu() {
         val wasShowing = _uiState.value.showGameMenu
         _uiState.update {
@@ -673,6 +754,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             gameActions.deleteLocalFile(gameId)
             notificationManager.showSuccess("Download deleted")
+            invalidateRecentGamesCache()
             refreshCurrentRowInternal()
         }
     }
@@ -699,16 +781,33 @@ class HomeViewModel @Inject constructor(
                 }
             }
             HomeRow.Continue -> {
-                val games = gameDao.getRecentlyPlayed(RECENT_GAMES_LIMIT)
-                val gameUis = games.map { it.toUi() }
+                invalidateRecentGamesCache()
+                val candidatePool = gameDao.getRecentlyPlayed(RECENT_GAMES_CANDIDATE_POOL)
+                val validated = mutableListOf<HomeGameUi>()
+
+                for (game in candidatePool) {
+                    if (validated.size >= RECENT_GAMES_LIMIT) break
+                    val isPlayable = when {
+                        game.source == GameSource.STEAM -> true
+                        game.localPath != null -> File(game.localPath).exists()
+                        else -> false
+                    }
+                    if (isPlayable) {
+                        validated.add(game.toUi())
+                    }
+                }
+
+                cachedValidatedRecentGames = validated
+                recentGamesCacheInvalid = false
+
                 val newIndex = if (focusedGameId != null) {
-                    gameUis.indexOfFirst { it.id == focusedGameId }
-                        .takeIf { it >= 0 } ?: state.focusedGameIndex.coerceAtMost(gameUis.lastIndex.coerceAtLeast(0))
+                    validated.indexOfFirst { it.id == focusedGameId }
+                        .takeIf { it >= 0 } ?: state.focusedGameIndex.coerceAtMost(validated.lastIndex.coerceAtLeast(0))
                 } else state.focusedGameIndex
 
                 _uiState.update { s ->
-                    val newState = s.copy(recentGames = gameUis, focusedGameIndex = newIndex)
-                    if (s.currentRow == HomeRow.Continue && gameUis.isEmpty()) {
+                    val newState = s.copy(recentGames = validated, focusedGameIndex = newIndex)
+                    if (s.currentRow == HomeRow.Continue && validated.isEmpty()) {
                         val newRow = newState.availableRows.firstOrNull() ?: HomeRow.Continue
                         newState.copy(currentRow = newRow, focusedGameIndex = 0)
                     } else newState
@@ -766,9 +865,9 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun navigateToLibrary(platformId: String) {
+    private fun navigateToLibrary(platformId: String? = null, sourceFilter: String? = null) {
         viewModelScope.launch {
-            _events.emit(HomeEvent.NavigateToLibrary(platformId))
+            _events.emit(HomeEvent.NavigateToLibrary(platformId, sourceFilter))
         }
     }
 
@@ -863,7 +962,7 @@ class HomeViewModel @Inject constructor(
                         }
                     }
                     is HomeRowItem.ViewAll -> {
-                        navigateToLibrary(item.platformId)
+                        navigateToLibrary(item.platformId, item.sourceFilter)
                     }
                     null -> { }
                 }
@@ -876,7 +975,13 @@ class HomeViewModel @Inject constructor(
                 toggleGameMenu()
                 return InputResult.HANDLED
             }
-            return if (scrollToFirstItem()) InputResult.HANDLED else InputResult.UNHANDLED
+            if (scrollToFirstItem()) {
+                return InputResult.HANDLED
+            }
+            if (navigateToContinuePlaying()) {
+                return InputResult.handled(SoundType.SECTION_CHANGE)
+            }
+            return InputResult.UNHANDLED
         }
 
         override fun onMenu(): InputResult {
