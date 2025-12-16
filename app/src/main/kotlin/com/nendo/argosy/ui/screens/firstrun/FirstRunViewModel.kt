@@ -26,6 +26,7 @@ enum class FirstRunStep {
 
 data class FirstRunUiState(
     val currentStep: FirstRunStep = FirstRunStep.WELCOME,
+    val focusedIndex: Int = 0,
     val rommUrl: String = "",
     val rommUsername: String = "",
     val rommPassword: String = "",
@@ -37,7 +38,8 @@ data class FirstRunUiState(
     val folderSelected: Boolean = false,
     val launchFolderPicker: Boolean = false,
     val saveSyncEnabled: Boolean = false,
-    val hasStoragePermission: Boolean = false
+    val hasStoragePermission: Boolean = false,
+    val rommFocusField: Int? = null
 )
 
 @HiltViewModel
@@ -59,7 +61,7 @@ class FirstRunViewModel @Inject constructor(
                 FirstRunStep.SAVE_SYNC -> FirstRunStep.COMPLETE
                 FirstRunStep.COMPLETE -> FirstRunStep.COMPLETE
             }
-            state.copy(currentStep = nextStep)
+            state.copy(currentStep = nextStep, focusedIndex = 0)
         }
     }
 
@@ -73,8 +75,43 @@ class FirstRunViewModel @Inject constructor(
                 FirstRunStep.SAVE_SYNC -> FirstRunStep.ROM_PATH
                 FirstRunStep.COMPLETE -> FirstRunStep.SAVE_SYNC
             }
-            state.copy(currentStep = prevStep)
+            state.copy(currentStep = prevStep, focusedIndex = 0)
         }
+    }
+
+    fun getMaxFocusIndex(): Int {
+        val state = _uiState.value
+        return when (state.currentStep) {
+            FirstRunStep.WELCOME -> 0
+            FirstRunStep.ROMM_LOGIN -> 4
+            FirstRunStep.ROMM_SUCCESS -> 0
+            FirstRunStep.ROM_PATH -> {
+                when {
+                    !state.hasStoragePermission -> 0
+                    state.folderSelected -> 1
+                    else -> 0
+                }
+            }
+            FirstRunStep.SAVE_SYNC -> 1
+            FirstRunStep.COMPLETE -> 0
+        }
+    }
+
+    fun moveFocus(delta: Int): Boolean {
+        val state = _uiState.value
+        val maxIndex = getMaxFocusIndex()
+        val newIndex = (state.focusedIndex + delta).coerceIn(0, maxIndex)
+        if (newIndex == state.focusedIndex) return false
+        _uiState.update { it.copy(focusedIndex = newIndex) }
+        return true
+    }
+
+    fun setRommFocusField(index: Int) {
+        _uiState.update { it.copy(rommFocusField = index) }
+    }
+
+    fun clearRommFocusField() {
+        _uiState.update { it.copy(rommFocusField = null) }
     }
 
     fun setRommUrl(url: String) {
@@ -204,4 +241,42 @@ class FirstRunViewModel @Inject constructor(
     fun onStoragePermissionResult(granted: Boolean) {
         _uiState.update { it.copy(hasStoragePermission = granted) }
     }
+
+    fun handleConfirm(
+        onRequestPermission: () -> Unit,
+        onChooseFolder: () -> Unit
+    ) {
+        val state = _uiState.value
+        when (state.currentStep) {
+            FirstRunStep.WELCOME -> nextStep()
+            FirstRunStep.ROMM_LOGIN -> {
+                when (state.focusedIndex) {
+                    in 0..2 -> setRommFocusField(state.focusedIndex)
+                    3 -> if (!state.isConnecting && state.rommUrl.isNotBlank()) connectToRomm()
+                    4 -> previousStep()
+                }
+            }
+            FirstRunStep.ROMM_SUCCESS -> nextStep()
+            FirstRunStep.ROM_PATH -> {
+                if (!state.hasStoragePermission) {
+                    onRequestPermission()
+                } else if (state.folderSelected) {
+                    if (state.focusedIndex == 0) proceedFromRomPath()
+                    else onChooseFolder()
+                } else {
+                    onChooseFolder()
+                }
+            }
+            FirstRunStep.SAVE_SYNC -> {
+                if (state.focusedIndex == 0) enableSaveSync() else skipSaveSync()
+            }
+            FirstRunStep.COMPLETE -> {}
+        }
+    }
+
+    fun createInputHandler(
+        onComplete: () -> Unit,
+        onRequestPermission: () -> Unit,
+        onChooseFolder: () -> Unit
+    ) = FirstRunInputHandler(this, onComplete, onRequestPermission, onChooseFolder)
 }

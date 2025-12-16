@@ -13,6 +13,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,15 +24,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,19 +43,26 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LifecycleEventEffect
+import com.nendo.argosy.ui.input.LocalInputDispatcher
 
 @Composable
 fun FirstRunScreen(
@@ -75,6 +84,40 @@ fun FirstRunScreen(
             if (filePath != null) {
                 viewModel.setStoragePath(filePath)
             }
+        }
+    }
+
+    val requestPermission = {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                data = Uri.parse("package:${context.packageName}")
+            }
+            context.startActivity(intent)
+        }
+    }
+
+    val chooseFolder = { viewModel.openFolderPicker() }
+
+    val inputDispatcher = LocalInputDispatcher.current
+    val inputHandler = remember(onComplete) {
+        viewModel.createInputHandler(
+            onComplete = onComplete,
+            onRequestPermission = requestPermission,
+            onChooseFolder = chooseFolder
+        )
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, inputHandler) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                inputDispatcher.subscribeView(inputHandler)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        inputDispatcher.subscribeView(inputHandler)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
@@ -102,6 +145,7 @@ fun FirstRunScreen(
         ) { step ->
             when (step) {
                 FirstRunStep.WELCOME -> WelcomeStep(
+                    isFocused = true,
                     onGetStarted = { viewModel.nextStep() }
                 )
                 FirstRunStep.ROMM_LOGIN -> RommLoginStep(
@@ -110,40 +154,40 @@ fun FirstRunScreen(
                     password = uiState.rommPassword,
                     isConnecting = uiState.isConnecting,
                     error = uiState.connectionError,
+                    focusedIndex = uiState.focusedIndex,
+                    rommFocusField = uiState.rommFocusField,
                     onUrlChange = viewModel::setRommUrl,
                     onUsernameChange = viewModel::setRommUsername,
                     onPasswordChange = viewModel::setRommPassword,
                     onConnect = { viewModel.connectToRomm() },
-                    onBack = { viewModel.previousStep() }
+                    onBack = { viewModel.previousStep() },
+                    onClearFocusField = { viewModel.clearRommFocusField() }
                 )
                 FirstRunStep.ROMM_SUCCESS -> RommSuccessStep(
                     serverName = uiState.rommUrl,
                     gameCount = uiState.rommGameCount,
                     platformCount = uiState.rommPlatformCount,
+                    isFocused = true,
                     onContinue = { viewModel.nextStep() }
                 )
                 FirstRunStep.ROM_PATH -> RomPathStep(
                     currentPath = uiState.romStoragePath,
                     folderSelected = uiState.folderSelected,
                     hasStoragePermission = uiState.hasStoragePermission,
-                    onRequestPermission = {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                            val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                                data = Uri.parse("package:${context.packageName}")
-                            }
-                            context.startActivity(intent)
-                        }
-                    },
-                    onChooseFolder = { viewModel.openFolderPicker() },
+                    focusedIndex = uiState.focusedIndex,
+                    onRequestPermission = requestPermission,
+                    onChooseFolder = chooseFolder,
                     onContinue = { viewModel.proceedFromRomPath() }
                 )
                 FirstRunStep.SAVE_SYNC -> SaveSyncStep(
+                    focusedIndex = uiState.focusedIndex,
                     onEnable = { viewModel.enableSaveSync() },
                     onSkip = { viewModel.skipSaveSync() }
                 )
                 FirstRunStep.COMPLETE -> CompleteStep(
                     gameCount = uiState.rommGameCount,
                     platformCount = uiState.rommPlatformCount,
+                    isFocused = true,
                     onStart = {
                         viewModel.completeSetup()
                         onComplete()
@@ -155,7 +199,7 @@ fun FirstRunScreen(
 }
 
 @Composable
-private fun WelcomeStep(onGetStarted: () -> Unit) {
+private fun WelcomeStep(isFocused: Boolean, onGetStarted: () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -174,9 +218,11 @@ private fun WelcomeStep(onGetStarted: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(48.dp))
-        Button(onClick = onGetStarted) {
-            Text("Get Started")
-        }
+        FocusableButton(
+            text = "Get Started",
+            isFocused = isFocused,
+            onClick = onGetStarted
+        )
     }
 }
 
@@ -187,12 +233,31 @@ private fun RommLoginStep(
     password: String,
     isConnecting: Boolean,
     error: String?,
+    focusedIndex: Int,
+    rommFocusField: Int?,
     onUrlChange: (String) -> Unit,
     onUsernameChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onConnect: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onClearFocusField: () -> Unit
 ) {
+    val inputShape = RoundedCornerShape(8.dp)
+    val urlFocusRequester = remember { FocusRequester() }
+    val usernameFocusRequester = remember { FocusRequester() }
+    val passwordFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(rommFocusField) {
+        when (rommFocusField) {
+            0 -> urlFocusRequester.requestFocus()
+            1 -> usernameFocusRequester.requestFocus()
+            2 -> passwordFocusRequester.requestFocus()
+        }
+        if (rommFocusField != null) {
+            onClearFocusField()
+        }
+    }
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.padding(32.dp)
@@ -206,7 +271,15 @@ private fun RommLoginStep(
             label = { Text("Server URL") },
             placeholder = { Text("https://romm.example.com") },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(0.8f)
+            shape = inputShape,
+            modifier = Modifier
+                .fillMaxWidth(0.8f)
+                .focusRequester(urlFocusRequester)
+                .then(
+                    if (focusedIndex == 0)
+                        Modifier.background(MaterialTheme.colorScheme.primaryContainer, inputShape)
+                    else Modifier
+                )
         )
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -215,7 +288,15 @@ private fun RommLoginStep(
             onValueChange = onUsernameChange,
             label = { Text("Username") },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(0.8f)
+            shape = inputShape,
+            modifier = Modifier
+                .fillMaxWidth(0.8f)
+                .focusRequester(usernameFocusRequester)
+                .then(
+                    if (focusedIndex == 1)
+                        Modifier.background(MaterialTheme.colorScheme.primaryContainer, inputShape)
+                    else Modifier
+                )
         )
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -226,7 +307,15 @@ private fun RommLoginStep(
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth(0.8f)
+            shape = inputShape,
+            modifier = Modifier
+                .fillMaxWidth(0.8f)
+                .focusRequester(passwordFocusRequester)
+                .then(
+                    if (focusedIndex == 2)
+                        Modifier.background(MaterialTheme.colorScheme.primaryContainer, inputShape)
+                    else Modifier
+                )
         )
 
         if (error != null) {
@@ -241,20 +330,19 @@ private fun RommLoginStep(
         Spacer(modifier = Modifier.height(32.dp))
 
         Row {
-            OutlinedButton(onClick = onBack, enabled = !isConnecting) {
-                Text("Back")
-            }
+            FocusableOutlinedButton(
+                text = "Back",
+                isFocused = focusedIndex == 4,
+                enabled = !isConnecting,
+                onClick = onBack
+            )
             Spacer(modifier = Modifier.width(16.dp))
-            Button(onClick = onConnect, enabled = !isConnecting && url.isNotBlank()) {
-                if (isConnecting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.height(20.dp).width(20.dp),
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text("Connect")
-                }
-            }
+            FocusableButton(
+                text = if (isConnecting) "Connecting..." else "Connect",
+                isFocused = focusedIndex == 3,
+                enabled = !isConnecting && url.isNotBlank(),
+                onClick = onConnect
+            )
         }
     }
 }
@@ -264,6 +352,7 @@ private fun RommSuccessStep(
     serverName: String,
     gameCount: Int,
     platformCount: Int,
+    isFocused: Boolean,
     onContinue: () -> Unit
 ) {
     Column(
@@ -293,9 +382,11 @@ private fun RommSuccessStep(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(32.dp))
-        Button(onClick = onContinue) {
-            Text("Continue")
-        }
+        FocusableButton(
+            text = "Continue",
+            isFocused = isFocused,
+            onClick = onContinue
+        )
     }
 }
 
@@ -304,6 +395,7 @@ private fun RomPathStep(
     currentPath: String?,
     folderSelected: Boolean,
     hasStoragePermission: Boolean,
+    focusedIndex: Int,
     onRequestPermission: () -> Unit,
     onChooseFolder: () -> Unit,
     onContinue: () -> Unit
@@ -360,11 +452,12 @@ private fun RomPathStep(
 
         if (!hasStoragePermission) {
             Spacer(modifier = Modifier.height(24.dp))
-            Button(onClick = onRequestPermission) {
-                Icon(Icons.Default.Lock, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Grant Storage Access")
-            }
+            FocusableButton(
+                text = "Grant Storage Access",
+                isFocused = focusedIndex == 0,
+                icon = Icons.Default.Lock,
+                onClick = onRequestPermission
+            )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "This permission is required to download games and sync saves.",
@@ -400,13 +493,17 @@ private fun RomPathStep(
                     }
                 }
                 Spacer(modifier = Modifier.height(24.dp))
-                Button(onClick = onContinue) {
-                    Text("Continue")
-                }
+                FocusableButton(
+                    text = "Continue",
+                    isFocused = focusedIndex == 0,
+                    onClick = onContinue
+                )
                 Spacer(modifier = Modifier.height(12.dp))
-                OutlinedButton(onClick = onChooseFolder) {
-                    Text("Choose Different Folder")
-                }
+                FocusableOutlinedButton(
+                    text = "Choose Different Folder",
+                    isFocused = focusedIndex == 1,
+                    onClick = onChooseFolder
+                )
             } else {
                 Text(
                     text = "Choose where your game files will be stored.",
@@ -415,11 +512,12 @@ private fun RomPathStep(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                Button(onClick = onChooseFolder) {
-                    Icon(Icons.Default.Folder, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Choose Folder")
-                }
+                FocusableButton(
+                    text = "Choose Folder",
+                    isFocused = focusedIndex == 0,
+                    icon = Icons.Default.Folder,
+                    onClick = onChooseFolder
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -434,6 +532,7 @@ private fun RomPathStep(
 
 @Composable
 private fun SaveSyncStep(
+    focusedIndex: Int,
     onEnable: () -> Unit,
     onSkip: () -> Unit
 ) {
@@ -457,15 +556,18 @@ private fun SaveSyncStep(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(32.dp))
-        Button(onClick = onEnable) {
-            Icon(Icons.Default.Sync, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Enable Save Sync")
-        }
+        FocusableButton(
+            text = "Enable Save Sync",
+            isFocused = focusedIndex == 0,
+            icon = Icons.Default.Sync,
+            onClick = onEnable
+        )
         Spacer(modifier = Modifier.height(16.dp))
-        OutlinedButton(onClick = onSkip) {
-            Text("Skip for Now")
-        }
+        FocusableOutlinedButton(
+            text = "Skip for Now",
+            isFocused = focusedIndex == 1,
+            onClick = onSkip
+        )
         Spacer(modifier = Modifier.height(24.dp))
         Text(
             text = "You can enable this later in Settings.",
@@ -479,6 +581,7 @@ private fun SaveSyncStep(
 private fun CompleteStep(
     gameCount: Int,
     platformCount: Int,
+    isFocused: Boolean,
     onStart: () -> Unit
 ) {
     Column(
@@ -512,9 +615,11 @@ private fun CompleteStep(
         )
 
         Spacer(modifier = Modifier.height(32.dp))
-        Button(onClick = onStart) {
-            Text("Start Playing")
-        }
+        FocusableButton(
+            text = "Start Playing",
+            isFocused = isFocused,
+            onClick = onStart
+        )
     }
 }
 
@@ -531,6 +636,65 @@ private fun StepHeader(step: Int, title: String, totalSteps: Int = 3) {
             text = title,
             style = MaterialTheme.typography.headlineSmall
         )
+    }
+}
+
+@Composable
+private fun FocusableButton(
+    text: String,
+    isFocused: Boolean,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null
+) {
+    val containerColor = if (isFocused) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+    val contentColor = if (isFocused) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = containerColor,
+            contentColor = contentColor
+        )
+    ) {
+        if (icon != null) {
+            Icon(icon, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+        Text(text)
+    }
+}
+
+@Composable
+private fun FocusableOutlinedButton(
+    text: String,
+    isFocused: Boolean,
+    onClick: () -> Unit,
+    enabled: Boolean = true
+) {
+    val containerColor = if (isFocused) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = containerColor
+        )
+    ) {
+        Text(text)
     }
 }
 

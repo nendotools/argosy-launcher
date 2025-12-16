@@ -204,6 +204,7 @@ class HomeViewModel @Inject constructor(
         initializeRomM()
         observeBackgroundSettings()
         observeSyncOverlay()
+        observePlatformChanges()
     }
 
     private fun observeSyncOverlay() {
@@ -225,6 +226,38 @@ class HomeViewModel @Inject constructor(
                         useGameBackground = prefs.useGameBackground,
                         customBackgroundPath = prefs.customBackgroundPath
                     )
+                }
+            }
+        }
+    }
+
+    private fun observePlatformChanges() {
+        viewModelScope.launch {
+            platformDao.observePlatformsWithGames().collect { platforms ->
+                val currentPlatforms = _uiState.value.platforms
+                val newPlatformUis = platforms.map { it.toUi() }
+
+                if (currentPlatforms.isEmpty() && newPlatformUis.isNotEmpty()) {
+                    _uiState.update { state ->
+                        val newRow = when {
+                            state.recentGames.isNotEmpty() -> state.currentRow
+                            state.favoriteGames.isNotEmpty() -> state.currentRow
+                            else -> HomeRow.Platform(0)
+                        }
+                        state.copy(
+                            platforms = newPlatformUis,
+                            currentRow = newRow,
+                            isLoading = false
+                        )
+                    }
+                    if (_uiState.value.currentRow is HomeRow.Platform) {
+                        val platform = platforms.firstOrNull()
+                        if (platform != null) {
+                            loadGamesForPlatformInternal(platform.id, 0)
+                        }
+                    }
+                } else if (newPlatformUis != currentPlatforms) {
+                    _uiState.update { it.copy(platforms = newPlatformUis) }
                 }
             }
         }
