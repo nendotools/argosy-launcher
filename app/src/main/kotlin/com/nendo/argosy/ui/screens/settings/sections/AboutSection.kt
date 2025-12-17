@@ -35,20 +35,6 @@ fun AboutSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
             )
         }
         item {
-            InfoPreference(
-                title = "Installed Emulators",
-                value = "${uiState.emulators.installedEmulators.size} detected",
-                isFocused = uiState.focusedIndex == 1
-            )
-        }
-        item {
-            InfoPreference(
-                title = "Argosy",
-                value = "Emulation-focused launcher for Android handhelds",
-                isFocused = uiState.focusedIndex == 2
-            )
-        }
-        item {
             val (title, subtitle) = when {
                 isDebug -> "Check for Updates" to "Disabled in debug builds"
                 updateCheck.isDownloading -> "Downloading..." to "${updateCheck.downloadProgress}%"
@@ -64,7 +50,7 @@ fun AboutSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 icon = Icons.Default.Sync,
                 title = title,
                 subtitle = subtitle,
-                isFocused = uiState.focusedIndex == 3,
+                isFocused = uiState.focusedIndex == 1,
                 isEnabled = !isDebug && !updateCheck.isChecking && !updateCheck.isDownloading,
                 onClick = {
                     if (updateCheck.updateAvailable) {
@@ -83,7 +69,7 @@ fun AboutSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 else
                     "Stable releases only",
                 isEnabled = uiState.betaUpdatesEnabled,
-                isFocused = uiState.focusedIndex == 4,
+                isFocused = uiState.focusedIndex == 2,
                 onToggle = { viewModel.setBetaUpdatesEnabled(it) }
             )
         }
