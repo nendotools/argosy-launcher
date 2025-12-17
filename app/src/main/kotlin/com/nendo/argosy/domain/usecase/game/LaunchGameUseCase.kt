@@ -15,16 +15,27 @@ class LaunchGameUseCase @Inject constructor(
     suspend operator fun invoke(gameId: Long, discId: Long? = null): LaunchResult {
         return when (val result = gameLauncher.launch(gameId, discId)) {
             is LaunchResult.Success -> {
+                val coreName = extractCoreName(result.intent)
                 playSessionTracker.startSession(
                     gameId = gameId,
                     emulatorPackage = result.intent.component?.packageName
                         ?: result.intent.`package`
-                        ?: ""
+                        ?: "",
+                    coreName = coreName
                 )
                 launchRetryTracker.onLaunchStarted(result.intent)
                 result
             }
             else -> result
         }
+    }
+
+    private fun extractCoreName(intent: Intent): String? {
+        val libretroPath = intent.getStringExtra("LIBRETRO") ?: return null
+        val coreFile = libretroPath.substringAfterLast("/")
+        return coreFile
+            .removeSuffix("_libretro_android.so")
+            .removeSuffix("_libretro.so")
+            .takeIf { it.isNotEmpty() }
     }
 }

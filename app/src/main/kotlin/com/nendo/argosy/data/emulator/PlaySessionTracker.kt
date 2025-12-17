@@ -26,7 +26,8 @@ import javax.inject.Singleton
 data class ActiveSession(
     val gameId: Long,
     val startTime: Instant,
-    val emulatorPackage: String
+    val emulatorPackage: String,
+    val coreName: String? = null
 )
 
 data class SaveConflictEvent(
@@ -61,11 +62,12 @@ class PlaySessionTracker @Inject constructor(
         registerLifecycleCallbacks()
     }
 
-    fun startSession(gameId: Long, emulatorPackage: String) {
+    fun startSession(gameId: Long, emulatorPackage: String, coreName: String? = null) {
         _activeSession.value = ActiveSession(
             gameId = gameId,
             startTime = Instant.now(),
-            emulatorPackage = emulatorPackage
+            emulatorPackage = emulatorPackage,
+            coreName = coreName
         )
     }
 
@@ -84,7 +86,8 @@ class PlaySessionTracker @Inject constructor(
             val result = syncSaveOnSessionEndUseCase.get()(
                 session.gameId,
                 session.emulatorPackage,
-                session.startTime.toEpochMilli()
+                session.startTime.toEpochMilli(),
+                session.coreName
             )
 
             cacheCurrentSave(session)
@@ -168,7 +171,8 @@ class PlaySessionTracker @Inject constructor(
                 game.title,
                 game.platformId,
                 game.localPath,
-                game.titleId
+                game.titleId,
+                session.coreName
             )
 
             if (savePath != null) {

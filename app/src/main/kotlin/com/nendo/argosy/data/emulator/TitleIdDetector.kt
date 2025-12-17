@@ -1,6 +1,6 @@
 package com.nendo.argosy.data.emulator
 
-import android.util.Log
+import com.nendo.argosy.util.Logger
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -25,12 +25,15 @@ class TitleIdDetector @Inject constructor() {
         sessionStartTime: Long
     ): DetectedTitleId? {
         val config = SavePathRegistry.getConfigIncludingUnsupported(emulatorId) ?: return null
-        if (!config.usesFolderBasedSaves) return null
+        if (!config.usesFolderBasedSaves) {
+            Logger.debug(TAG, "Skipping title ID detection - $emulatorId uses single-file saves")
+            return null
+        }
 
         for (basePath in config.defaultPaths) {
             val detected = scanForRecentTitleId(basePath, platformId, sessionStartTime)
             if (detected != null) {
-                Log.d(TAG, "Detected title ID: ${detected.titleId} at ${detected.savePath}")
+                Logger.debug(TAG, "Detected title ID: ${detected.titleId} at ${detected.savePath}")
                 return detected
             }
         }

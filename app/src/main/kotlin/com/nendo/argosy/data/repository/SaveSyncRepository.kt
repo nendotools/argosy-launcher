@@ -82,7 +82,8 @@ class SaveSyncRepository @Inject constructor(
         gameTitle: String,
         platformId: String,
         romPath: String? = null,
-        cachedTitleId: String? = null
+        cachedTitleId: String? = null,
+        coreName: String? = null
     ): String? = withContext(Dispatchers.IO) {
         val userConfig = emulatorSaveConfigDao.getByEmulator(emulatorId)
         if (userConfig?.isUserOverride == true) {
@@ -100,16 +101,26 @@ class SaveSyncRepository @Inject constructor(
 
         val paths = if (emulatorId == "retroarch" || emulatorId == "retroarch_64") {
             val packageName = if (emulatorId == "retroarch_64") "com.retroarch.aarch64" else "com.retroarch"
-            val coreName = SavePathRegistry.getRetroArchCore(platformId)
             val contentDir = romPath?.let { File(it).parent }
-            retroArchConfigParser.resolveSavePaths(packageName, platformId, coreName, contentDir)
+            if (coreName != null) {
+                Logger.debug(TAG, "discoverSavePath: RetroArch using known core=$coreName")
+                retroArchConfigParser.resolveSavePaths(packageName, platformId, coreName, contentDir)
+            } else {
+                val corePatterns = EmulatorRegistry.getRetroArchCorePatterns()[platformId] ?: emptyList()
+                Logger.debug(TAG, "discoverSavePath: RetroArch trying all cores=$corePatterns")
+                corePatterns.flatMap { core ->
+                    retroArchConfigParser.resolveSavePaths(packageName, platformId, core, contentDir)
+                } + retroArchConfigParser.resolveSavePaths(packageName, platformId, null, contentDir)
+            }
         } else {
             SavePathRegistry.resolvePath(config, platformId)
         }
 
+        Logger.debug(TAG, "discoverSavePath: searching ${paths.size} paths for '$gameTitle'")
         for (basePath in paths) {
             val saveFile = findSaveInPath(basePath, gameTitle, config.saveExtensions)
             if (saveFile != null) {
+                Logger.debug(TAG, "discoverSavePath: found save at $saveFile")
                 emulatorSaveConfigDao.upsert(
                     EmulatorSaveConfigEntity(
                         emulatorId = emulatorId,
