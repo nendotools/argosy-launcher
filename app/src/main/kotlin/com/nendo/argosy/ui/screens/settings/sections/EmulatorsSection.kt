@@ -72,7 +72,7 @@ fun EmulatorsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                         title = "Auto-assign Emulators",
                         subtitle = "Set recommended emulators for all platforms",
                         isFocused = uiState.focusedIndex == 0,
-                        onClick = { viewModel.autoAssignAllEmulators() }
+                        onClick = { viewModel.handlePlatformItemTap(-1) }
                     )
                 }
             }
@@ -80,7 +80,7 @@ fun EmulatorsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 PlatformEmulatorItem(
                     config = config,
                     isFocused = uiState.focusedIndex == index + focusOffset,
-                    onEmulatorClick = { viewModel.showEmulatorPicker(config) },
+                    onEmulatorClick = { viewModel.handlePlatformItemTap(index) },
                     onCycleCore = { direction -> viewModel.cycleCoreForPlatform(config, direction) }
                 )
             }
@@ -90,6 +90,8 @@ fun EmulatorsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
             EmulatorPickerPopup(
                 info = uiState.emulators.emulatorPickerInfo,
                 focusIndex = uiState.emulators.emulatorPickerFocusIndex,
+                selectedIndex = uiState.emulators.emulatorPickerSelectedIndex,
+                onItemTap = { index -> viewModel.handleEmulatorPickerItemTap(index) },
                 onConfirm = { viewModel.confirmEmulatorPickerSelection() },
                 onDismiss = { viewModel.dismissEmulatorPicker() }
             )

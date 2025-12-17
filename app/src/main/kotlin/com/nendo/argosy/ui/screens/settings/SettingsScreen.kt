@@ -103,6 +103,21 @@ fun SettingsScreen(
         }
     }
 
+    val logFolderPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        uri?.let {
+            context.contentResolver.takePersistableUriPermission(
+                it,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+            val filePath = getFilePathFromUri(context, it)
+            if (filePath != null) {
+                viewModel.setFileLoggingPath(filePath)
+            }
+        }
+    }
+
     val inputDispatcher = LocalInputDispatcher.current
     val inputHandler = remember(onBack) {
         viewModel.createInputHandler(onBack = onBack)
@@ -126,6 +141,13 @@ fun SettingsScreen(
         if (uiState.launchFolderPicker) {
             folderPickerLauncher.launch(null)
             viewModel.clearFolderPickerFlag()
+        }
+    }
+
+    LaunchedEffect(uiState.launchLogFolderPicker) {
+        if (uiState.launchLogFolderPicker) {
+            logFolderPickerLauncher.launch(null)
+            viewModel.clearLogFolderPickerFlag()
         }
     }
 

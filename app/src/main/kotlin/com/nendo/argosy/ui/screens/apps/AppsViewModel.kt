@@ -50,7 +50,9 @@ data class AppsUiState(
     val showHiddenApps: Boolean = false,
     val showContextMenu: Boolean = false,
     val contextMenuFocusIndex: Int = 0,
-    val isReorderMode: Boolean = false
+    val isReorderMode: Boolean = false,
+    val isTouchMode: Boolean = false,
+    val hasSelectedApp: Boolean = false
 ) {
     val columnsCount: Int
         get() = when (uiDensity) {
@@ -347,8 +349,30 @@ class AppsViewModel @Inject constructor(
                 }
             }
 
-            state.copy(focusedIndex = newIndex)
+            state.copy(focusedIndex = newIndex, isTouchMode = false)
         }
+    }
+
+    fun enterTouchMode() {
+        _uiState.update { it.copy(isTouchMode = true, hasSelectedApp = false) }
+    }
+
+    fun handleAppTap(index: Int) {
+        val state = _uiState.value
+        if (index < 0 || index >= state.apps.size) return
+
+        _uiState.update { it.copy(focusedIndex = index, hasSelectedApp = true, isTouchMode = true) }
+        launchAppAt(index)
+    }
+
+    fun handleAppLongPress(index: Int) {
+        val state = _uiState.value
+        if (index < 0 || index >= state.apps.size) return
+
+        if (index != state.focusedIndex) {
+            _uiState.update { it.copy(focusedIndex = index, hasSelectedApp = true, isTouchMode = true) }
+        }
+        showContextMenu()
     }
 
     private fun launchApp(packageName: String) {

@@ -16,7 +16,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.nendo.argosy.data.cache.ImageCacheManager
 import com.nendo.argosy.data.emulator.LaunchRetryTracker
+import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.remote.romm.RomMRepository
+import com.nendo.argosy.util.Logger
 import com.nendo.argosy.ui.ArgosyApp
 import com.nendo.argosy.ui.input.GamepadInputHandler
 import kotlinx.coroutines.CoroutineScope
@@ -42,6 +44,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var launchRetryTracker: LaunchRetryTracker
 
+    @Inject
+    lateinit var preferencesRepository: UserPreferencesRepository
+
     private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var hasResumedBefore = false
 
@@ -58,6 +63,17 @@ class MainActivity : ComponentActivity() {
             launchRetryTracker.retryEvents.collect { intent ->
                 Log.d("MainActivity", "Retrying launch intent after quick return")
                 startActivity(intent)
+            }
+        }
+
+        activityScope.launch {
+            preferencesRepository.preferences.collect { prefs ->
+                Logger.configure(
+                    versionName = BuildConfig.VERSION_NAME,
+                    logDirectory = prefs.fileLoggingPath,
+                    enabled = prefs.fileLoggingEnabled,
+                    level = prefs.fileLogLevel
+                )
             }
         }
 

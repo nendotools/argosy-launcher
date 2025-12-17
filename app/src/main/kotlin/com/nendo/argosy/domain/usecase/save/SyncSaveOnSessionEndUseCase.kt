@@ -1,6 +1,5 @@
 package com.nendo.argosy.domain.usecase.save
 
-import android.util.Log
 import com.nendo.argosy.data.emulator.EmulatorDetector
 import com.nendo.argosy.data.emulator.EmulatorRegistry
 import com.nendo.argosy.data.emulator.SavePathRegistry
@@ -11,6 +10,7 @@ import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.remote.romm.RomMRepository
 import com.nendo.argosy.data.repository.SaveSyncRepository
 import com.nendo.argosy.data.repository.SaveSyncResult
+import com.nendo.argosy.util.Logger
 import kotlinx.coroutines.flow.first
 import java.io.File
 import java.time.Instant
@@ -64,23 +64,25 @@ class SyncSaveOnSessionEndUseCase @Inject constructor(
     }
 
     suspend operator fun invoke(gameId: Long, emulatorPackage: String, sessionStartTime: Long = 0L): Result {
+        Logger.debug(TAG, "Session end sync starting for gameId=$gameId, emulator=$emulatorPackage")
+
         val prefs = preferencesRepository.userPreferences.first()
         if (!prefs.saveSyncEnabled) {
-            Log.d(TAG, "Save sync disabled")
+            Logger.debug(TAG, "Save sync disabled in preferences")
             return Result.NotConfigured
         }
         if (!romMRepository.isConnected()) {
-            Log.d(TAG, "RomM not connected, attempting reconnect...")
+            Logger.debug(TAG, "RomM not connected, attempting reconnect...")
             romMRepository.checkConnection()
         }
         if (!romMRepository.isConnected()) {
-            Log.d(TAG, "RomM still not connected after retry")
+            Logger.debug(TAG, "RomM still not connected after retry")
             return Result.NotConfigured
         }
 
         val game = gameDao.getById(gameId) ?: return Result.Error("Game not found")
         if (game.rommId == null) {
-            Log.d(TAG, "Game $gameId has no rommId")
+            Logger.debug(TAG, "Game ${game.title} has no rommId, skipping sync")
             return Result.NotConfigured
         }
 
@@ -89,10 +91,10 @@ class SyncSaveOnSessionEndUseCase @Inject constructor(
 
         val emulatorId = resolveEmulatorId(emulatorConfig?.packageName, emulatorPackage)
         if (emulatorId == null) {
-            Log.d(TAG, "Cannot resolve emulator for package: $emulatorPackage")
+            Logger.debug(TAG, "Cannot resolve emulator for package: $emulatorPackage")
             return Result.NotConfigured
         }
-        Log.d(TAG, "Resolved emulator: $emulatorId for game ${game.title}")
+        Logger.debug(TAG, "Resolved emulator: $emulatorId for game ${game.title}")
 
         var titleId = game.titleId
         var savePath = saveSyncRepository.discoverSavePath(
@@ -100,28 +102,28 @@ class SyncSaveOnSessionEndUseCase @Inject constructor(
         )
 
         if (savePath == null && titleId == null && sessionStartTime > 0) {
-            Log.d(TAG, "No save path found, attempting title ID detection...")
+            Logger.debug(TAG, "No save path found, attempting title ID detection...")
             val detected = titleIdDetector.detectRecentTitleId(
                 emulatorId, game.platformId, sessionStartTime
             )
             if (detected != null) {
                 val existingGame = gameDao.getByTitleIdAndPlatform(detected.titleId, game.platformId)
                 if (existingGame == null || existingGame.id == gameId) {
-                    Log.d(TAG, "Detected and caching titleId: ${detected.titleId}")
+                    Logger.debug(TAG, "Detected and caching titleId: ${detected.titleId}")
                     gameDao.updateTitleId(gameId, detected.titleId)
                     titleId = detected.titleId
                     savePath = detected.savePath
                 } else {
-                    Log.d(TAG, "TitleId ${detected.titleId} already assigned to game ${existingGame.id}, skipping")
+                    Logger.debug(TAG, "TitleId ${detected.titleId} already assigned to game ${existingGame.id}, skipping")
                 }
             }
         }
 
         if (savePath == null) {
-            Log.d(TAG, "No save path found for ${game.title} (platform: ${game.platformId}, romPath: ${game.localPath}, titleId: $titleId)")
+            Logger.debug(TAG, "No save path found for ${game.title} (platform: ${game.platformId}, romPath: ${game.localPath}, titleId: $titleId)")
             return Result.NoSaveFound
         }
-        Log.d(TAG, "Found save path: $savePath")
+        Logger.debug(TAG, "Found save path: $savePath")
 
         val saveFile = File(savePath)
         if (!saveFile.exists()) return Result.NoSaveFound
@@ -138,19 +140,34 @@ class SyncSaveOnSessionEndUseCase @Inject constructor(
             channelName = activeChannel
         )
 
+        Logger.info(TAG, "Uploading save for ${game.title} (channel: ${activeChannel ?: "default"})")
+
         return when (val syncResult = saveSyncRepository.uploadSave(gameId, emulatorId, activeChannel)) {
-            is SaveSyncResult.Success -> Result.Uploaded
-            is SaveSyncResult.Conflict -> Result.Conflict(
-                syncResult.gameId,
-                syncResult.localTimestamp,
-                syncResult.serverTimestamp
-            )
+            is SaveSyncResult.Success -> {
+                Logger.info(TAG, "Save uploaded successfully for ${game.title}")
+                Result.Uploaded
+            }
+            is SaveSyncResult.Conflict -> {
+                Logger.info(TAG, "Save conflict detected for ${game.title}: local=${syncResult.localTimestamp}, server=${syncResult.serverTimestamp}")
+                Result.Conflict(
+                    syncResult.gameId,
+                    syncResult.localTimestamp,
+                    syncResult.serverTimestamp
+                )
+            }
             is SaveSyncResult.Error -> {
+                Logger.warn(TAG, "Save upload failed for ${game.title}, queueing for retry: ${syncResult.message}")
                 saveSyncRepository.queueUpload(gameId, emulatorId, savePath)
                 Result.Queued
             }
-            is SaveSyncResult.NoSaveFound -> Result.NoSaveFound
-            is SaveSyncResult.NotConfigured -> Result.NotConfigured
+            is SaveSyncResult.NoSaveFound -> {
+                Logger.debug(TAG, "No save found to upload for ${game.title}")
+                Result.NoSaveFound
+            }
+            is SaveSyncResult.NotConfigured -> {
+                Logger.debug(TAG, "Save sync not configured for ${game.title}")
+                Result.NotConfigured
+            }
         }
     }
 

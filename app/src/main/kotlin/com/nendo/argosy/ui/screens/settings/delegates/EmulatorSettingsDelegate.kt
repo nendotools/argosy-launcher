@@ -45,7 +45,8 @@ class EmulatorSettingsDelegate @Inject constructor(
                     downloadableEmulators = config.downloadableEmulators,
                     selectedEmulatorName = config.selectedEmulator
                 ),
-                emulatorPickerFocusIndex = 0
+                emulatorPickerFocusIndex = 0,
+                emulatorPickerSelectedIndex = null
             )
         }
         soundManager.play(SoundType.OPEN_MODAL)
@@ -56,7 +57,8 @@ class EmulatorSettingsDelegate @Inject constructor(
             it.copy(
                 showEmulatorPicker = false,
                 emulatorPickerInfo = null,
-                emulatorPickerFocusIndex = 0
+                emulatorPickerFocusIndex = 0,
+                emulatorPickerSelectedIndex = null
             )
         }
         soundManager.play(SoundType.CLOSE_MODAL)
@@ -70,6 +72,27 @@ class EmulatorSettingsDelegate @Inject constructor(
             val maxIndex = (totalItems - 1).coerceAtLeast(0)
             val newIndex = (state.emulatorPickerFocusIndex + delta).coerceIn(0, maxIndex)
             state.copy(emulatorPickerFocusIndex = newIndex)
+        }
+    }
+
+    fun handleEmulatorPickerItemTap(
+        index: Int,
+        scope: CoroutineScope,
+        onSetEmulator: suspend (String, InstalledEmulator?) -> Unit,
+        onLoadSettings: suspend () -> Unit
+    ) {
+        val state = _state.value
+        if (state.emulatorPickerSelectedIndex == index) {
+            _state.update { it.copy(emulatorPickerFocusIndex = index) }
+            confirmEmulatorPickerSelection(scope, onSetEmulator, onLoadSettings)
+        } else {
+            _state.update {
+                it.copy(
+                    emulatorPickerSelectedIndex = index,
+                    emulatorPickerFocusIndex = index
+                )
+            }
+            soundManager.play(SoundType.NAVIGATE)
         }
     }
 

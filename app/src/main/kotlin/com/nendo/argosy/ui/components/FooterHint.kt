@@ -1,6 +1,8 @@
 package com.nendo.argosy.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +15,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
@@ -147,6 +150,7 @@ private fun InputButton.faceButtonPriority(): Int = when (this) {
 fun FooterBar(
     hints: List<Pair<InputButton, String>>,
     modifier: Modifier = Modifier,
+    onHintClick: ((InputButton) -> Unit)? = null,
     trailingContent: @Composable (() -> Unit)? = null
 ) {
     val dpadHints = hints.filter { it.first.category() == HintCategory.DPAD }
@@ -164,10 +168,10 @@ fun FooterBar(
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingLg)) {
             dpadHints.forEach { (button, action) ->
-                FooterHint(button = button, action = action)
+                TappableFooterHint(button, action, onHintClick)
             }
             bumperHints.forEach { (button, action) ->
-                FooterHint(button = button, action = action)
+                TappableFooterHint(button, action, onHintClick)
             }
         }
 
@@ -178,10 +182,10 @@ fun FooterBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             shoulderHints.forEach { (button, action) ->
-                FooterHint(button = button, action = action)
+                TappableFooterHint(button, action, onHintClick)
             }
             faceHints.forEach { (button, action) ->
-                FooterHint(button = button, action = action)
+                TappableFooterHint(button, action, onHintClick)
             }
             trailingContent?.invoke()
         }
@@ -189,9 +193,33 @@ fun FooterBar(
 }
 
 @Composable
+private fun TappableFooterHint(
+    button: InputButton,
+    action: String,
+    onHintClick: ((InputButton) -> Unit)?
+) {
+    val clickModifier = if (onHintClick != null) {
+        Modifier.clickable(
+            onClick = { onHintClick(button) },
+            indication = null,
+            interactionSource = remember { MutableInteractionSource() }
+        )
+    } else {
+        Modifier
+    }
+
+    FooterHint(
+        button = button,
+        action = action,
+        modifier = clickModifier.padding(vertical = Dimens.spacingXs)
+    )
+}
+
+@Composable
 fun SubtleFooterBar(
     hints: List<Pair<InputButton, String>>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onHintClick: ((InputButton) -> Unit)? = null
 ) {
     val dpadHints = hints.filter { it.first.category() == HintCategory.DPAD }
     val faceHints = hints.filter { it.first.category() == HintCategory.FACE }
@@ -206,7 +234,7 @@ fun SubtleFooterBar(
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingLg)) {
             dpadHints.forEach { (button, action) ->
-                FooterHint(button = button, action = action)
+                TappableFooterHint(button, action, onHintClick)
             }
         }
 
@@ -214,7 +242,7 @@ fun SubtleFooterBar(
 
         Row(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingLg)) {
             faceHints.forEach { (button, action) ->
-                FooterHint(button = button, action = action)
+                TappableFooterHint(button, action, onHintClick)
             }
         }
     }

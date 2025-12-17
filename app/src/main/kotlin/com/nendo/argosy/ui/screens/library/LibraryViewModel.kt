@@ -138,7 +138,8 @@ data class LibraryUiState(
     val filterCategoryIndex: Int = 0,
     val filterOptionIndex: Int = 0,
     val syncOverlayState: SyncOverlayState? = null,
-    val isTouchScrolling: Boolean = false
+    val isTouchMode: Boolean = false,
+    val hasSelectedGame: Boolean = false
 ) {
     val columnsCount: Int
         get() = when (uiDensity) {
@@ -469,7 +470,7 @@ class LibraryViewModel @Inject constructor(
         if (newIndex == null) return false
 
         Log.d(TAG, "moveFocus: $direction, $current -> $newIndex (cols=$cols, total=$total)")
-        _uiState.update { it.copy(focusedIndex = newIndex, lastFocusMove = direction) }
+        _uiState.update { it.copy(focusedIndex = newIndex, lastFocusMove = direction, isTouchMode = false) }
         return true
     }
 
@@ -725,15 +726,23 @@ class LibraryViewModel @Inject constructor(
         emulatorName = null
     )
 
-    fun setTouchScrolling(isScrolling: Boolean) {
-        _uiState.update { it.copy(isTouchScrolling = isScrolling) }
+    fun enterTouchMode() {
+        _uiState.update { it.copy(isTouchMode = true, hasSelectedGame = false) }
+    }
+
+    fun exitTouchMode() {
+        _uiState.update { it.copy(isTouchMode = false) }
+    }
+
+    fun clearSelection() {
+        _uiState.update { it.copy(hasSelectedGame = false) }
     }
 
     fun setFocusIndex(index: Int) {
         val state = _uiState.value
         if (index < 0 || index >= state.games.size) return
-        if (index == state.focusedIndex) return
-        _uiState.update { it.copy(focusedIndex = index, isTouchScrolling = false) }
+        if (index == state.focusedIndex && state.hasSelectedGame) return
+        _uiState.update { it.copy(focusedIndex = index, hasSelectedGame = true) }
         soundManager.play(SoundType.NAVIGATE)
     }
 
@@ -741,8 +750,9 @@ class LibraryViewModel @Inject constructor(
         val state = _uiState.value
         if (index < 0 || index >= state.games.size) return
 
-        if (state.isTouchScrolling || index != state.focusedIndex) {
-            setFocusIndex(index)
+        if (!state.hasSelectedGame || index != state.focusedIndex) {
+            _uiState.update { it.copy(focusedIndex = index, hasSelectedGame = true, isTouchMode = true) }
+            soundManager.play(SoundType.NAVIGATE)
             return
         }
 
@@ -756,7 +766,7 @@ class LibraryViewModel @Inject constructor(
         if (index < 0 || index >= state.games.size) return
 
         if (index != state.focusedIndex) {
-            _uiState.update { it.copy(focusedIndex = index, isTouchScrolling = false) }
+            _uiState.update { it.copy(focusedIndex = index, hasSelectedGame = true, isTouchMode = true) }
         }
         toggleQuickMenu()
     }

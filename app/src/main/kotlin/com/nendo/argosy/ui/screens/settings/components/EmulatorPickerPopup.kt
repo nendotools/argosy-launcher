@@ -41,6 +41,8 @@ import com.nendo.argosy.ui.theme.Motion
 fun EmulatorPickerPopup(
     info: EmulatorPickerInfo,
     focusIndex: Int,
+    selectedIndex: Int?,
+    onItemTap: (Int) -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -112,14 +114,16 @@ fun EmulatorPickerPopup(
                 if (installedCount > 0) {
                     item {
                         val isFocused = focusIndex == 0
-                        val isSelected = info.selectedEmulatorName == null
+                        val isTouchSelected = selectedIndex == 0
+                        val isCurrentEmulator = info.selectedEmulatorName == null
                         EmulatorPickerItem(
                             name = "Auto",
                             subtitle = "Use recommended emulator",
                             isFocused = isFocused,
-                            isSelected = isSelected,
+                            isTouchSelected = isTouchSelected,
+                            isCurrentEmulator = isCurrentEmulator,
                             isDownload = false,
-                            onClick = onConfirm
+                            onClick = { onItemTap(0) }
                         )
                     }
                 }
@@ -127,14 +131,16 @@ fun EmulatorPickerPopup(
                 itemsIndexed(info.installedEmulators) { index, emulator ->
                     val itemIndex = 1 + index
                     val isFocused = focusIndex == itemIndex
-                    val isSelected = emulator.def.displayName == info.selectedEmulatorName
+                    val isTouchSelected = selectedIndex == itemIndex
+                    val isCurrentEmulator = emulator.def.displayName == info.selectedEmulatorName
                     EmulatorPickerItem(
                         name = emulator.def.displayName,
                         subtitle = "Installed" + (emulator.versionName?.let { " - v$it" } ?: ""),
                         isFocused = isFocused,
-                        isSelected = isSelected,
+                        isTouchSelected = isTouchSelected,
+                        isCurrentEmulator = isCurrentEmulator,
                         isDownload = false,
-                        onClick = onConfirm
+                        onClick = { onItemTap(itemIndex) }
                     )
                 }
 
@@ -153,14 +159,16 @@ fun EmulatorPickerPopup(
                         val baseIndex = if (installedCount > 0) 1 + installedCount else 0
                         val itemIndex = baseIndex + index
                         val isFocused = focusIndex == itemIndex
+                        val isTouchSelected = selectedIndex == itemIndex
                         val isPlayStore = emulator.downloadUrl?.contains("play.google.com") == true
                         EmulatorPickerItem(
                             name = emulator.displayName,
                             subtitle = if (isPlayStore) "Play Store" else "GitHub",
                             isFocused = isFocused,
-                            isSelected = false,
+                            isTouchSelected = isTouchSelected,
+                            isCurrentEmulator = false,
                             isDownload = true,
-                            onClick = onConfirm
+                            onClick = { onItemTap(itemIndex) }
                         )
                     }
                 }
@@ -184,18 +192,20 @@ private fun EmulatorPickerItem(
     name: String,
     subtitle: String,
     isFocused: Boolean,
-    isSelected: Boolean,
+    isTouchSelected: Boolean,
+    isCurrentEmulator: Boolean,
     isDownload: Boolean,
     onClick: () -> Unit
 ) {
+    val isHighlighted = isFocused || isTouchSelected
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(Dimens.radiusMd))
             .background(
                 when {
-                    isFocused -> MaterialTheme.colorScheme.primaryContainer
-                    isSelected -> MaterialTheme.colorScheme.surfaceVariant
+                    isHighlighted -> MaterialTheme.colorScheme.primaryContainer
+                    isCurrentEmulator -> MaterialTheme.colorScheme.surfaceVariant
                     else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                 }
             )
@@ -208,28 +218,28 @@ private fun EmulatorPickerItem(
             Text(
                 text = name,
                 style = MaterialTheme.typography.titleMedium,
-                color = if (isFocused) MaterialTheme.colorScheme.onPrimaryContainer
+                color = if (isHighlighted) MaterialTheme.colorScheme.onPrimaryContainer
                         else MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = if (isFocused) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                color = if (isHighlighted) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                         else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         when {
-            isSelected -> Icon(
+            isCurrentEmulator -> Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = null,
-                tint = if (isFocused) MaterialTheme.colorScheme.onPrimaryContainer
+                tint = if (isHighlighted) MaterialTheme.colorScheme.onPrimaryContainer
                        else MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp)
             )
             isDownload -> Icon(
                 imageVector = Icons.Default.Cloud,
                 contentDescription = null,
-                tint = if (isFocused) MaterialTheme.colorScheme.onPrimaryContainer
+                tint = if (isHighlighted) MaterialTheme.colorScheme.onPrimaryContainer
                        else MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
                 modifier = Modifier.size(20.dp)
             )

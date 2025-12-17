@@ -18,7 +18,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import kotlin.math.abs
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -61,6 +64,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -107,34 +111,50 @@ fun HomeScreen(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var isProgrammaticScroll by remember { mutableStateOf(false) }
+    var skipNextProgrammaticScroll by remember { mutableStateOf(false) }
+    val swipeThreshold = with(LocalDensity.current) { 50.dp.toPx() }
+
+    val currentOnDrawerToggle by rememberUpdatedState(onDrawerToggle)
 
     LaunchedEffect(uiState.focusedGameIndex, uiState.currentRow, uiState.currentItems.size) {
         if (uiState.currentItems.isNotEmpty()) {
-            isProgrammaticScroll = true
-            scope.launch {
-                listState.animateScrollToItem(
-                    index = uiState.focusedGameIndex.coerceIn(0, uiState.currentItems.lastIndex),
-                    scrollOffset = SCROLL_OFFSET
-                )
-                isProgrammaticScroll = false
+            if (skipNextProgrammaticScroll) {
+                skipNextProgrammaticScroll = false
+            } else {
+                isProgrammaticScroll = true
+                scope.launch {
+                    listState.animateScrollToItem(
+                        index = uiState.focusedGameIndex.coerceIn(0, uiState.currentItems.lastIndex),
+                        scrollOffset = SCROLL_OFFSET
+                    )
+                    isProgrammaticScroll = false
+                }
             }
         }
     }
 
     LaunchedEffect(listState) {
-        snapshotFlow { listState.isScrollInProgress }
-            .collect { isScrolling ->
-                if (!isScrolling && !isProgrammaticScroll) {
-                    val layoutInfo = listState.layoutInfo
-                    val visibleItems = layoutInfo.visibleItemsInfo
-                    if (visibleItems.isNotEmpty()) {
-                        val leftmostVisible = visibleItems.minByOrNull { it.offset }
-                        if (leftmostVisible != null && leftmostVisible.index != uiState.focusedGameIndex) {
-                            viewModel.setFocusIndex(leftmostVisible.index)
-                        }
+        snapshotFlow {
+            Triple(
+                listState.isScrollInProgress,
+                isProgrammaticScroll,
+                listState.layoutInfo
+            )
+        }.collect { (isScrolling, programmatic, layoutInfo) ->
+            if (isScrolling && !programmatic) {
+                val viewportStart = layoutInfo.viewportStartOffset
+                val visibleItems = layoutInfo.visibleItemsInfo
+                if (visibleItems.isNotEmpty()) {
+                    val firstFullyVisible = visibleItems
+                        .filter { it.offset >= viewportStart }
+                        .minByOrNull { it.offset }
+                    if (firstFullyVisible != null && firstFullyVisible.index != uiState.focusedGameIndex) {
+                        skipNextProgrammaticScroll = true
+                        viewModel.setFocusIndex(firstFullyVisible.index)
                     }
                 }
             }
+        }
     }
 
     BackHandler(enabled = true) {
@@ -251,6 +271,32 @@ fun HomeScreen(
             )
         }
 
+        val edgeThreshold = with(LocalDensity.current) { 80.dp.toPx() }
+
+        val swipeGestureModifier = Modifier.pointerInput(Unit) {
+            var totalDragX = 0f
+            var totalDragY = 0f
+            var startX = 0f
+            detectDragGestures(
+                onDragStart = { offset ->
+                    totalDragX = 0f
+                    totalDragY = 0f
+                    startX = offset.x
+                },
+                onDragEnd = {
+                    when {
+                        startX < edgeThreshold && totalDragX > swipeThreshold -> currentOnDrawerToggle()
+                        totalDragY < -swipeThreshold && abs(totalDragY) > abs(totalDragX) -> viewModel.nextRow()
+                        totalDragY > swipeThreshold && abs(totalDragY) > abs(totalDragX) -> viewModel.previousRow()
+                    }
+                },
+                onDrag = { _, dragAmount ->
+                    totalDragX += dragAmount.x
+                    totalDragY += dragAmount.y
+                }
+            )
+        }
+
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
@@ -259,7 +305,12 @@ fun HomeScreen(
                 showPlatformNav = false
             )
 
-            Spacer(modifier = Modifier.weight(1f))
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .then(swipeGestureModifier)
+            )
 
             Box(
                 modifier = Modifier
@@ -290,6 +341,14 @@ fun HomeScreen(
                     }
                 }
 
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(130.dp)
+                        .align(Alignment.TopCenter)
+                        .then(swipeGestureModifier)
+                )
+
                 GameInfo(
                     title = uiState.focusedGame?.title ?: "",
                     developer = uiState.focusedGame?.developer,
@@ -315,12 +374,27 @@ fun HomeScreen(
                         InputButton.NORTH to if (focusedGame.isFavorite) "Unfavorite" else "Favorite",
                         InputButton.WEST to "Details"
                     ),
+                    onHintClick = { button ->
+                        when (button) {
+                            InputButton.SOUTH -> {
+                                if (focusedGame.isDownloaded) {
+                                    viewModel.launchGame(focusedGame.id)
+                                } else {
+                                    viewModel.queueDownload(focusedGame.id)
+                                }
+                            }
+                            InputButton.NORTH -> viewModel.toggleFavorite(focusedGame.id)
+                            InputButton.WEST -> onGameSelect(focusedGame.id)
+                            else -> {}
+                        }
+                    },
                     modifier = Modifier.padding(top = Dimens.spacingSm)
                 )
             } else {
                 Spacer(modifier = Modifier.height(32.dp))
             }
         }
+
         }
 
         AnimatedVisibility(

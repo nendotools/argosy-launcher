@@ -45,7 +45,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
@@ -77,7 +79,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import kotlin.math.abs
 
 @Composable
 fun LibraryScreen(
@@ -90,6 +97,7 @@ fun LibraryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val gridState = rememberLazyGridState(initialFirstVisibleItemIndex = uiState.focusedIndex)
+    var isProgrammaticScroll by remember { mutableStateOf(false) }
 
     LaunchedEffect(initialPlatformId) {
         if (initialPlatformId != null) {
@@ -140,32 +148,39 @@ fun LibraryScreen(
 
             when {
                 itemBottom + paddingBuffer > viewportHeight -> {
+                    isProgrammaticScroll = true
                     gridState.animateScrollBy(rowStep.toFloat(), scrollAnim)
+                    isProgrammaticScroll = false
                 }
                 itemTop - paddingBuffer < 0 -> {
+                    isProgrammaticScroll = true
                     gridState.animateScrollBy(-rowStep.toFloat(), scrollAnim)
+                    isProgrammaticScroll = false
                 }
             }
         } else {
             val cols = uiState.columnsCount
             val focusedRow = uiState.focusedIndex / cols
             val firstVisibleRow = firstItem.index / cols
+            isProgrammaticScroll = true
             if (focusedRow > firstVisibleRow) {
                 gridState.animateScrollBy(rowStep.toFloat(), scrollAnim)
             } else {
                 gridState.animateScrollBy(-rowStep.toFloat(), scrollAnim)
             }
+            isProgrammaticScroll = false
         }
     }
 
     LaunchedEffect(gridState) {
         snapshotFlow { gridState.isScrollInProgress }
             .collect { isScrolling ->
-                if (isScrolling) {
-                    viewModel.setTouchScrolling(true)
+                if (isScrolling && !isProgrammaticScroll) {
+                    viewModel.enterTouchMode()
                 }
             }
     }
+
 
     val context = LocalContext.current
     LaunchedEffect(Unit) {
@@ -213,59 +228,105 @@ fun LibraryScreen(
         label = "modalBlur"
     )
 
+    val swipeThreshold = with(LocalDensity.current) { 50.dp.toPx() }
+    val edgeThreshold = with(LocalDensity.current) { 80.dp.toPx() }
+    val currentOnDrawerToggle by rememberUpdatedState(onDrawerToggle)
+
+    val swipeGestureModifier = Modifier.pointerInput(Unit) {
+        var totalDragX = 0f
+        var totalDragY = 0f
+        var startX = 0f
+        detectDragGestures(
+            onDragStart = { offset ->
+                totalDragX = 0f
+                totalDragY = 0f
+                startX = offset.x
+            },
+            onDragEnd = {
+                when {
+                    startX < edgeThreshold && totalDragX > swipeThreshold -> currentOnDrawerToggle()
+                    totalDragX > swipeThreshold && abs(totalDragX) > abs(totalDragY) -> viewModel.previousPlatform()
+                    totalDragX < -swipeThreshold && abs(totalDragX) > abs(totalDragY) -> viewModel.nextPlatform()
+                }
+            },
+            onDrag = { _, dragAmount ->
+                totalDragX += dragAmount.x
+                totalDragY += dragAmount.y
+            }
+        )
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().blur(modalBlur)) {
             LibraryHeader(
                 platformName = uiState.currentPlatform?.shortName ?: "All Platforms",
-                gameCount = uiState.games.size
+                gameCount = uiState.games.size,
+                onPreviousPlatform = { viewModel.previousPlatform() },
+                onNextPlatform = { viewModel.nextPlatform() }
             )
 
-            when {
-                uiState.isLoading -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(Dimens.spacingXxl))
-                    }
-                }
-                uiState.games.isEmpty() -> {
-                    EmptyLibrary(
-                        platformName = uiState.currentPlatform?.name
-                    )
-                }
-                else -> {
-                    key(uiState.currentPlatformIndex) {
-                        val gridSpacing = uiState.gridSpacingDp.dp
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(uiState.columnsCount),
-                            state = gridState,
-                            contentPadding = PaddingValues(gridSpacing),
-                            horizontalArrangement = Arrangement.spacedBy(gridSpacing),
-                            verticalArrangement = Arrangement.spacedBy(gridSpacing),
-                            modifier = Modifier.weight(1f)
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .then(swipeGestureModifier)
+            ) {
+                when {
+                    uiState.isLoading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
                         ) {
-                            itemsIndexed(
-                                items = uiState.games,
-                                key = { _, game -> game.id }
-                            ) { index, game ->
-                                LibraryGameCard(
-                                    game = game,
-                                    isFocused = index == uiState.focusedIndex,
-                                    isTouchScrolling = uiState.isTouchScrolling,
-                                    cardHeightDp = uiState.cardHeightDp,
-                                    onClick = { viewModel.handleItemTap(index, onGameSelect) },
-                                    onLongClick = { viewModel.handleItemLongPress(index) }
-                                )
+                            CircularProgressIndicator(modifier = Modifier.size(Dimens.spacingXxl))
+                        }
+                    }
+                    uiState.games.isEmpty() -> {
+                        EmptyLibrary(
+                            platformName = uiState.currentPlatform?.name
+                        )
+                    }
+                    else -> {
+                        key(uiState.currentPlatformIndex) {
+                            val gridSpacing = uiState.gridSpacingDp.dp
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(uiState.columnsCount),
+                                state = gridState,
+                                contentPadding = PaddingValues(gridSpacing),
+                                horizontalArrangement = Arrangement.spacedBy(gridSpacing),
+                                verticalArrangement = Arrangement.spacedBy(gridSpacing),
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                itemsIndexed(
+                                    items = uiState.games,
+                                    key = { _, game -> game.id }
+                                ) { index, game ->
+                                    LibraryGameCard(
+                                        game = game,
+                                        isFocused = index == uiState.focusedIndex,
+                                        showFocus = !uiState.isTouchMode || uiState.hasSelectedGame,
+                                        cardHeightDp = uiState.cardHeightDp,
+                                        onClick = { viewModel.handleItemTap(index, onGameSelect) },
+                                        onLongClick = { viewModel.handleItemLongPress(index) }
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
 
-            LibraryFooter(focusedGame = uiState.focusedGame)
+            LibraryFooter(
+                focusedGame = uiState.focusedGame,
+                onHintClick = { button ->
+                    when (button) {
+                        InputButton.SOUTH -> uiState.focusedGame?.let { onGameSelect(it.id) }
+                        InputButton.NORTH -> uiState.focusedGame?.let { viewModel.toggleFavorite(it.id) }
+                        InputButton.WEST -> viewModel.toggleFilterMenu()
+                        InputButton.SELECT -> viewModel.toggleQuickMenu()
+                        else -> {}
+                    }
+                }
+            )
         }
 
         AnimatedVisibility(
@@ -330,7 +391,9 @@ fun LibraryScreen(
 @Composable
 private fun LibraryHeader(
     platformName: String,
-    gameCount: Int
+    gameCount: Int,
+    onPreviousPlatform: () -> Unit = {},
+    onNextPlatform: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -363,12 +426,23 @@ private fun LibraryHeader(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                painter = InputIcons.BumperLeft,
-                contentDescription = "Previous platform",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .clickable(
+                        onClick = onPreviousPlatform,
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    )
+                    .padding(Dimens.spacingSm),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    painter = InputIcons.BumperLeft,
+                    contentDescription = "Previous platform",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
 
             Spacer(modifier = Modifier.width(Dimens.spacingMd))
 
@@ -380,12 +454,23 @@ private fun LibraryHeader(
 
             Spacer(modifier = Modifier.width(Dimens.spacingMd))
 
-            Icon(
-                painter = InputIcons.BumperRight,
-                contentDescription = "Next platform",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .clickable(
+                        onClick = onNextPlatform,
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    )
+                    .padding(Dimens.spacingSm),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    painter = InputIcons.BumperRight,
+                    contentDescription = "Next platform",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
@@ -395,12 +480,12 @@ private fun LibraryHeader(
 private fun LibraryGameCard(
     game: LibraryGameUi,
     isFocused: Boolean,
-    isTouchScrolling: Boolean,
+    showFocus: Boolean,
     cardHeightDp: Int,
     onClick: () -> Unit = {},
     onLongClick: () -> Unit = {}
 ) {
-    val effectiveFocused = isFocused && !isTouchScrolling
+    val effectiveFocused = isFocused && showFocus
     GameCard(
         game = HomeGameUi(
             id = game.id,
@@ -427,7 +512,10 @@ private fun LibraryGameCard(
 }
 
 @Composable
-private fun LibraryFooter(focusedGame: LibraryGameUi?) {
+private fun LibraryFooter(
+    focusedGame: LibraryGameUi?,
+    onHintClick: ((InputButton) -> Unit)? = null
+) {
     FooterBar(
         hints = listOf(
             InputButton.DPAD to "Navigate",
@@ -435,7 +523,8 @@ private fun LibraryFooter(focusedGame: LibraryGameUi?) {
             InputButton.NORTH to if (focusedGame?.isFavorite == true) "Unfavorite" else "Favorite",
             InputButton.WEST to "Filter",
             InputButton.SELECT to "Quick Menu"
-        )
+        ),
+        onHintClick = onHintClick
     )
 }
 
@@ -497,7 +586,11 @@ private fun FilterMenuOverlay(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.7f))
-            .clickable(onClick = onDismiss),
+            .clickable(
+                onClick = onDismiss,
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -670,7 +763,12 @@ private fun QuickMenuOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.7f)),
+            .background(Color.Black.copy(alpha = 0.7f))
+            .clickable(
+                onClick = onDismiss,
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -679,6 +777,7 @@ private fun QuickMenuOverlay(
                     MaterialTheme.colorScheme.surface,
                     RoundedCornerShape(12.dp)
                 )
+                .clickable(enabled = false, onClick = {})
                 .padding(24.dp)
                 .width(350.dp)
         ) {

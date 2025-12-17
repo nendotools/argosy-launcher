@@ -1,7 +1,7 @@
 package com.nendo.argosy.data.sync
 
-import android.util.Log
 import com.nendo.argosy.data.download.DownloadManager
+import com.nendo.argosy.util.Logger
 import com.nendo.argosy.data.emulator.EmulatorResolver
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.repository.SaveSyncRepository
@@ -29,34 +29,34 @@ class SaveSyncDownloadObserver @Inject constructor(
                 handleDownloadCompletion(event)
             }
         }
-        Log.d(TAG, "Started observing download completions")
+        Logger.debug(TAG, "Started observing download completions")
     }
 
     private suspend fun handleDownloadCompletion(
         event: com.nendo.argosy.data.download.DownloadCompletionEvent
     ) {
         if (event.isDiscDownload) {
-            Log.d(TAG, "handleDownloadCompletion: skipped - disc download for game ${event.gameId}")
+            Logger.debug(TAG, "handleDownloadCompletion: skipped - disc download for game ${event.gameId}")
             return
         }
 
         val game = gameDao.getById(event.gameId)
         if (game == null) {
-            Log.e(TAG, "handleDownloadCompletion: game ${event.gameId} not found")
+            Logger.error(TAG, "handleDownloadCompletion: game ${event.gameId} not found")
             return
         }
 
         val emulatorId = emulatorResolver.getEmulatorIdForGame(event.gameId, game.platformId)
         if (emulatorId == null) {
-            Log.d(TAG, "handleDownloadCompletion: no emulator for platform ${game.platformId}")
+            Logger.debug(TAG, "handleDownloadCompletion: no emulator for platform ${game.platformId}")
             return
         }
 
-        Log.d(TAG, "handleDownloadCompletion: triggering save sync for game ${event.gameId} with emulator $emulatorId")
+        Logger.debug(TAG, "handleDownloadCompletion: triggering save sync for game ${event.gameId} with emulator $emulatorId")
         try {
             saveSyncRepository.get().syncSavesForNewDownload(event.gameId, event.rommId, emulatorId)
         } catch (e: Exception) {
-            Log.e(TAG, "handleDownloadCompletion: save sync failed", e)
+            Logger.error(TAG, "handleDownloadCompletion: save sync failed", e)
         }
     }
 }

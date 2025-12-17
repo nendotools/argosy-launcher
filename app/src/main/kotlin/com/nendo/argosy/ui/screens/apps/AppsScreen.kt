@@ -44,8 +44,11 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -81,6 +84,7 @@ fun AppsScreen(
     val gridState = rememberLazyGridState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    var isProgrammaticScroll by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -111,10 +115,21 @@ fun AppsScreen(
         if (uiState.apps.isNotEmpty()) {
             val cols = uiState.columnsCount
             val focusedRow = uiState.focusedIndex / cols
+            isProgrammaticScroll = true
             scope.launch {
                 gridState.animateScrollToItem(focusedRow * cols)
+                isProgrammaticScroll = false
             }
         }
+    }
+
+    LaunchedEffect(gridState) {
+        snapshotFlow { gridState.isScrollInProgress }
+            .collect { isScrolling ->
+                if (isScrolling && !isProgrammaticScroll) {
+                    viewModel.enterTouchMode()
+                }
+            }
     }
 
     val inputDispatcher = LocalInputDispatcher.current
@@ -218,9 +233,10 @@ fun AppsScreen(
                                 icon = app.icon,
                                 label = app.label,
                                 isFocused = index == uiState.focusedIndex,
+                                showFocus = !uiState.isTouchMode || uiState.hasSelectedApp,
                                 isReorderMode = uiState.isReorderMode,
-                                onClick = { viewModel.launchAppAt(index) },
-                                onLongClick = { viewModel.showContextMenuAt(index) }
+                                onClick = { viewModel.handleAppTap(index) },
+                                onLongClick = { viewModel.handleAppLongPress(index) }
                             )
                         }
                     }
@@ -241,6 +257,23 @@ fun AppsScreen(
                         InputButton.SELECT to "Options",
                         InputButton.WEST to if (uiState.showHiddenApps) "Show Apps" else "Show Hidden"
                     )
+                },
+                onHintClick = { button ->
+                    when {
+                        uiState.isReorderMode -> when (button) {
+                            InputButton.SOUTH -> viewModel.saveReorderAndExit()
+                            InputButton.EAST -> viewModel.cancelReorderAndExit()
+                            else -> {}
+                        }
+                        else -> when (button) {
+                            InputButton.SOUTH -> uiState.focusedApp?.let { viewModel.launchAppAt(uiState.focusedIndex) }
+                            InputButton.EAST -> onBack()
+                            InputButton.NORTH -> viewModel.enterReorderMode()
+                            InputButton.SELECT -> viewModel.showContextMenuAt(uiState.focusedIndex)
+                            InputButton.WEST -> viewModel.toggleShowHidden()
+                            else -> {}
+                        }
+                    }
                 }
             )
         }
@@ -366,18 +399,20 @@ private fun AppCard(
     icon: Drawable,
     label: String,
     isFocused: Boolean,
+    showFocus: Boolean = true,
     modifier: Modifier = Modifier,
     isReorderMode: Boolean = false,
     onClick: () -> Unit = {},
     onLongClick: () -> Unit = {}
 ) {
-    val backgroundColor = if (isFocused) {
+    val effectiveFocused = isFocused && showFocus
+    val backgroundColor = if (effectiveFocused) {
         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)
     } else {
         Color.Transparent
     }
 
-    val borderModifier = if (isFocused && isReorderMode) {
+    val borderModifier = if (effectiveFocused && isReorderMode) {
         Modifier.border(
             width = 2.dp,
             color = MaterialTheme.colorScheme.primary,

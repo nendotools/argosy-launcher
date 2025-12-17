@@ -126,6 +126,14 @@ fun ArgosyApp(
         }
     }
 
+    // Sync Compose drawer state -> ViewModel (for scrim tap close)
+    LaunchedEffect(drawerState.isOpen) {
+        if (!drawerState.isOpen && isDrawerOpen) {
+            inputDispatcher.unsubscribeDrawer()
+            viewModel.setDrawerOpen(false)
+        }
+    }
+
     // Block input during drawer transitions
     LaunchedEffect(isDrawerOpen) {
         inputDispatcher.blockInputFor(Motion.transitionDebounceMs)

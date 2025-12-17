@@ -32,6 +32,7 @@ import com.nendo.argosy.ui.input.SoundFeedbackManager
 import com.nendo.argosy.ui.input.SoundType
 import com.nendo.argosy.ui.notification.NotificationManager
 import com.nendo.argosy.ui.notification.showError
+import com.nendo.argosy.util.LogLevel
 import com.nendo.argosy.ui.screens.settings.delegates.ControlsSettingsDelegate
 import com.nendo.argosy.ui.screens.settings.delegates.DisplaySettingsDelegate
 import com.nendo.argosy.ui.screens.settings.delegates.EmulatorSettingsDelegate
@@ -305,7 +306,14 @@ class SettingsViewModel @Inject constructor(
                 pendingUploadsCount = pendingSaveSyncDao.getCount()
             ))
 
-            _uiState.update { it.copy(betaUpdatesEnabled = prefs.betaUpdatesEnabled) }
+            _uiState.update {
+                it.copy(
+                    betaUpdatesEnabled = prefs.betaUpdatesEnabled,
+                    fileLoggingEnabled = prefs.fileLoggingEnabled,
+                    fileLoggingPath = prefs.fileLoggingPath,
+                    fileLogLevel = prefs.fileLogLevel
+                )
+            }
 
             soundManager.setVolume(prefs.soundVolume)
         }
@@ -351,6 +359,34 @@ class SettingsViewModel @Inject constructor(
             onSetEmulator = { platformId, emulator -> setPlatformEmulator(platformId, emulator) },
             onLoadSettings = { loadSettings() }
         )
+    }
+
+    fun handleEmulatorPickerItemTap(index: Int) {
+        emulatorDelegate.handleEmulatorPickerItemTap(
+            index,
+            viewModelScope,
+            onSetEmulator = { platformId, emulator -> setPlatformEmulator(platformId, emulator) },
+            onLoadSettings = { loadSettings() }
+        )
+    }
+
+    fun handlePlatformItemTap(index: Int) {
+        val state = _uiState.value
+        val focusOffset = if (state.emulators.canAutoAssign) 1 else 0
+        val actualIndex = index + focusOffset
+
+        if (state.focusedIndex == actualIndex) {
+            if (index == -1 && state.emulators.canAutoAssign) {
+                autoAssignAllEmulators()
+            } else {
+                val config = state.emulators.platforms.getOrNull(index)
+                if (config != null) {
+                    showEmulatorPicker(config)
+                }
+            }
+        } else {
+            _uiState.update { it.copy(focusedIndex = actualIndex) }
+        }
     }
 
     fun navigateToSection(section: SettingsSection) {
@@ -512,7 +548,7 @@ class SettingsViewModel @Inject constructor(
                     val autoAssignOffset = if (state.emulators.canAutoAssign) 1 else 0
                     (platformCount + autoAssignOffset - 1).coerceAtLeast(0)
                 }
-                SettingsSection.ABOUT -> 4
+                SettingsSection.ABOUT -> if (state.fileLoggingPath != null) 4 else 3
             }
             val newIndex = if (state.currentSection == SettingsSection.SERVER && state.server.rommConfiguring) {
                 when {
@@ -788,6 +824,45 @@ class SettingsViewModel @Inject constructor(
 
     fun skipMigration() {
         storageDelegate.skipMigration()
+    }
+
+    fun openLogFolderPicker() {
+        _uiState.update { it.copy(launchLogFolderPicker = true) }
+    }
+
+    fun clearLogFolderPickerFlag() {
+        _uiState.update { it.copy(launchLogFolderPicker = false) }
+    }
+
+    fun setFileLoggingPath(path: String) {
+        viewModelScope.launch {
+            preferencesRepository.setFileLoggingPath(path)
+            preferencesRepository.setFileLoggingEnabled(true)
+        }
+        _uiState.update { it.copy(fileLoggingEnabled = true, fileLoggingPath = path) }
+    }
+
+    fun toggleFileLogging(enabled: Boolean) {
+        if (enabled && _uiState.value.fileLoggingPath == null) {
+            openLogFolderPicker()
+        } else {
+            viewModelScope.launch {
+                preferencesRepository.setFileLoggingEnabled(enabled)
+            }
+            _uiState.update { it.copy(fileLoggingEnabled = enabled) }
+        }
+    }
+
+    fun setFileLogLevel(level: LogLevel) {
+        viewModelScope.launch {
+            preferencesRepository.setFileLogLevel(level)
+        }
+        _uiState.update { it.copy(fileLogLevel = level) }
+    }
+
+    fun cycleFileLogLevel() {
+        val currentLevel = _uiState.value.fileLogLevel
+        setFileLogLevel(currentLevel.next())
     }
 
     fun setPlatformEmulator(platformId: String, emulator: InstalledEmulator?) {
@@ -1149,16 +1224,29 @@ class SettingsViewModel @Inject constructor(
             }
             SettingsSection.ABOUT -> {
                 when (state.focusedIndex) {
-                    3 -> {
+                    1 -> {
                         if (state.updateCheck.updateAvailable) {
                             viewModelScope.launch { _downloadUpdateEvent.emit(Unit) }
                         } else {
                             checkForUpdates()
                         }
                     }
-                    4 -> {
+                    2 -> {
                         setBetaUpdatesEnabled(!state.betaUpdatesEnabled)
                         return InputResult.handled(SoundType.TOGGLE)
+                    }
+                    3 -> {
+                        if (state.fileLoggingPath != null) {
+                            toggleFileLogging(!state.fileLoggingEnabled)
+                        } else {
+                            openLogFolderPicker()
+                        }
+                        return InputResult.handled(SoundType.TOGGLE)
+                    }
+                    4 -> {
+                        if (state.fileLoggingPath != null) {
+                            cycleFileLogLevel()
+                        }
                     }
                 }
                 InputResult.HANDLED

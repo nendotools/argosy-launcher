@@ -1,8 +1,8 @@
 package com.nendo.argosy.data.repository
 
 import android.content.Context
-import android.util.Log
 import com.nendo.argosy.data.emulator.EmulatorRegistry
+import com.nendo.argosy.util.Logger
 import com.nendo.argosy.data.emulator.RetroArchConfigParser
 import com.nendo.argosy.data.emulator.SavePathConfig
 import com.nendo.argosy.data.emulator.SavePathRegistry
@@ -136,7 +136,7 @@ class SaveSyncRepository @Inject constructor(
             ?: titleIdExtractor.extractTitleId(romFile, platformId)
             ?: return null
 
-        Log.d(TAG, "Using titleId: $titleId (cached: ${cachedTitleId != null})")
+        Logger.debug(TAG, "Using titleId: $titleId (cached: ${cachedTitleId != null})")
 
         for (basePath in config.defaultPaths) {
             val saveFolder = findSaveFolderByTitleId(basePath, titleId, platformId)
@@ -482,6 +482,7 @@ class SaveSyncRepository @Inject constructor(
         emulatorId: String,
         channelName: String? = null
     ): SaveSyncResult = withContext(Dispatchers.IO) {
+        Logger.debug(TAG, "uploadSave: gameId=$gameId, emulator=$emulatorId, channel=$channelName")
         val api = this@SaveSyncRepository.api ?: return@withContext SaveSyncResult.NotConfigured
 
         val syncEntity = if (channelName != null) {
@@ -563,6 +564,7 @@ class SaveSyncRepository @Inject constructor(
 
             if (response.isSuccessful) {
                 val serverSave = response.body()!!
+                Logger.debug(TAG, "uploadSave: success, serverSaveId=${serverSave.id}")
                 saveSyncDao.upsert(
                     SaveSyncEntity(
                         id = syncEntity?.id ?: 0,
@@ -580,11 +582,11 @@ class SaveSyncRepository @Inject constructor(
                 )
                 SaveSyncResult.Success
             } else {
-                Log.e(TAG, "uploadSave failed: ${response.code()}")
+                Logger.error(TAG, "uploadSave failed: ${response.code()}")
                 SaveSyncResult.Error("Upload failed: ${response.code()}")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "uploadSave exception", e)
+            Logger.error(TAG, "uploadSave exception", e)
             SaveSyncResult.Error(e.message ?: "Upload failed")
         } finally {
             tempZipFile?.delete()
@@ -597,6 +599,7 @@ class SaveSyncRepository @Inject constructor(
         channelName: String? = null,
         skipBackup: Boolean = false
     ): SaveSyncResult = withContext(Dispatchers.IO) {
+        Logger.debug(TAG, "downloadSave: gameId=$gameId, emulator=$emulatorId, channel=$channelName")
         val api = this@SaveSyncRepository.api
             ?: return@withContext SaveSyncResult.NotConfigured
 
@@ -615,7 +618,7 @@ class SaveSyncRepository @Inject constructor(
         val serverSave = try {
             api.getSave(saveId).body()
         } catch (e: Exception) {
-            Log.e(TAG, "downloadSave: getSave failed", e)
+            Logger.error(TAG, "downloadSave: getSave failed", e)
             return@withContext SaveSyncResult.Error("Failed to get save info: ${e.message}")
         } ?: return@withContext SaveSyncResult.Error("Save not found on server")
 
@@ -640,9 +643,9 @@ class SaveSyncRepository @Inject constructor(
         if (targetFile.exists() && !skipBackup) {
             try {
                 saveCacheManager.get().cacheCurrentSave(gameId, emulatorId, targetPath)
-                Log.d(TAG, "Cached existing save before download for game $gameId")
+                Logger.debug(TAG, "Cached existing save before download for game $gameId")
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to cache existing save before download", e)
+                Logger.warn(TAG, "Failed to cache existing save before download", e)
             }
         }
 
@@ -654,7 +657,7 @@ class SaveSyncRepository @Inject constructor(
 
             val response = api.downloadRaw(downloadPath)
             if (!response.isSuccessful) {
-                Log.e(TAG, "downloadSave failed: ${response.code()}")
+                Logger.error(TAG, "downloadSave failed: ${response.code()}")
                 return@withContext SaveSyncResult.Error("Download failed: ${response.code()}")
             }
 
@@ -710,12 +713,13 @@ class SaveSyncRepository @Inject constructor(
                     isLocked = cacheIsLocked
                 )
             } catch (e: Exception) {
-                Log.e(TAG, "Cache creation failed", e)
+                Logger.error(TAG, "Cache creation failed", e)
             }
 
+            Logger.debug(TAG, "downloadSave: success, saved to $targetPath")
             SaveSyncResult.Success
         } catch (e: Exception) {
-            Log.e(TAG, "downloadSave exception", e)
+            Logger.error(TAG, "downloadSave exception", e)
             SaveSyncResult.Error(e.message ?: "Download failed")
         } finally {
             tempZipFile?.delete()
@@ -732,7 +736,7 @@ class SaveSyncRepository @Inject constructor(
         val serverSave = try {
             api.getSave(serverSaveId).body()
         } catch (e: Exception) {
-            Log.e(TAG, "downloadSaveById: getSave failed", e)
+            Logger.error(TAG, "downloadSaveById: getSave failed", e)
             return@withContext false
         } ?: return@withContext false
 
@@ -747,7 +751,7 @@ class SaveSyncRepository @Inject constructor(
 
             val response = api.downloadRaw(downloadPath)
             if (!response.isSuccessful) {
-                Log.e(TAG, "downloadSaveById failed: ${response.code()}")
+                Logger.error(TAG, "downloadSaveById failed: ${response.code()}")
                 return@withContext false
             }
 
@@ -778,7 +782,7 @@ class SaveSyncRepository @Inject constructor(
 
             true
         } catch (e: Exception) {
-            Log.e(TAG, "downloadSaveById exception", e)
+            Logger.error(TAG, "downloadSaveById exception", e)
             false
         } finally {
             tempZipFile?.delete()
@@ -851,24 +855,31 @@ class SaveSyncRepository @Inject constructor(
 
     suspend fun processPendingUploads(): Int = withContext(Dispatchers.IO) {
         val pending = pendingSaveSyncDao.getRetryable()
+        if (pending.isEmpty()) {
+            return@withContext 0
+        }
+        Logger.info(TAG, "Processing ${pending.size} pending save uploads")
         var processed = 0
 
         for (item in pending) {
+            Logger.debug(TAG, "Processing pending upload: gameId=${item.gameId}, emulator=${item.emulatorId}")
             when (val result = uploadSave(item.gameId, item.emulatorId)) {
                 is SaveSyncResult.Success -> {
                     pendingSaveSyncDao.delete(item.id)
                     processed++
                 }
                 is SaveSyncResult.Conflict -> {
-                    // Leave in queue for user resolution
+                    Logger.debug(TAG, "Pending upload conflict for gameId=${item.gameId}, leaving in queue")
                 }
                 is SaveSyncResult.Error -> {
+                    Logger.debug(TAG, "Pending upload failed for gameId=${item.gameId}: ${result.message}")
                     pendingSaveSyncDao.incrementRetry(item.id, result.message)
                 }
                 else -> {}
             }
         }
 
+        Logger.info(TAG, "Processed $processed/${pending.size} pending uploads")
         processed
     }
 
@@ -935,10 +946,12 @@ class SaveSyncRepository @Inject constructor(
 
     suspend fun preLaunchSync(gameId: Long, rommId: Long, emulatorId: String): PreLaunchSyncResult =
         withContext(Dispatchers.IO) {
+            Logger.debug(TAG, "preLaunchSync: gameId=$gameId, rommId=$rommId, emulator=$emulatorId")
             val api = this@SaveSyncRepository.api ?: return@withContext PreLaunchSyncResult.NoConnection
 
             try {
                 val serverSaves = checkSavesForGame(gameId, rommId)
+                Logger.debug(TAG, "preLaunchSync: found ${serverSaves.size} server saves")
                 val serverSave = serverSaves.find { it.emulator == emulatorId || it.emulator == null }
                     ?: return@withContext PreLaunchSyncResult.NoServerSave
 
@@ -1023,7 +1036,7 @@ class SaveSyncRepository @Inject constructor(
 
             val result = downloadSave(gameId, emulatorId, channelName, skipBackup = true)
             if (result is SaveSyncResult.Error) {
-                Log.e(TAG, "syncSavesForNewDownload: failed '${serverSave.fileName}': ${result.message}")
+                Logger.error(TAG, "syncSavesForNewDownload: failed '${serverSave.fileName}': ${result.message}")
             }
         }
     }

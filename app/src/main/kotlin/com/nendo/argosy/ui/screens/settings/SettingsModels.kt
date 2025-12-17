@@ -12,6 +12,7 @@ import com.nendo.argosy.data.preferences.UiDensity
 import com.nendo.argosy.ui.input.SoundConfig
 import com.nendo.argosy.ui.input.SoundPreset
 import com.nendo.argosy.ui.input.SoundType
+import com.nendo.argosy.util.LogLevel
 import com.nendo.argosy.BuildConfig
 
 enum class SettingsSection {
@@ -117,7 +118,8 @@ data class EmulatorState(
     val canAutoAssign: Boolean = false,
     val showEmulatorPicker: Boolean = false,
     val emulatorPickerInfo: EmulatorPickerInfo? = null,
-    val emulatorPickerFocusIndex: Int = 0
+    val emulatorPickerFocusIndex: Int = 0,
+    val emulatorPickerSelectedIndex: Int? = null
 )
 
 data class StorageState(
@@ -208,5 +210,9 @@ data class SettingsUiState(
     val isMigrating: Boolean = false,
     val appVersion: String = BuildConfig.VERSION_NAME,
     val updateCheck: UpdateCheckState = UpdateCheckState(),
-    val betaUpdatesEnabled: Boolean = false
+    val betaUpdatesEnabled: Boolean = false,
+    val fileLoggingEnabled: Boolean = false,
+    val fileLoggingPath: String? = null,
+    val fileLogLevel: LogLevel = LogLevel.INFO,
+    val launchLogFolderPicker: Boolean = false
 )

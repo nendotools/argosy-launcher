@@ -1,19 +1,24 @@
 package com.nendo.argosy.ui.screens.settings.sections
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.nendo.argosy.ui.components.ActionPreference
+import com.nendo.argosy.ui.components.CyclePreference
 import com.nendo.argosy.ui.components.InfoPreference
 import com.nendo.argosy.ui.components.SwitchPreference
 import com.nendo.argosy.ui.screens.settings.SettingsUiState
 import com.nendo.argosy.ui.screens.settings.SettingsViewModel
+import com.nendo.argosy.ui.screens.settings.components.SectionHeader
 import com.nendo.argosy.ui.theme.Dimens
 
 @Composable
@@ -73,5 +78,50 @@ fun AboutSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 onToggle = { viewModel.setBetaUpdatesEnabled(it) }
             )
         }
+        item { Spacer(modifier = Modifier.height(Dimens.spacingMd)) }
+        item { SectionHeader("DEBUG") }
+        item {
+            if (uiState.fileLoggingPath != null) {
+                SwitchPreference(
+                    icon = Icons.Default.Description,
+                    title = "File Logging",
+                    subtitle = formatLoggingPath(uiState.fileLoggingPath),
+                    isEnabled = uiState.fileLoggingEnabled,
+                    isFocused = uiState.focusedIndex == 3,
+                    onToggle = { viewModel.toggleFileLogging(it) },
+                    onLabelClick = { viewModel.openLogFolderPicker() }
+                )
+            } else {
+                ActionPreference(
+                    icon = Icons.Default.Description,
+                    title = "Enable File Logging",
+                    subtitle = "Write logs to a file for debugging",
+                    isFocused = uiState.focusedIndex == 3,
+                    onClick = { viewModel.openLogFolderPicker() }
+                )
+            }
+        }
+        if (uiState.fileLoggingPath != null) {
+            item {
+                CyclePreference(
+                    title = "Log Level",
+                    value = uiState.fileLogLevel.name,
+                    isFocused = uiState.focusedIndex == 4,
+                    onClick = { viewModel.cycleFileLogLevel() }
+                )
+            }
+        }
+    }
+}
+
+private fun formatLoggingPath(rawPath: String): String {
+    return when {
+        rawPath.startsWith("/storage/emulated/0") ->
+            rawPath.replace("/storage/emulated/0", "Internal")
+        rawPath.startsWith("/storage/") -> {
+            val parts = rawPath.removePrefix("/storage/").split("/", limit = 2)
+            if (parts.size == 2) "SD Card/${parts[1]}" else rawPath
+        }
+        else -> rawPath
     }
 }

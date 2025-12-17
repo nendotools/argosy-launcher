@@ -201,34 +201,56 @@ fun SwitchPreference(
     isFocused: Boolean,
     onToggle: (Boolean) -> Unit,
     icon: ImageVector? = null,
-    subtitle: String? = null
+    subtitle: String? = null,
+    onLabelClick: (() -> Unit)? = null
 ) {
+    val backgroundColor = if (isFocused) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+
     Row(
-        modifier = preferenceModifier(isFocused, onClick = { onToggle(!isEnabled) }),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = Dimens.settingsItemMinHeight)
+            .clip(preferenceShape)
+            .background(backgroundColor, preferenceShape)
+            .padding(Dimens.spacingMd),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (icon != null) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (isFocused) MaterialTheme.colorScheme.onPrimaryContainer
-                       else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(Dimens.iconMd)
-            )
-            Spacer(modifier = Modifier.width(Dimens.spacingMd))
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = preferenceContentColor(isFocused)
-            )
-            if (subtitle != null) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = preferenceSecondaryColor(isFocused)
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .then(
+                    if (onLabelClick != null) Modifier.clickable(onClick = onLabelClick)
+                    else Modifier.clickable { onToggle(!isEnabled) }
+                ),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (isFocused) MaterialTheme.colorScheme.onPrimaryContainer
+                           else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(Dimens.iconMd)
                 )
+                Spacer(modifier = Modifier.width(Dimens.spacingMd))
+            }
+            Column {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = preferenceContentColor(isFocused)
+                )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = preferenceSecondaryColor(isFocused)
+                    )
+                }
             }
         }
         Switch(

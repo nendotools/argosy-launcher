@@ -1,6 +1,6 @@
 package com.nendo.argosy.data.sync
 
-import android.util.Log
+import com.nendo.argosy.util.Logger
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.File
@@ -20,7 +20,7 @@ class SaveArchiver @Inject constructor() {
 
     fun zipFolder(sourceFolder: File, targetZip: File): Boolean {
         if (!sourceFolder.exists() || !sourceFolder.isDirectory) {
-            Log.w(TAG, "Source folder does not exist or is not a directory: ${sourceFolder.absolutePath}")
+            Logger.warn(TAG, "Source folder does not exist or is not a directory: ${sourceFolder.absolutePath}")
             return false
         }
 
@@ -29,10 +29,10 @@ class SaveArchiver @Inject constructor() {
             ZipOutputStream(BufferedOutputStream(FileOutputStream(targetZip))).use { zos ->
                 zipFolderRecursive(sourceFolder, sourceFolder.name, zos)
             }
-            Log.d(TAG, "Successfully zipped ${sourceFolder.absolutePath} to ${targetZip.absolutePath}")
+            Logger.debug(TAG, "Successfully zipped ${sourceFolder.absolutePath} to ${targetZip.absolutePath}")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to zip folder: ${sourceFolder.absolutePath}", e)
+            Logger.error(TAG, "Failed to zip folder: ${sourceFolder.absolutePath}", e)
             targetZip.delete()
             false
         }
@@ -64,7 +64,7 @@ class SaveArchiver @Inject constructor() {
 
     fun unzipToFolder(sourceZip: File, targetFolder: File): Boolean {
         if (!sourceZip.exists() || !sourceZip.isFile) {
-            Log.w(TAG, "Source zip does not exist or is not a file: ${sourceZip.absolutePath}")
+            Logger.warn(TAG, "Source zip does not exist or is not a file: ${sourceZip.absolutePath}")
             return false
         }
 
@@ -78,7 +78,7 @@ class SaveArchiver @Inject constructor() {
                     val entryFile = File(targetFolder, entry!!.name)
 
                     if (!entryFile.canonicalPath.startsWith(targetFolder.canonicalPath)) {
-                        Log.e(TAG, "Zip path traversal detected: ${entry!!.name}")
+                        Logger.error(TAG, "Zip path traversal detected: ${entry!!.name}")
                         return false
                     }
 
@@ -96,17 +96,17 @@ class SaveArchiver @Inject constructor() {
                     zis.closeEntry()
                 }
             }
-            Log.d(TAG, "Successfully unzipped ${sourceZip.absolutePath} to ${targetFolder.absolutePath}")
+            Logger.debug(TAG, "Successfully unzipped ${sourceZip.absolutePath} to ${targetFolder.absolutePath}")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to unzip file: ${sourceZip.absolutePath}", e)
+            Logger.error(TAG, "Failed to unzip file: ${sourceZip.absolutePath}", e)
             false
         }
     }
 
     fun unzipSingleFolder(sourceZip: File, targetFolder: File): Boolean {
         if (!sourceZip.exists() || !sourceZip.isFile) {
-            Log.w(TAG, "Source zip does not exist or is not a file: ${sourceZip.absolutePath}")
+            Logger.warn(TAG, "Source zip does not exist or is not a file: ${sourceZip.absolutePath}")
             return false
         }
 
@@ -140,7 +140,7 @@ class SaveArchiver @Inject constructor() {
                     val entryFile = File(targetFolder, relativePath)
 
                     if (!entryFile.canonicalPath.startsWith(targetFolder.canonicalPath)) {
-                        Log.e(TAG, "Zip path traversal detected: $entryName")
+                        Logger.error(TAG, "Zip path traversal detected: $entryName")
                         return false
                     }
 
@@ -158,10 +158,10 @@ class SaveArchiver @Inject constructor() {
                     zis.closeEntry()
                 }
             }
-            Log.d(TAG, "Successfully unzipped ${sourceZip.absolutePath} contents to ${targetFolder.absolutePath}")
+            Logger.debug(TAG, "Successfully unzipped ${sourceZip.absolutePath} contents to ${targetFolder.absolutePath}")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to unzip file: ${sourceZip.absolutePath}", e)
+            Logger.error(TAG, "Failed to unzip file: ${sourceZip.absolutePath}", e)
             false
         }
     }

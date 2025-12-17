@@ -1,8 +1,8 @@
 package com.nendo.argosy.data.sync
 
 import android.content.Context
-import android.util.Log
 import androidx.hilt.work.HiltWorker
+import com.nendo.argosy.util.Logger
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -49,7 +49,7 @@ class SaveSyncWorker @AssistedInject constructor(
                 request
             )
 
-            Log.d(TAG, "Save sync scheduled every 6 hours")
+            Logger.info(TAG, "Save sync scheduled every 6 hours")
         }
 
         fun runNow(context: Context) {
@@ -62,7 +62,7 @@ class SaveSyncWorker @AssistedInject constructor(
                 .build()
 
             WorkManager.getInstance(context).enqueue(request)
-            Log.d(TAG, "Save sync triggered manually")
+            Logger.info(TAG, "Save sync triggered manually")
         }
 
         fun cancel(context: Context) {
@@ -73,22 +73,22 @@ class SaveSyncWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         val isConnected = romMRepository.connectionState.value is RomMRepository.ConnectionState.Connected
         if (!isConnected) {
-            Log.d(TAG, "RomM not connected, skipping save sync")
+            Logger.info(TAG, "RomM not connected, skipping save sync")
             return Result.success()
         }
 
-        Log.d(TAG, "Running save sync check")
+        Logger.info(TAG, "Running save sync check")
 
         return try {
             val checkResult = checkNewSavesUseCase()
-            Log.d(TAG, "Found ${checkResult.newSavesCount} new saves from ${checkResult.platformsChecked} platforms")
+            Logger.info(TAG, "Found ${checkResult.newSavesCount} new saves from ${checkResult.platformsChecked} platforms")
 
             val uploaded = saveSyncRepository.processPendingUploads()
-            Log.d(TAG, "Processed $uploaded pending uploads")
+            Logger.info(TAG, "Processed $uploaded pending uploads")
 
             Result.success()
         } catch (e: Exception) {
-            Log.e(TAG, "Save sync failed", e)
+            Logger.error(TAG, "Save sync failed", e)
             Result.retry()
         }
     }

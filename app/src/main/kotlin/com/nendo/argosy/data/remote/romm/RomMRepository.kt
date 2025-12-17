@@ -1,7 +1,7 @@
 package com.nendo.argosy.data.remote.romm
 
-import android.util.Log
 import com.nendo.argosy.data.cache.ImageCacheManager
+import com.nendo.argosy.util.Logger
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.dao.GameDiscDao
 import com.nendo.argosy.data.local.dao.PendingSyncDao
@@ -71,10 +71,10 @@ class RomMRepository @Inject constructor(
 
     suspend fun initialize() {
         val prefs = userPreferencesRepository.preferences.first()
-        Log.d(TAG, "initialize: baseUrl=${prefs.rommBaseUrl?.take(30)}, hasToken=${prefs.rommToken != null}")
+        Logger.info(TAG, "initialize: baseUrl=${prefs.rommBaseUrl?.take(30)}, hasToken=${prefs.rommToken != null}")
         if (!prefs.rommBaseUrl.isNullOrBlank()) {
             val result = connect(prefs.rommBaseUrl, prefs.rommToken)
-            Log.d(TAG, "initialize: connect result=$result, state=${_connectionState.value}")
+            Logger.info(TAG, "initialize: connect result=$result, state=${_connectionState.value}")
             if (result is RomMResult.Success && prefs.rommToken != null) {
                 refreshRAProgressionOnStartup()
             }
@@ -142,15 +142,15 @@ class RomMRepository @Inject constructor(
                 saveSyncRepository.get().setApi(api)
                 val version = response.body()?.version ?: "unknown"
                 _connectionState.value = ConnectionState.Connected(version)
-                Log.d(TAG, "connect: success, version=$version")
+                Logger.info(TAG, "connect: success, version=$version")
                 RomMResult.Success(version)
             } else {
-                Log.d(TAG, "connect: heartbeat failed with ${response.code()}")
+                Logger.info(TAG, "connect: heartbeat failed with ${response.code()}")
                 _connectionState.value = ConnectionState.Failed("Server returned ${response.code()}")
                 RomMResult.Error("Connection failed", response.code())
             }
         } catch (e: Exception) {
-            Log.d(TAG, "connect: exception: ${e.message}")
+            Logger.info(TAG, "connect: exception: ${e.message}")
             _connectionState.value = ConnectionState.Failed(e.message ?: "Unknown error")
             RomMResult.Error(e.message ?: "Connection failed")
         }
@@ -959,7 +959,7 @@ class RomMRepository @Inject constructor(
 
     suspend fun checkConnection(retryCount: Int = 2) {
         if (api == null) {
-            Log.d(TAG, "checkConnection: api is null, initializing")
+            Logger.info(TAG, "checkConnection: api is null, initializing")
             initialize()
             return
         }
@@ -970,15 +970,15 @@ class RomMRepository @Inject constructor(
             if (response.isSuccessful) {
                 val version = response.body()?.version ?: "unknown"
                 _connectionState.value = ConnectionState.Connected(version)
-                Log.d(TAG, "checkConnection: connected, version=$version")
+                Logger.info(TAG, "checkConnection: connected, version=$version")
             } else {
-                Log.d(TAG, "checkConnection: heartbeat failed with ${response.code()}, reinitializing")
+                Logger.info(TAG, "checkConnection: heartbeat failed with ${response.code()}, reinitializing")
                 _connectionState.value = ConnectionState.Disconnected
                 api = null
                 initialize()
             }
         } catch (e: Exception) {
-            Log.d(TAG, "checkConnection: exception: ${e.message}, retries left=$retryCount")
+            Logger.info(TAG, "checkConnection: exception: ${e.message}, retries left=$retryCount")
             _connectionState.value = ConnectionState.Disconnected
             api = null
             if (retryCount > 0) {

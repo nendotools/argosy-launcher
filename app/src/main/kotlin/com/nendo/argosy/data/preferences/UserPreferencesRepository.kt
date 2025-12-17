@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.nendo.argosy.ui.input.SoundConfig
 import com.nendo.argosy.ui.input.SoundType
+import com.nendo.argosy.util.LogLevel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.Instant
@@ -66,6 +67,10 @@ class UserPreferencesRepository @Inject constructor(
         val BACKGROUND_OPACITY = intPreferencesKey("background_opacity")
         val USE_GAME_BACKGROUND = booleanPreferencesKey("use_game_background")
         val CUSTOM_BACKGROUND_PATH = stringPreferencesKey("custom_background_path")
+
+        val FILE_LOGGING_ENABLED = booleanPreferencesKey("file_logging_enabled")
+        val FILE_LOGGING_PATH = stringPreferencesKey("file_logging_path")
+        val FILE_LOG_LEVEL = stringPreferencesKey("file_log_level")
     }
 
     val userPreferences: Flow<UserPreferences> = dataStore.data.map { prefs ->
@@ -130,7 +135,10 @@ class UserPreferencesRepository @Inject constructor(
             betaUpdatesEnabled = prefs[Keys.BETA_UPDATES_ENABLED] ?: false,
             saveSyncEnabled = prefs[Keys.SAVE_SYNC_ENABLED] ?: false,
             experimentalFolderSaveSync = prefs[Keys.EXPERIMENTAL_FOLDER_SAVE_SYNC] ?: false,
-            saveCacheLimit = prefs[Keys.SAVE_CACHE_LIMIT] ?: 10
+            saveCacheLimit = prefs[Keys.SAVE_CACHE_LIMIT] ?: 10,
+            fileLoggingEnabled = prefs[Keys.FILE_LOGGING_ENABLED] ?: false,
+            fileLoggingPath = prefs[Keys.FILE_LOGGING_PATH],
+            fileLogLevel = LogLevel.fromString(prefs[Keys.FILE_LOG_LEVEL])
         )
     }
 
@@ -443,6 +451,25 @@ class UserPreferencesRepository @Inject constructor(
             else prefs.remove(Keys.CUSTOM_BACKGROUND_PATH)
         }
     }
+
+    suspend fun setFileLoggingEnabled(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.FILE_LOGGING_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setFileLoggingPath(path: String?) {
+        dataStore.edit { prefs ->
+            if (path != null) prefs[Keys.FILE_LOGGING_PATH] = path
+            else prefs.remove(Keys.FILE_LOGGING_PATH)
+        }
+    }
+
+    suspend fun setFileLogLevel(level: LogLevel) {
+        dataStore.edit { prefs ->
+            prefs[Keys.FILE_LOG_LEVEL] = level.name
+        }
+    }
 }
 
 data class UserPreferences(
@@ -481,7 +508,10 @@ data class UserPreferences(
     val backgroundSaturation: Int = 100,
     val backgroundOpacity: Int = 100,
     val useGameBackground: Boolean = true,
-    val customBackgroundPath: String? = null
+    val customBackgroundPath: String? = null,
+    val fileLoggingEnabled: Boolean = false,
+    val fileLoggingPath: String? = null,
+    val fileLogLevel: LogLevel = LogLevel.INFO
 )
 
 enum class ThemeMode {
