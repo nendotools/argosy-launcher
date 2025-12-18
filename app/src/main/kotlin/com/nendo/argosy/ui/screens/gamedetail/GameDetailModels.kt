@@ -3,8 +3,10 @@ package com.nendo.argosy.ui.screens.gamedetail
 import android.content.Intent
 import com.nendo.argosy.data.emulator.InstalledEmulator
 import com.nendo.argosy.data.emulator.RetroArchCore
+import com.nendo.argosy.domain.model.SyncProgress
 import com.nendo.argosy.domain.model.SyncState
 import com.nendo.argosy.ui.common.savechannel.SaveChannelState
+import com.nendo.argosy.ui.screens.gamedetail.components.SaveStatusInfo
 
 data class ScreenshotPair(
     val remoteUrl: String,
@@ -100,9 +102,13 @@ data class GameDetailUiState(
     val discPickerFocusIndex: Int = 0,
     val showMissingDiscPrompt: Boolean = false,
     val missingDiscNumbers: List<Int> = emptyList(),
+    val syncProgress: SyncProgress = SyncProgress.Idle,
+    @Deprecated("Use syncProgress instead")
     val syncState: SyncState = SyncState.Idle,
     val isSyncing: Boolean = false,
-    val saveChannel: SaveChannelState = SaveChannelState()
+    val saveChannel: SaveChannelState = SaveChannelState(),
+    val saveStatusInfo: SaveStatusInfo? = null,
+    val showPermissionModal: Boolean = false
 ) {
     val hasPreviousGame: Boolean get() = currentGameIndex > 0
     val hasNextGame: Boolean get() = currentGameIndex >= 0 && currentGameIndex < siblingGameIds.size - 1

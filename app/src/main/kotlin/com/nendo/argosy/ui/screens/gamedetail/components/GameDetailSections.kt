@@ -158,6 +158,11 @@ fun GameHeader(
                 }
             }
 
+            uiState.saveStatusInfo?.let { statusInfo ->
+                Spacer(modifier = Modifier.height(12.dp))
+                SaveStatusRow(status = statusInfo)
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
 
             ActionButtons(game = game, uiState = uiState, viewModel = viewModel)

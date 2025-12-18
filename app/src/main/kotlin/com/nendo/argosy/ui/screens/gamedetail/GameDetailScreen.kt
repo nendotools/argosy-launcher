@@ -54,6 +54,7 @@ import com.nendo.argosy.ui.screens.gamedetail.modals.DiscPickerModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.EmulatorPickerModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.MissingDiscModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.MoreOptionsModal
+import com.nendo.argosy.ui.screens.gamedetail.modals.PermissionRequiredModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.RatingPickerModal
 import com.nendo.argosy.ui.common.savechannel.SaveChannelModal
 import com.nendo.argosy.ui.theme.Motion
@@ -462,8 +463,15 @@ private fun GameDetailModals(
         onDismiss = viewModel::dismissSaveCacheDialog
     )
 
+    PermissionRequiredModal(
+        isVisible = uiState.showPermissionModal,
+        onGrantPermission = viewModel::openAllFilesAccessSettings,
+        onDisableSync = viewModel::disableSaveSync,
+        onDismiss = viewModel::dismissPermissionModal
+    )
+
     SyncOverlay(
-        syncState = if (uiState.isSyncing) uiState.syncState else null,
+        syncProgress = if (uiState.isSyncing) uiState.syncProgress else null,
         gameTitle = game.title
     )
 }

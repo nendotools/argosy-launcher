@@ -444,7 +444,7 @@ fun HomeScreen(
         }
 
         SyncOverlay(
-            syncState = uiState.syncOverlayState?.syncState,
+            syncProgress = uiState.syncOverlayState?.syncProgress,
             gameTitle = uiState.syncOverlayState?.gameTitle
         )
     }

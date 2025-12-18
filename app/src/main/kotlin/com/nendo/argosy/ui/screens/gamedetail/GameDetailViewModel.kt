@@ -25,8 +25,14 @@ import com.nendo.argosy.data.remote.romm.RomMRepository
 import com.nendo.argosy.data.remote.romm.RomMResult
 import com.nendo.argosy.data.repository.GameRepository
 import com.nendo.argosy.domain.usecase.download.DownloadResult
+import com.nendo.argosy.domain.model.SyncProgress
 import com.nendo.argosy.domain.model.SyncState
+import com.nendo.argosy.data.local.dao.SaveSyncDao
+import com.nendo.argosy.data.local.entity.SaveSyncEntity
 import com.nendo.argosy.domain.usecase.achievement.FetchAchievementsUseCase
+import com.nendo.argosy.domain.usecase.save.CheckSaveSyncPermissionUseCase
+import com.nendo.argosy.ui.screens.gamedetail.components.SaveStatusInfo
+import com.nendo.argosy.ui.screens.gamedetail.components.SaveSyncStatus
 import com.nendo.argosy.domain.usecase.game.ConfigureEmulatorUseCase
 import com.nendo.argosy.domain.usecase.game.LaunchGameUseCase
 import com.nendo.argosy.domain.usecase.game.LaunchWithSyncUseCase
@@ -77,7 +83,9 @@ class GameDetailViewModel @Inject constructor(
     private val imageCacheManager: ImageCacheManager,
     private val playSessionTracker: PlaySessionTracker,
     private val preferencesRepository: com.nendo.argosy.data.preferences.UserPreferencesRepository,
-    val saveChannelDelegate: SaveChannelDelegate
+    val saveChannelDelegate: SaveChannelDelegate,
+    private val saveSyncDao: SaveSyncDao,
+    private val checkSaveSyncPermissionUseCase: CheckSaveSyncPermissionUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GameDetailUiState())
@@ -227,6 +235,10 @@ class GameDetailViewModel @Inject constructor(
                 emulatorId != null &&
                 SavePathRegistry.getConfig(emulatorId) != null
 
+            val saveStatusInfo = if (canManageSaves) {
+                loadSaveStatusInfo(gameId, emulatorId!!)
+            } else null
+
             _uiState.update { state ->
                 state.copy(
                     game = game.toGameDetailUi(
@@ -246,7 +258,8 @@ class GameDetailViewModel @Inject constructor(
                     discs = discsUi,
                     availableCores = if (isRetroArch) EmulatorRegistry.getCoresForPlatform(game.platformId) else emptyList(),
                     selectedCoreId = selectedCoreId,
-                    saveChannel = state.saveChannel.copy(activeChannel = game.activeSaveChannel)
+                    saveChannel = state.saveChannel.copy(activeChannel = game.activeSaveChannel),
+                    saveStatusInfo = saveStatusInfo
                 )
             }
 
@@ -255,6 +268,31 @@ class GameDetailViewModel @Inject constructor(
             }
         }
     }
+
+    private suspend fun loadSaveStatusInfo(gameId: Long, emulatorId: String): SaveStatusInfo? {
+        val syncEntity = saveSyncDao.getByGameAndEmulator(gameId, emulatorId)
+        return if (syncEntity != null) {
+            SaveStatusInfo(
+                status = when (syncEntity.syncStatus) {
+                    SaveSyncEntity.STATUS_SYNCED -> SaveSyncStatus.SYNCED
+                    SaveSyncEntity.STATUS_LOCAL_NEWER -> SaveSyncStatus.LOCAL_NEWER
+                    SaveSyncEntity.STATUS_SERVER_NEWER -> SaveSyncStatus.LOCAL_NEWER
+                    SaveSyncEntity.STATUS_PENDING_UPLOAD -> SaveSyncStatus.PENDING_UPLOAD
+                    SaveSyncEntity.STATUS_CONFLICT -> SaveSyncStatus.LOCAL_NEWER
+                    else -> SaveSyncStatus.NO_SAVE
+                },
+                channelName = syncEntity.channelName,
+                lastSyncTime = syncEntity.lastSyncedAt
+            )
+        } else {
+            SaveStatusInfo(
+                status = SaveSyncStatus.NO_SAVE,
+                channelName = null,
+                lastSyncTime = null
+            )
+        }
+    }
+
     private suspend fun fetchAndCacheAchievements(rommId: Long, gameId: Long): List<AchievementUi> {
         return when (val result = romMRepository.getRom(rommId)) {
             is RomMResult.Success -> {
@@ -384,6 +422,12 @@ class GameDetailViewModel @Inject constructor(
         if (_uiState.value.isSyncing) return
 
         viewModelScope.launch {
+            val permissionResult = checkSaveSyncPermissionUseCase()
+            if (permissionResult is CheckSaveSyncPermissionUseCase.Result.MissingPermission) {
+                _uiState.update { it.copy(showPermissionModal = true) }
+                return@launch
+            }
+
             val game = _uiState.value.game ?: return@launch
 
             val emulatorId = emulatorResolver.getEmulatorIdForGame(currentGameId, game.platformId)
@@ -395,25 +439,30 @@ class GameDetailViewModel @Inject constructor(
             )
 
             val syncStartTime = if (canSync) {
-                _uiState.update { it.copy(isSyncing = true, syncState = SyncState.CheckingConnection) }
+                _uiState.update {
+                    it.copy(
+                        isSyncing = true,
+                        syncProgress = SyncProgress.PreLaunch.CheckingSave(null)
+                    )
+                }
                 System.currentTimeMillis()
             } else null
 
-            launchWithSyncUseCase.invoke(currentGameId).collect { state ->
-                if (canSync && state != SyncState.Skipped && state != SyncState.Idle) {
-                    _uiState.update { it.copy(isSyncing = true, syncState = state) }
+            launchWithSyncUseCase.invokeWithProgress(currentGameId).collect { progress ->
+                if (canSync && progress != SyncProgress.Skipped && progress != SyncProgress.Idle) {
+                    _uiState.update { it.copy(isSyncing = true, syncProgress = progress) }
                 }
             }
 
             syncStartTime?.let { startTime ->
                 val elapsed = System.currentTimeMillis() - startTime
-                val minDisplayTime = 2000L
+                val minDisplayTime = 1500L
                 if (elapsed < minDisplayTime) {
                     delay(minDisplayTime - elapsed)
                 }
             }
 
-            _uiState.update { it.copy(isSyncing = false, syncState = SyncState.Idle) }
+            _uiState.update { it.copy(isSyncing = false, syncProgress = SyncProgress.Idle) }
 
             when (val result = launchGameUseCase(currentGameId, discId)) {
                 is LaunchResult.Success -> {
@@ -1179,6 +1228,27 @@ class GameDetailViewModel @Inject constructor(
             }
             toggleMoreOptions()
             return InputResult.HANDLED
+        }
+    }
+
+    fun dismissPermissionModal() {
+        _uiState.update { it.copy(showPermissionModal = false) }
+    }
+
+    fun openAllFilesAccessSettings() {
+        _uiState.update { it.copy(showPermissionModal = false) }
+        val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+            data = android.net.Uri.parse("package:${context.packageName}")
+            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        context.startActivity(intent)
+    }
+
+    fun disableSaveSync() {
+        viewModelScope.launch {
+            preferencesRepository.setSaveSyncEnabled(false)
+            _uiState.update { it.copy(showPermissionModal = false) }
+            playGame()
         }
     }
 }

@@ -7,6 +7,7 @@ import com.nendo.argosy.data.emulator.PlaySessionTracker
 import com.nendo.argosy.data.emulator.SavePathRegistry
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
+import com.nendo.argosy.domain.model.SyncProgress
 import com.nendo.argosy.domain.model.SyncState
 import com.nendo.argosy.domain.usecase.game.LaunchGameUseCase
 import com.nendo.argosy.domain.usecase.game.LaunchWithSyncUseCase
@@ -25,7 +26,9 @@ import javax.inject.Inject
 
 data class SyncOverlayState(
     val gameTitle: String,
-    val syncState: SyncState
+    val syncProgress: SyncProgress,
+    @Deprecated("Use syncProgress instead")
+    val syncState: SyncState = SyncState.Idle
 )
 
 class GameLaunchDelegate @Inject constructor(
@@ -47,6 +50,7 @@ class GameLaunchDelegate @Inject constructor(
         scope: CoroutineScope,
         gameId: Long,
         discId: Long? = null,
+        channelName: String? = null,
         onLaunch: (Intent) -> Unit
     ) {
         if (isSyncing) return
@@ -65,19 +69,22 @@ class GameLaunchDelegate @Inject constructor(
             )
 
             val syncStartTime = if (canSync) {
-                _syncOverlayState.value = SyncOverlayState(gameTitle, SyncState.CheckingConnection)
+                _syncOverlayState.value = SyncOverlayState(
+                    gameTitle,
+                    SyncProgress.PreLaunch.CheckingSave(channelName)
+                )
                 System.currentTimeMillis()
             } else null
 
-            launchWithSyncUseCase.invoke(gameId).collect { state ->
-                if (canSync && state != SyncState.Skipped && state != SyncState.Idle) {
-                    _syncOverlayState.value = SyncOverlayState(gameTitle, state)
+            launchWithSyncUseCase.invokeWithProgress(gameId, channelName).collect { progress ->
+                if (canSync && progress != SyncProgress.Skipped && progress != SyncProgress.Idle) {
+                    _syncOverlayState.value = SyncOverlayState(gameTitle, progress)
                 }
             }
 
             syncStartTime?.let { startTime ->
                 val elapsed = System.currentTimeMillis() - startTime
-                val minDisplayTime = 2000L
+                val minDisplayTime = 1500L
                 if (elapsed < minDisplayTime) {
                     delay(minDisplayTime - elapsed)
                 }
@@ -129,18 +136,44 @@ class GameLaunchDelegate @Inject constructor(
         scope.launch {
             val game = gameDao.getById(session.gameId)
             val gameTitle = game?.title ?: "Game"
+            val channelName: String? = null
 
-            _syncOverlayState.value = SyncOverlayState(gameTitle, SyncState.Uploading)
+            _syncOverlayState.value = SyncOverlayState(
+                gameTitle,
+                SyncProgress.PostSession.CheckingSave(channelName)
+            )
 
             val syncStartTime = System.currentTimeMillis()
+
+            _syncOverlayState.value = SyncOverlayState(
+                gameTitle,
+                SyncProgress.PostSession.CheckingSave(channelName, found = true)
+            )
+
+            _syncOverlayState.value = SyncOverlayState(
+                gameTitle,
+                SyncProgress.PostSession.Connecting(channelName)
+            )
+
             playSessionTracker.endSession()
 
+            _syncOverlayState.value = SyncOverlayState(
+                gameTitle,
+                SyncProgress.PostSession.Uploading(channelName, success = true)
+            )
+
             val elapsed = System.currentTimeMillis() - syncStartTime
-            val minDisplayTime = 2000L
+            val minDisplayTime = 1500L
             if (elapsed < minDisplayTime) {
                 delay(minDisplayTime - elapsed)
             }
 
+            _syncOverlayState.value = SyncOverlayState(
+                gameTitle,
+                SyncProgress.PostSession.Complete
+            )
+
+            delay(300)
             _syncOverlayState.value = null
             onSyncComplete()
         }
