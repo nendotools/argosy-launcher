@@ -48,6 +48,7 @@ import com.nendo.argosy.ui.navigation.GameNavigationContext
 import com.nendo.argosy.ui.notification.NotificationManager
 import com.nendo.argosy.ui.notification.showError
 import com.nendo.argosy.ui.notification.showSuccess
+import com.nendo.argosy.ui.screens.common.AchievementUpdateBus
 import com.nendo.argosy.ui.screens.common.GameActionsDelegate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -88,7 +89,8 @@ class GameDetailViewModel @Inject constructor(
     val saveChannelDelegate: SaveChannelDelegate,
     private val saveSyncDao: SaveSyncDao,
     private val checkSaveSyncPermissionUseCase: CheckSaveSyncPermissionUseCase,
-    private val emulatorSaveConfigDao: EmulatorSaveConfigDao
+    private val emulatorSaveConfigDao: EmulatorSaveConfigDao,
+    private val achievementUpdateBus: AchievementUpdateBus
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GameDetailUiState())
@@ -368,6 +370,9 @@ class GameDetailViewModel @Inject constructor(
 
                 val earnedCount = entities.count { it.isUnlocked }
                 gameDao.updateAchievementCount(gameId, entities.size, earnedCount)
+                achievementUpdateBus.emit(
+                    AchievementUpdateBus.AchievementUpdate(gameId, entities.size, earnedCount)
+                )
 
                 val savedAchievements = achievementDao.getByGameId(gameId)
                 savedAchievements.forEach { achievement ->

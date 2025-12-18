@@ -25,6 +25,7 @@ import com.nendo.argosy.ui.navigation.GameNavigationContext
 import com.nendo.argosy.ui.notification.NotificationManager
 import com.nendo.argosy.ui.notification.showError
 import com.nendo.argosy.ui.notification.showSuccess
+import com.nendo.argosy.ui.screens.common.AchievementUpdateBus
 import com.nendo.argosy.ui.screens.common.GameActionsDelegate
 import com.nendo.argosy.ui.screens.common.GameLaunchDelegate
 import com.nendo.argosy.ui.screens.common.SyncOverlayState
@@ -43,6 +44,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 
 private const val PLATFORM_GAMES_LIMIT = 20
@@ -189,6 +191,11 @@ sealed class HomeEvent {
     ) : HomeEvent()
 }
 
+private data class RecentGamesCache(
+    val games: List<HomeGameUi>?,
+    val version: Long
+)
+
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
@@ -203,7 +210,8 @@ class HomeViewModel @Inject constructor(
     private val soundManager: SoundFeedbackManager,
     private val gameActions: GameActionsDelegate,
     private val gameLaunchDelegate: GameLaunchDelegate,
-    private val fetchAchievementsUseCase: FetchAchievementsUseCase
+    private val fetchAchievementsUseCase: FetchAchievementsUseCase,
+    private val achievementUpdateBus: AchievementUpdateBus
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(restoreInitialState())
@@ -218,8 +226,7 @@ class HomeViewModel @Inject constructor(
     private var achievementPrefetchJob: kotlinx.coroutines.Job? = null
     private val achievementPrefetchDebounceMs = 300L
 
-    private var cachedValidatedRecentGames: List<HomeGameUi>? = null
-    private var recentGamesCacheInvalid = true
+    private val recentGamesCache = AtomicReference(RecentGamesCache(null, 0L))
 
     init {
         loadData()
@@ -227,6 +234,15 @@ class HomeViewModel @Inject constructor(
         observeBackgroundSettings()
         observeSyncOverlay()
         observePlatformChanges()
+        observeAchievementUpdates()
+    }
+
+    private fun observeAchievementUpdates() {
+        viewModelScope.launch {
+            achievementUpdateBus.updates.collect { update ->
+                updateAchievementCountsInState(update.gameId, update.totalCount, update.earnedCount)
+            }
+        }
     }
 
     private fun observeSyncOverlay() {
@@ -386,8 +402,7 @@ class HomeViewModel @Inject constructor(
                     validatedRecent.add(game.toUi())
                 }
             }
-            cachedValidatedRecentGames = validatedRecent
-            recentGamesCacheInvalid = false
+            recentGamesCache.set(RecentGamesCache(validatedRecent, recentGamesCache.get().version))
 
             val platformUis = platforms.map { it.toUi() }
             val favoriteUis = favorites.map { it.toUi() }
@@ -463,8 +478,11 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun loadRecentGames() {
-        val gameUis = if (!recentGamesCacheInvalid && cachedValidatedRecentGames != null) {
-            cachedValidatedRecentGames!!
+        val currentCache = recentGamesCache.get()
+        val startVersion = currentCache.version
+
+        val gameUis = if (currentCache.games != null) {
+            currentCache.games
         } else {
             val candidatePool = gameDao.getRecentlyPlayed(RECENT_GAMES_CANDIDATE_POOL)
             val validated = mutableListOf<HomeGameUi>()
@@ -483,8 +501,10 @@ class HomeViewModel @Inject constructor(
                 }
             }
 
-            cachedValidatedRecentGames = validated
-            recentGamesCacheInvalid = false
+            recentGamesCache.compareAndSet(
+                RecentGamesCache(null, startVersion),
+                RecentGamesCache(validated, startVersion)
+            )
             validated
         }
 
@@ -552,8 +572,7 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun invalidateRecentGamesCache() {
-        recentGamesCacheInvalid = true
-        cachedValidatedRecentGames = null
+        recentGamesCache.updateAndGet { RecentGamesCache(null, it.version + 1) }
     }
 
     private fun loadGamesForPlatform(platformId: String, platformIndex: Int) {
@@ -868,6 +887,9 @@ class HomeViewModel @Inject constructor(
             }
             HomeRow.Continue -> {
                 invalidateRecentGamesCache()
+                val currentCache = recentGamesCache.get()
+                val startVersion = currentCache.version
+
                 val candidatePool = gameDao.getRecentlyPlayed(RECENT_GAMES_CANDIDATE_POOL)
                 val validated = mutableListOf<HomeGameUi>()
 
@@ -883,8 +905,10 @@ class HomeViewModel @Inject constructor(
                     }
                 }
 
-                cachedValidatedRecentGames = validated
-                recentGamesCacheInvalid = false
+                recentGamesCache.compareAndSet(
+                    RecentGamesCache(null, startVersion),
+                    RecentGamesCache(validated, startVersion)
+                )
 
                 val newIndex = if (focusedGameId != null) {
                     validated.indexOfFirst { it.id == focusedGameId }

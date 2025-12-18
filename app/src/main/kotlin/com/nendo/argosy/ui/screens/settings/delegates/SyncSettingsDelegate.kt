@@ -36,6 +36,8 @@ class SyncSettingsDelegate @Inject constructor(
     private val _requestStoragePermissionEvent = MutableSharedFlow<Unit>()
     val requestStoragePermissionEvent: SharedFlow<Unit> = _requestStoragePermissionEvent.asSharedFlow()
 
+    private var isSyncing = false
+
     fun updateState(newState: SyncSettingsState) {
         _state.value = newState
     }
@@ -231,9 +233,13 @@ class SyncSettingsDelegate @Inject constructor(
     }
 
     fun runSaveSyncNow(scope: CoroutineScope) {
+        if (isSyncing) return
+        isSyncing = true
+        _state.update { it.copy(isSyncing = true) }
+
         scope.launch {
-            notificationManager.show("Syncing saves...")
             try {
+                notificationManager.show("Syncing saves...")
                 saveSyncRepository.checkForAllServerUpdates()
                 val uploaded = saveSyncRepository.processPendingUploads()
                 val downloaded = saveSyncRepository.downloadPendingServerSaves()
@@ -249,6 +255,9 @@ class SyncSettingsDelegate @Inject constructor(
                 notificationManager.show(message)
             } catch (e: Exception) {
                 notificationManager.showError("Save sync failed: ${e.message}")
+            } finally {
+                isSyncing = false
+                _state.update { it.copy(isSyncing = false) }
             }
         }
     }

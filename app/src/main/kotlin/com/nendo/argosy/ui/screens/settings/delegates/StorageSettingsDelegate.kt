@@ -205,15 +205,20 @@ class StorageSettingsDelegate @Inject constructor(
     fun togglePlatformSync(scope: CoroutineScope, platformId: String, enabled: Boolean) {
         scope.launch {
             platformDao.updateSyncEnabled(platformId, enabled)
-            _state.update { current ->
-                current.copy(
-                    platformConfigs = current.platformConfigs.map { config ->
-                        if (config.platformId == platformId) {
-                            config.copy(syncEnabled = enabled)
-                        } else config
-                    }
-                )
-            }
+            updatePlatformConfigInState(platformId) { it.copy(syncEnabled = enabled) }
+        }
+    }
+
+    private fun updatePlatformConfigInState(
+        platformId: String,
+        update: (PlatformStorageConfig) -> PlatformStorageConfig
+    ) {
+        _state.update { current ->
+            current.copy(
+                platformConfigs = current.platformConfigs.map { config ->
+                    if (config.platformId == platformId) update(config) else config
+                }
+            )
         }
     }
 
@@ -245,7 +250,9 @@ class StorageSettingsDelegate @Inject constructor(
                 }
             } else {
                 platformDao.updateCustomRomPath(platformId, newPath)
-                loadPlatformConfigs(scope)
+                updatePlatformConfigInState(platformId) {
+                    it.copy(customRomPath = newPath, effectivePath = newPath)
+                }
             }
         }
         pendingPlatformId = null
@@ -273,7 +280,9 @@ class StorageSettingsDelegate @Inject constructor(
                 }
             } else {
                 platformDao.updateCustomRomPath(platformId, null)
-                loadPlatformConfigs(scope)
+                updatePlatformConfigInState(platformId) {
+                    it.copy(customRomPath = null, effectivePath = newPath)
+                }
             }
         }
     }
@@ -305,10 +314,15 @@ class StorageSettingsDelegate @Inject constructor(
         scope.launch {
             if (info.isResetToGlobal) {
                 platformDao.updateCustomRomPath(info.platformId, null)
+                updatePlatformConfigInState(info.platformId) {
+                    it.copy(customRomPath = null, effectivePath = info.newPath)
+                }
             } else {
                 platformDao.updateCustomRomPath(info.platformId, info.newPath)
+                updatePlatformConfigInState(info.platformId) {
+                    it.copy(customRomPath = info.newPath, effectivePath = info.newPath)
+                }
             }
-            loadPlatformConfigs(scope)
         }
     }
 

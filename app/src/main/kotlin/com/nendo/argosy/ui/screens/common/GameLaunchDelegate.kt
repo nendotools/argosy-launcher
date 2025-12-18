@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 import javax.inject.Inject
 
 data class SyncOverlayState(
@@ -44,6 +45,7 @@ class GameLaunchDelegate @Inject constructor(
     private val _syncOverlayState = MutableStateFlow<SyncOverlayState?>(null)
     val syncOverlayState: StateFlow<SyncOverlayState?> = _syncOverlayState.asStateFlow()
 
+    private val syncMutex = Mutex()
     val isSyncing: Boolean get() = _syncOverlayState.value != null
 
     fun launchGame(
@@ -53,69 +55,73 @@ class GameLaunchDelegate @Inject constructor(
         channelName: String? = null,
         onLaunch: (Intent) -> Unit
     ) {
-        if (isSyncing) return
+        if (!syncMutex.tryLock()) return
 
         scope.launch {
-            val game = gameDao.getById(gameId) ?: return@launch
-            val gameTitle = game.title
+            try {
+                val game = gameDao.getById(gameId) ?: return@launch
+                val gameTitle = game.title
 
-            val emulatorPackage = emulatorResolver.getEmulatorPackageForGame(gameId, game.platformId)
-            val emulatorId = emulatorPackage?.let { emulatorResolver.resolveEmulatorId(it) }
-            val prefs = preferencesRepository.preferences.first()
-            val canSync = emulatorId != null && SavePathRegistry.canSyncWithSettings(
-                emulatorId,
-                prefs.saveSyncEnabled,
-                prefs.experimentalFolderSaveSync
-            )
-
-            val syncStartTime = if (canSync) {
-                _syncOverlayState.value = SyncOverlayState(
-                    gameTitle,
-                    SyncProgress.PreLaunch.CheckingSave(channelName)
+                val emulatorPackage = emulatorResolver.getEmulatorPackageForGame(gameId, game.platformId)
+                val emulatorId = emulatorPackage?.let { emulatorResolver.resolveEmulatorId(it) }
+                val prefs = preferencesRepository.preferences.first()
+                val canSync = emulatorId != null && SavePathRegistry.canSyncWithSettings(
+                    emulatorId,
+                    prefs.saveSyncEnabled,
+                    prefs.experimentalFolderSaveSync
                 )
-                System.currentTimeMillis()
-            } else null
 
-            launchWithSyncUseCase.invokeWithProgress(gameId, channelName).collect { progress ->
-                if (canSync && progress != SyncProgress.Skipped && progress != SyncProgress.Idle) {
-                    _syncOverlayState.value = SyncOverlayState(gameTitle, progress)
-                }
-            }
+                val syncStartTime = if (canSync) {
+                    _syncOverlayState.value = SyncOverlayState(
+                        gameTitle,
+                        SyncProgress.PreLaunch.CheckingSave(channelName)
+                    )
+                    System.currentTimeMillis()
+                } else null
 
-            syncStartTime?.let { startTime ->
-                val elapsed = System.currentTimeMillis() - startTime
-                val minDisplayTime = 1500L
-                if (elapsed < minDisplayTime) {
-                    delay(minDisplayTime - elapsed)
+                launchWithSyncUseCase.invokeWithProgress(gameId, channelName).collect { progress ->
+                    if (canSync && progress != SyncProgress.Skipped && progress != SyncProgress.Idle) {
+                        _syncOverlayState.value = SyncOverlayState(gameTitle, progress)
+                    }
                 }
-            }
 
-            _syncOverlayState.value = null
+                syncStartTime?.let { startTime ->
+                    val elapsed = System.currentTimeMillis() - startTime
+                    val minDisplayTime = 1500L
+                    if (elapsed < minDisplayTime) {
+                        delay(minDisplayTime - elapsed)
+                    }
+                }
 
-            when (val result = launchGameUseCase(gameId, discId)) {
-                is LaunchResult.Success -> {
-                    soundManager.play(SoundType.LAUNCH_GAME)
-                    onLaunch(result.intent)
+                _syncOverlayState.value = null
+
+                when (val result = launchGameUseCase(gameId, discId)) {
+                    is LaunchResult.Success -> {
+                        soundManager.play(SoundType.LAUNCH_GAME)
+                        onLaunch(result.intent)
+                    }
+                    is LaunchResult.NoEmulator -> {
+                        notificationManager.showError("No emulator installed for this platform")
+                    }
+                    is LaunchResult.NoRomFile -> {
+                        notificationManager.showError("ROM file not found")
+                    }
+                    is LaunchResult.NoSteamLauncher -> {
+                        notificationManager.showError("Steam launcher not installed")
+                    }
+                    is LaunchResult.NoCore -> {
+                        notificationManager.showError("No compatible RetroArch core installed for ${result.platformId}")
+                    }
+                    is LaunchResult.MissingDiscs -> {
+                        val discText = result.missingDiscNumbers.joinToString(", ")
+                        notificationManager.showError("Missing discs: $discText. View game details to repair.")
+                    }
+                    is LaunchResult.Error -> {
+                        notificationManager.showError(result.message)
+                    }
                 }
-                is LaunchResult.NoEmulator -> {
-                    notificationManager.showError("No emulator installed for this platform")
-                }
-                is LaunchResult.NoRomFile -> {
-                    notificationManager.showError("ROM file not found")
-                }
-                is LaunchResult.NoSteamLauncher -> {
-                    notificationManager.showError("Steam launcher not installed")
-                }
-                is LaunchResult.NoCore -> {
-                    notificationManager.showError("No compatible RetroArch core installed for ${result.platformId}")
-                }
-                is LaunchResult.MissingDiscs -> {
-                    val discText = result.missingDiscNumbers.joinToString(", ")
-                    notificationManager.showError("Missing discs: $discText. View game details to repair.")
-                }
-                is LaunchResult.Error -> {
-                    notificationManager.showError(result.message)
-                }
+            } finally {
+                syncMutex.unlock()
             }
         }
     }
@@ -125,63 +131,71 @@ class GameLaunchDelegate @Inject constructor(
         onSyncComplete: () -> Unit = {}
     ) {
         val session = playSessionTracker.activeSession.value ?: return
-        if (isSyncing) return
+        if (!syncMutex.tryLock()) return
 
-        val emulatorId = emulatorResolver.resolveEmulatorId(session.emulatorPackage) ?: return
+        val emulatorId = emulatorResolver.resolveEmulatorId(session.emulatorPackage)
+        if (emulatorId == null) {
+            syncMutex.unlock()
+            return
+        }
 
         scope.launch {
-            val prefs = preferencesRepository.preferences.first()
-            if (!SavePathRegistry.canSyncWithSettings(
-                    emulatorId,
-                    prefs.saveSyncEnabled,
-                    prefs.experimentalFolderSaveSync
+            try {
+                val prefs = preferencesRepository.preferences.first()
+                if (!SavePathRegistry.canSyncWithSettings(
+                        emulatorId,
+                        prefs.saveSyncEnabled,
+                        prefs.experimentalFolderSaveSync
+                    )
+                ) {
+                    playSessionTracker.endSession()
+                    return@launch
+                }
+                val game = gameDao.getById(session.gameId)
+                val gameTitle = game?.title ?: "Game"
+                val channelName: String? = null
+
+                _syncOverlayState.value = SyncOverlayState(
+                    gameTitle,
+                    SyncProgress.PostSession.CheckingSave(channelName)
                 )
-            ) {
+
+                val syncStartTime = System.currentTimeMillis()
+
+                _syncOverlayState.value = SyncOverlayState(
+                    gameTitle,
+                    SyncProgress.PostSession.CheckingSave(channelName, found = true)
+                )
+
+                _syncOverlayState.value = SyncOverlayState(
+                    gameTitle,
+                    SyncProgress.PostSession.Connecting(channelName)
+                )
+
                 playSessionTracker.endSession()
-                return@launch
+
+                _syncOverlayState.value = SyncOverlayState(
+                    gameTitle,
+                    SyncProgress.PostSession.Uploading(channelName, success = true)
+                )
+
+                val elapsed = System.currentTimeMillis() - syncStartTime
+                val minDisplayTime = 1500L
+                if (elapsed < minDisplayTime) {
+                    delay(minDisplayTime - elapsed)
+                }
+
+                _syncOverlayState.value = SyncOverlayState(
+                    gameTitle,
+                    SyncProgress.PostSession.Complete
+                )
+
+                delay(300)
+                _syncOverlayState.value = null
+                onSyncComplete()
+            } finally {
+                syncMutex.unlock()
             }
-            val game = gameDao.getById(session.gameId)
-            val gameTitle = game?.title ?: "Game"
-            val channelName: String? = null
-
-            _syncOverlayState.value = SyncOverlayState(
-                gameTitle,
-                SyncProgress.PostSession.CheckingSave(channelName)
-            )
-
-            val syncStartTime = System.currentTimeMillis()
-
-            _syncOverlayState.value = SyncOverlayState(
-                gameTitle,
-                SyncProgress.PostSession.CheckingSave(channelName, found = true)
-            )
-
-            _syncOverlayState.value = SyncOverlayState(
-                gameTitle,
-                SyncProgress.PostSession.Connecting(channelName)
-            )
-
-            playSessionTracker.endSession()
-
-            _syncOverlayState.value = SyncOverlayState(
-                gameTitle,
-                SyncProgress.PostSession.Uploading(channelName, success = true)
-            )
-
-            val elapsed = System.currentTimeMillis() - syncStartTime
-            val minDisplayTime = 1500L
-            if (elapsed < minDisplayTime) {
-                delay(minDisplayTime - elapsed)
-            }
-
-            _syncOverlayState.value = SyncOverlayState(
-                gameTitle,
-                SyncProgress.PostSession.Complete
-            )
-
-            delay(300)
-            _syncOverlayState.value = null
-            onSyncComplete()
         }
     }
 }

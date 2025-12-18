@@ -197,7 +197,8 @@ data class SyncSettingsState(
     val experimentalFolderSaveSync: Boolean = false,
     val saveCacheLimit: Int = 10,
     val pendingUploadsCount: Int = 0,
-    val hasStoragePermission: Boolean = false
+    val hasStoragePermission: Boolean = false,
+    val isSyncing: Boolean = false
 )
 
 data class InstalledSteamLauncher(
