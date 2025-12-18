@@ -85,12 +85,16 @@ class SaveSyncRepository @Inject constructor(
         cachedTitleId: String? = null,
         coreName: String? = null
     ): String? = withContext(Dispatchers.IO) {
+        val config = SavePathRegistry.getConfigIncludingUnsupported(emulatorId) ?: return@withContext null
+
         val userConfig = emulatorSaveConfigDao.getByEmulator(emulatorId)
         if (userConfig?.isUserOverride == true) {
-            return@withContext findSaveInPath(userConfig.savePathPattern, gameTitle)
+            if (romPath != null) {
+                val savePath = findSaveByRomName(userConfig.savePathPattern, romPath, config.saveExtensions)
+                if (savePath != null) return@withContext savePath
+            }
+            return@withContext findSaveInPath(userConfig.savePathPattern, gameTitle, config.saveExtensions)
         }
-
-        val config = SavePathRegistry.getConfigIncludingUnsupported(emulatorId) ?: return@withContext null
 
         if (config.usesFolderBasedSaves && romPath != null) {
             if (!isFolderSaveSyncEnabled()) {
@@ -116,7 +120,27 @@ class SaveSyncRepository @Inject constructor(
             SavePathRegistry.resolvePath(config, platformId)
         }
 
-        Logger.debug(TAG, "discoverSavePath: searching ${paths.size} paths for '$gameTitle'")
+        Logger.debug(TAG, "discoverSavePath: searching ${paths.size} paths for '$gameTitle' (romPath=$romPath)")
+
+        if (romPath != null) {
+            for (basePath in paths) {
+                val savePath = findSaveByRomName(basePath, romPath, config.saveExtensions)
+                if (savePath != null) {
+                    Logger.debug(TAG, "discoverSavePath: ROM-based match found at $savePath")
+                    emulatorSaveConfigDao.upsert(
+                        EmulatorSaveConfigEntity(
+                            emulatorId = emulatorId,
+                            savePathPattern = File(savePath).parent ?: basePath,
+                            isAutoDetected = true,
+                            lastVerifiedAt = Instant.now()
+                        )
+                    )
+                    return@withContext savePath
+                }
+            }
+            Logger.debug(TAG, "discoverSavePath: ROM-based lookup found nothing, trying title match")
+        }
+
         for (basePath in paths) {
             val saveFile = findSaveInPath(basePath, gameTitle, config.saveExtensions)
             if (saveFile != null) {
@@ -215,6 +239,27 @@ class SaveSyncRepository @Inject constructor(
                 if (saveFolder.exists() && saveFolder.isDirectory) {
                     return saveFolder.absolutePath
                 }
+            }
+        }
+        return null
+    }
+
+    private fun findSaveByRomName(
+        basePath: String,
+        romPath: String,
+        extensions: List<String>
+    ): String? {
+        val dir = File(basePath)
+        if (!dir.exists() || !dir.isDirectory) return null
+
+        val romName = File(romPath).nameWithoutExtension
+
+        for (ext in extensions) {
+            if (ext == "*") continue
+            val saveFile = File(dir, "$romName.$ext")
+            if (saveFile.exists() && saveFile.isFile) {
+                Logger.debug(TAG, "findSaveByRomName: found ${saveFile.absolutePath}")
+                return saveFile.absolutePath
             }
         }
         return null
