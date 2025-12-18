@@ -243,10 +243,17 @@ class SettingsViewModel @Inject constructor(
 
                 val userSaveConfig = emulatorId?.let { emulatorDelegate.getEmulatorSaveConfig(it) }
                 val isUserSavePathOverride = userSaveConfig?.isUserOverride == true
-                val effectiveSavePath = if (isUserSavePathOverride) {
-                    userSaveConfig?.savePathPattern
-                } else {
-                    computedSavePath
+                val effectiveSavePath = when {
+                    !isUserSavePathOverride -> computedSavePath
+                    isRetroArch && effectiveEmulatorDef != null -> {
+                        retroArchConfigParser.resolveSavePaths(
+                            packageName = effectiveEmulatorDef.packageName,
+                            systemName = platform.id,
+                            coreName = selectedCore,
+                            basePathOverride = userSaveConfig?.savePathPattern
+                        ).firstOrNull()
+                    }
+                    else -> userSaveConfig?.savePathPattern
                 }
 
                 PlatformEmulatorConfig(

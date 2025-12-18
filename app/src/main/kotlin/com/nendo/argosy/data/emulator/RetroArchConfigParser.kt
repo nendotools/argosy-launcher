@@ -92,17 +92,19 @@ class RetroArchConfigParser @Inject constructor() {
         packageName: String,
         systemName: String?,
         coreName: String?,
-        contentDirectory: String? = null
+        contentDirectory: String? = null,
+        basePathOverride: String? = null
     ): List<String> {
         val config = parse(packageName)
         val paths = mutableListOf<String>()
 
-        if (config?.savefilesInContentDir == true && contentDirectory != null) {
+        if (basePathOverride == null && config?.savefilesInContentDir == true && contentDirectory != null) {
             paths.add(contentDirectory)
             return paths
         }
 
-        val baseDir = config?.savefileDirectory
+        val baseDir = basePathOverride
+            ?: config?.savefileDirectory
             ?: "/storage/emulated/0/RetroArch/saves"
 
         val sortByContentDir = config?.sortByContentDirectory == true

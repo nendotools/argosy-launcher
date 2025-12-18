@@ -41,6 +41,14 @@ fun SavePathModal(
         width = 480.dp,
         onDismiss = onDismiss
     ) {
+        Text(
+            text = "Custom paths help fix save detection when Argosy can't find saves to sync. " +
+                "This doesn't change where your emulator stores saves.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
         SavePathOptionItem(
             label = "Save Path",
             path = info.savePath?.let { formatStoragePath(it) },

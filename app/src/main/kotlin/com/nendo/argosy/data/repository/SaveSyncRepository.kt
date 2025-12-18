@@ -88,7 +88,9 @@ class SaveSyncRepository @Inject constructor(
         val config = SavePathRegistry.getConfigIncludingUnsupported(emulatorId) ?: return@withContext null
 
         val userConfig = emulatorSaveConfigDao.getByEmulator(emulatorId)
-        if (userConfig?.isUserOverride == true) {
+        val isRetroArch = emulatorId == "retroarch" || emulatorId == "retroarch_64"
+
+        if (userConfig?.isUserOverride == true && !isRetroArch) {
             if (romPath != null) {
                 val savePath = findSaveByRomName(userConfig.savePathPattern, romPath, config.saveExtensions)
                 if (savePath != null) return@withContext savePath
@@ -103,18 +105,22 @@ class SaveSyncRepository @Inject constructor(
             return@withContext discoverFolderSavePath(config, platformId, romPath, cachedTitleId)
         }
 
-        val paths = if (emulatorId == "retroarch" || emulatorId == "retroarch_64") {
+        val basePathOverride = if (isRetroArch && userConfig?.isUserOverride == true) {
+            userConfig.savePathPattern
+        } else null
+
+        val paths = if (isRetroArch) {
             val packageName = if (emulatorId == "retroarch_64") "com.retroarch.aarch64" else "com.retroarch"
             val contentDir = romPath?.let { File(it).parent }
             if (coreName != null) {
-                Logger.debug(TAG, "discoverSavePath: RetroArch using known core=$coreName")
-                retroArchConfigParser.resolveSavePaths(packageName, platformId, coreName, contentDir)
+                Logger.debug(TAG, "discoverSavePath: RetroArch using known core=$coreName (baseOverride=$basePathOverride)")
+                retroArchConfigParser.resolveSavePaths(packageName, platformId, coreName, contentDir, basePathOverride)
             } else {
                 val corePatterns = EmulatorRegistry.getRetroArchCorePatterns()[platformId] ?: emptyList()
-                Logger.debug(TAG, "discoverSavePath: RetroArch trying all cores=$corePatterns")
+                Logger.debug(TAG, "discoverSavePath: RetroArch trying all cores=$corePatterns (baseOverride=$basePathOverride)")
                 corePatterns.flatMap { core ->
-                    retroArchConfigParser.resolveSavePaths(packageName, platformId, core, contentDir)
-                } + retroArchConfigParser.resolveSavePaths(packageName, platformId, null, contentDir)
+                    retroArchConfigParser.resolveSavePaths(packageName, platformId, core, contentDir, basePathOverride)
+                } + retroArchConfigParser.resolveSavePaths(packageName, platformId, null, contentDir, basePathOverride)
             }
         } else {
             SavePathRegistry.resolvePath(config, platformId)
