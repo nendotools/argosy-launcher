@@ -1,5 +1,6 @@
 package com.nendo.argosy.util
 
+import android.content.Intent
 import android.util.Log as AndroidLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -14,6 +15,63 @@ import java.io.StringWriter
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+
+object LogSanitizer {
+    private val IPV4_PATTERN = Regex("""\b(\d{1,3}\.){3}\d{1,3}\b""")
+    private val IPV6_PATTERN = Regex("""\b([0-9a-fA-F]{1,4}:){2,7}[0-9a-fA-F]{1,4}\b""")
+    private val URL_PATTERN = Regex("""https?://[^\s<>"{}|\\^`\[\]]+""", RegexOption.IGNORE_CASE)
+    private val DOMAIN_PATTERN = Regex("""\b[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z]{2,})+\b""")
+    private val EMAIL_PATTERN = Regex("""\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b""")
+    private val AUTH_URL_PATTERN = Regex("""(https?://)([^:]+):([^@]+)@""", RegexOption.IGNORE_CASE)
+
+    fun sanitize(message: String): String {
+        var result = message
+        result = AUTH_URL_PATTERN.replace(result) { "${it.groupValues[1]}[user]:[pass]@" }
+        result = URL_PATTERN.replace(result) { "[url]" }
+        result = IPV4_PATTERN.replace(result, "[ip]")
+        result = IPV6_PATTERN.replace(result, "[ipv6]")
+        result = EMAIL_PATTERN.replace(result, "[email]")
+        result = DOMAIN_PATTERN.replace(result) { match ->
+            val domain = match.value.lowercase()
+            if (domain.endsWith(".so") || domain.endsWith(".cfg") || domain.endsWith(".log")) {
+                match.value
+            } else {
+                "[domain]"
+            }
+        }
+        return result
+    }
+
+    fun sanitizePath(path: String): String {
+        val file = File(path)
+        return file.name
+    }
+
+    fun describeIntent(intent: Intent?): String {
+        if (intent == null) return "null"
+        return buildString {
+            append("Intent(")
+            append("action=${intent.action}")
+            intent.`package`?.let { append(", pkg=$it") }
+            intent.component?.let { append(", component=${it.shortClassName}") }
+            intent.data?.let { uri ->
+                val path = uri.path
+                if (path != null) {
+                    append(", data=${uri.scheme}://.../${File(path).name}")
+                } else {
+                    append(", data=${uri.scheme}://...")
+                }
+            }
+            val extras = intent.extras
+            if (extras != null && !extras.isEmpty) {
+                val keys = extras.keySet().take(5)
+                append(", extras=[${keys.joinToString()}]")
+                if (extras.keySet().size > 5) append("+${extras.keySet().size - 5} more")
+            }
+            append(")")
+        }
+    }
+}
 
 object Logger {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

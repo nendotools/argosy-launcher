@@ -5,7 +5,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import androidx.core.content.FileProvider
 import com.nendo.argosy.data.launcher.SteamLaunchers
 import com.nendo.argosy.data.local.dao.EmulatorConfigDao
@@ -14,6 +13,8 @@ import com.nendo.argosy.data.local.dao.GameDiscDao
 import com.nendo.argosy.data.local.entity.GameDiscEntity
 import com.nendo.argosy.data.local.entity.GameEntity
 import com.nendo.argosy.data.model.GameSource
+import com.nendo.argosy.util.LogSanitizer
+import com.nendo.argosy.util.Logger
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.time.Instant
@@ -42,8 +43,14 @@ class GameLauncher @Inject constructor(
     private val m3uManager: M3uManager
 ) {
     suspend fun launch(gameId: Long, discId: Long? = null): LaunchResult {
+        Logger.debug(TAG, "launch() called: gameId=$gameId, discId=$discId")
+
         val game = gameDao.getById(gameId)
-            ?: return LaunchResult.Error("Game not found")
+            ?: return LaunchResult.Error("Game not found").also {
+                Logger.warn(TAG, "launch() failed: game not found for id=$gameId")
+            }
+
+        Logger.debug(TAG, "Launching: platform=${game.platformId}, source=${game.source}, multiDisc=${game.isMultiDisc}")
 
         if (game.source == GameSource.STEAM) {
             return launchSteamGame(game)
@@ -54,65 +61,92 @@ class GameLauncher @Inject constructor(
         }
 
         val romPath = game.localPath
-            ?: return LaunchResult.NoRomFile(null)
+            ?: return LaunchResult.NoRomFile(null).also {
+                Logger.warn(TAG, "launch() failed: no local path for game")
+            }
 
         val romFile = File(romPath)
         if (!romFile.exists()) {
-            return LaunchResult.NoRomFile(romPath)
+            return LaunchResult.NoRomFile(romPath).also {
+                Logger.warn(TAG, "launch() failed: ROM file missing: ${romFile.name}")
+            }
         }
 
         val emulator = resolveEmulator(game)
-            ?: return LaunchResult.NoEmulator(game.platformId)
+            ?: return LaunchResult.NoEmulator(game.platformId).also {
+                Logger.warn(TAG, "launch() failed: no emulator found for platform=${game.platformId}")
+            }
+
+        Logger.debug(TAG, "Emulator resolved: ${emulator.displayName} (${emulator.packageName})")
 
         val intent = buildIntent(emulator, romFile, game)
             ?: return if (emulator.launchConfig is LaunchConfig.RetroArch) {
-                LaunchResult.NoCore(game.platformId)
+                LaunchResult.NoCore(game.platformId).also {
+                    Logger.warn(TAG, "launch() failed: no RetroArch core for platform=${game.platformId}")
+                }
             } else {
-                LaunchResult.Error("Failed to build launch intent")
+                LaunchResult.Error("Failed to build launch intent").also {
+                    Logger.error(TAG, "launch() failed: could not build intent")
+                }
             }
 
         gameDao.recordPlayStart(gameId, Instant.now())
 
+        Logger.info(TAG, "Launching ${romFile.name} with ${emulator.displayName}")
         return LaunchResult.Success(intent)
     }
 
     private suspend fun launchMultiDiscGame(game: GameEntity, requestedDiscId: Long?): LaunchResult {
+        Logger.debug(TAG, "launchMultiDiscGame(): discCount query for gameId=${game.id}")
+
         val discs = gameDiscDao.getDiscsForGame(game.id)
         if (discs.isEmpty()) {
-            return LaunchResult.Error("No discs found for multi-disc game")
+            return LaunchResult.Error("No discs found for multi-disc game").also {
+                Logger.warn(TAG, "launchMultiDiscGame() failed: no discs in database")
+            }
         }
+
+        Logger.debug(TAG, "Multi-disc game has ${discs.size} discs")
 
         val missingDiscs = discs.filter { it.localPath == null }
         if (missingDiscs.isNotEmpty()) {
-            return LaunchResult.MissingDiscs(missingDiscs.map { it.discNumber })
+            return LaunchResult.MissingDiscs(missingDiscs.map { it.discNumber }).also {
+                Logger.warn(TAG, "launchMultiDiscGame() failed: missing discs ${missingDiscs.map { d -> d.discNumber }}")
+            }
         }
 
         for (disc in discs) {
             val discFile = disc.localPath?.let { File(it) }
             if (discFile == null || !discFile.exists()) {
-                return LaunchResult.MissingDiscs(listOf(disc.discNumber))
+                return LaunchResult.MissingDiscs(listOf(disc.discNumber)).also {
+                    Logger.warn(TAG, "launchMultiDiscGame() failed: disc ${disc.discNumber} file not found")
+                }
             }
         }
 
         val emulator = resolveEmulator(game)
-            ?: return LaunchResult.NoEmulator(game.platformId)
+            ?: return LaunchResult.NoEmulator(game.platformId).also {
+                Logger.warn(TAG, "launchMultiDiscGame() failed: no emulator for platform=${game.platformId}")
+            }
+
+        Logger.debug(TAG, "Emulator resolved: ${emulator.displayName}")
 
         val launchFile = if (m3uManager.supportsM3u(game.platformId)) {
             when (val m3uResult = m3uManager.ensureM3u(game)) {
                 is M3uResult.Valid -> {
-                    Log.d(TAG, "Using existing m3u: ${m3uResult.m3uFile.absolutePath}")
+                    Logger.debug(TAG, "Using existing m3u: ${m3uResult.m3uFile.name}")
                     m3uResult.m3uFile
                 }
                 is M3uResult.Generated -> {
-                    Log.d(TAG, "Generated m3u: ${m3uResult.m3uFile.absolutePath}")
+                    Logger.debug(TAG, "Generated m3u: ${m3uResult.m3uFile.name}")
                     m3uResult.m3uFile
                 }
                 is M3uResult.NotApplicable -> {
-                    Log.d(TAG, "M3u not applicable: ${m3uResult.reason}, falling back to disc 1")
+                    Logger.debug(TAG, "M3u not applicable: ${m3uResult.reason}, falling back to disc 1")
                     File(discs.minByOrNull { it.discNumber }!!.localPath!!)
                 }
                 is M3uResult.Error -> {
-                    Log.w(TAG, "M3u error: ${m3uResult.message}, falling back to disc 1")
+                    Logger.warn(TAG, "M3u error: ${m3uResult.message}, falling back to disc 1")
                     File(discs.minByOrNull { it.discNumber }!!.localPath!!)
                 }
             }
@@ -122,35 +156,52 @@ class GameLauncher @Inject constructor(
                 game.lastPlayedDiscId != null -> discs.find { it.id == game.lastPlayedDiscId }
                 else -> null
             } ?: discs.minByOrNull { it.discNumber }
-                ?: return LaunchResult.Error("Could not determine which disc to launch")
+                ?: return LaunchResult.Error("Could not determine which disc to launch").also {
+                    Logger.error(TAG, "launchMultiDiscGame() failed: could not determine target disc")
+                }
+            Logger.debug(TAG, "Target disc: #${targetDisc.discNumber}")
             File(targetDisc.localPath!!)
         }
 
         val intent = buildIntent(emulator, launchFile, game)
             ?: return if (emulator.launchConfig is LaunchConfig.RetroArch) {
-                LaunchResult.NoCore(game.platformId)
+                LaunchResult.NoCore(game.platformId).also {
+                    Logger.warn(TAG, "launchMultiDiscGame() failed: no core for platform=${game.platformId}")
+                }
             } else {
-                LaunchResult.Error("Failed to build launch intent")
+                LaunchResult.Error("Failed to build launch intent").also {
+                    Logger.error(TAG, "launchMultiDiscGame() failed: could not build intent")
+                }
             }
 
         gameDao.recordPlayStart(game.id, Instant.now())
 
-        Log.d(TAG, "Launching multi-disc game ${game.title} via ${launchFile.name}")
+        Logger.info(TAG, "Launching multi-disc: ${launchFile.name} with ${emulator.displayName}")
         return LaunchResult.Success(intent)
     }
 
     private suspend fun launchSteamGame(game: GameEntity): LaunchResult {
+        Logger.debug(TAG, "launchSteamGame(): steamAppId=${game.steamAppId}, launcher=${game.steamLauncher}")
+
         val steamAppId = game.steamAppId
-            ?: return LaunchResult.Error("Steam game missing app ID")
+            ?: return LaunchResult.Error("Steam game missing app ID").also {
+                Logger.warn(TAG, "launchSteamGame() failed: missing steamAppId")
+            }
 
         val launcherPackage = game.steamLauncher
-            ?: return LaunchResult.Error("Steam game missing launcher")
+            ?: return LaunchResult.Error("Steam game missing launcher").also {
+                Logger.warn(TAG, "launchSteamGame() failed: missing launcher package")
+            }
 
         val launcher = SteamLaunchers.getByPackage(launcherPackage)
-            ?: return LaunchResult.NoSteamLauncher(launcherPackage)
+            ?: return LaunchResult.NoSteamLauncher(launcherPackage).also {
+                Logger.warn(TAG, "launchSteamGame() failed: unknown launcher $launcherPackage")
+            }
 
         if (!launcher.isInstalled(context)) {
-            return LaunchResult.NoSteamLauncher(launcherPackage)
+            return LaunchResult.NoSteamLauncher(launcherPackage).also {
+                Logger.warn(TAG, "launchSteamGame() failed: ${launcher.displayName} not installed")
+            }
         }
 
         val intent = launcher.createLaunchIntent(steamAppId)
@@ -158,7 +209,7 @@ class GameLauncher @Inject constructor(
 
         gameDao.recordPlayStart(game.id, Instant.now())
 
-        Log.d(TAG, "Launching Steam game ${game.title} via ${launcher.displayName}")
+        Logger.info(TAG, "Launching Steam: appId=$steamAppId via ${launcher.displayName}")
         return LaunchResult.Success(intent)
     }
 
@@ -181,7 +232,9 @@ class GameLauncher @Inject constructor(
     }
 
     private suspend fun buildIntent(emulator: EmulatorDef, romFile: File, game: GameEntity): Intent? {
-        Log.d(TAG, "buildIntent: emulator=${emulator.displayName}, config=${emulator.launchConfig::class.simpleName}, rom=${romFile.name}")
+        val configType = emulator.launchConfig::class.simpleName
+        Logger.debug(TAG, "buildIntent: emulator=${emulator.displayName}, config=$configType, rom=${romFile.name}")
+
         return when (val config = emulator.launchConfig) {
             is LaunchConfig.FileUri -> buildFileUriIntent(emulator, romFile)
             is LaunchConfig.FilePathExtra -> buildFilePathIntent(emulator, romFile, config)
@@ -190,7 +243,7 @@ class GameLauncher @Inject constructor(
             is LaunchConfig.CustomScheme -> buildCustomSchemeIntent(emulator, romFile, config)
             is LaunchConfig.Vita3K -> buildVita3KIntent(emulator, romFile, config)
         }.also { intent ->
-            Log.d(TAG, "buildIntent: action=${intent?.action}, package=${intent?.`package`}, component=${intent?.component}, data=${intent?.data}")
+            Logger.debug(TAG, "Intent built: ${LogSanitizer.describeIntent(intent)}")
         }
     }
 
@@ -232,13 +285,16 @@ class GameLauncher @Inject constructor(
         val externalDir = "/storage/emulated/0/Android/data/$retroArchPackage/files"
         val configPath = "$externalDir/retroarch.cfg"
 
+        Logger.debug(TAG, "RetroArch: package=$retroArchPackage, activity=${config.activityClass}")
+
         val corePath = getCorePath(game, retroArchPackage)
         if (corePath == null) {
-            Log.e(TAG, "No compatible core found for platform: ${game.platformId}")
+            Logger.error(TAG, "No compatible core found for platform: ${game.platformId}")
             return null
         }
 
-        Log.d(TAG, "Using core: $corePath for platform: ${game.platformId}")
+        val coreName = corePath.substringAfterLast("/").removeSuffix("_libretro_android.so")
+        Logger.debug(TAG, "RetroArch core: $coreName for platform: ${game.platformId}")
 
         return Intent(emulator.launchAction).apply {
             component = ComponentName(retroArchPackage, config.activityClass)
@@ -259,34 +315,35 @@ class GameLauncher @Inject constructor(
     private suspend fun getCorePath(game: GameEntity, retroArchPackage: String): String? {
         val coreName = resolveCoreName(game)
         if (coreName == null) {
-            Log.w(TAG, "No core found for platform: ${game.platformId}")
+            Logger.warn(TAG, "No core found for platform: ${game.platformId}")
             return null
         }
         val corePath = "/data/data/$retroArchPackage/cores/${coreName}_libretro_android.so"
-        Log.d(TAG, "Using core path for ${game.platformId}: $corePath (core: $coreName)")
         return corePath
     }
 
     private suspend fun resolveCoreName(game: GameEntity): String? {
         val gameConfig = emulatorConfigDao.getByGameId(game.id)
         if (gameConfig?.coreName != null) {
-            Log.d(TAG, "Using game-specific core: ${gameConfig.coreName}")
+            Logger.debug(TAG, "Core selection: game-specific override -> ${gameConfig.coreName}")
             return gameConfig.coreName
         }
 
         val platformConfig = emulatorConfigDao.getDefaultForPlatform(game.platformId)
         if (platformConfig?.coreName != null) {
-            Log.d(TAG, "Using platform default core: ${platformConfig.coreName}")
+            Logger.debug(TAG, "Core selection: platform default -> ${platformConfig.coreName}")
             return platformConfig.coreName
         }
 
         val defaultCore = EmulatorRegistry.getDefaultCore(game.platformId)
         if (defaultCore != null) {
-            Log.d(TAG, "Using hardcoded default core: ${defaultCore.id}")
+            Logger.debug(TAG, "Core selection: registry default -> ${defaultCore.id}")
             return defaultCore.id
         }
 
-        return EmulatorRegistry.getPreferredCore(game.platformId)
+        val preferredCore = EmulatorRegistry.getPreferredCore(game.platformId)
+        Logger.debug(TAG, "Core selection: registry preferred -> $preferredCore")
+        return preferredCore
     }
 
     private fun buildCustomIntent(
@@ -378,10 +435,10 @@ class GameLauncher @Inject constructor(
             component = ComponentName(emulator.packageName, config.activityClass)
 
             if (titleId != null) {
-                Log.d(TAG, "Vita3K: Launching with title ID: $titleId")
+                Logger.debug(TAG, "Vita3K: titleId=$titleId from ${romFile.name}")
                 putExtra("AppStartParameters", arrayOf("-r", titleId))
             } else {
-                Log.d(TAG, "Vita3K: No title ID found in filename, opening emulator only")
+                Logger.debug(TAG, "Vita3K: no titleId in ${romFile.name}, opening emulator only")
             }
 
             addFlags(
@@ -418,7 +475,7 @@ class GameLauncher @Inject constructor(
                     .firstOrNull()
             }
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to read zip file for title ID: ${zipFile.name}", e)
+            Logger.warn(TAG, "Failed to read zip for titleId: ${zipFile.name}", e)
             null
         }
     }
@@ -429,11 +486,11 @@ class GameLauncher @Inject constructor(
                 context,
                 "${context.packageName}.fileprovider",
                 file
-            ).also { uri ->
-                Log.d(TAG, "getFileUri: FileProvider success, uri=$uri")
+            ).also {
+                Logger.debug(TAG, "FileProvider URI created for ${file.name}")
             }
         } catch (e: IllegalArgumentException) {
-            Log.w(TAG, "getFileUri: FileProvider failed for ${file.absolutePath}, falling back to file:// URI", e)
+            Logger.warn(TAG, "FileProvider failed for ${file.name}, using file:// URI", e)
             Uri.fromFile(file)
         }
     }
@@ -444,28 +501,26 @@ class GameLauncher @Inject constructor(
         return "*/*"
     }
 
+    @Suppress("unused")
     private suspend fun killRetroArchProcess(packageName: String) {
         try {
             val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
 
-            // Kill any background processes
             activityManager.killBackgroundProcesses(packageName)
 
-            // Also try to kill via running app processes
             @Suppress("DEPRECATION")
             val runningProcesses = activityManager.runningAppProcesses ?: emptyList()
             val isRunning = runningProcesses.any { it.processName == packageName }
 
             if (isRunning) {
-                Log.d(TAG, "RetroArch is running, attempting to kill...")
+                Logger.debug(TAG, "RetroArch running, attempting kill...")
                 activityManager.killBackgroundProcesses(packageName)
-                // Give the system time to clean up
                 kotlinx.coroutines.delay(200)
             }
 
-            Log.d(TAG, "Killed processes for $packageName")
+            Logger.debug(TAG, "Killed processes for RetroArch")
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to kill $packageName: ${e.message}")
+            Logger.warn(TAG, "Failed to kill RetroArch process", e)
         }
     }
 }
