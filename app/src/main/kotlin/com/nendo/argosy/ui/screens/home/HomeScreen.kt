@@ -353,6 +353,7 @@ fun HomeScreen(
                                 listState = listState,
                                 rowKey = uiState.currentRow.toString(),
                                 downloadIndicatorFor = uiState::downloadIndicatorFor,
+                                showPlatformBadge = uiState.currentRow !is HomeRow.Platform,
                                 onItemTap = { index -> viewModel.handleItemTap(index, onGameSelect) },
                                 onItemLongPress = viewModel::handleItemLongPress,
                                 modifier = Modifier.align(Alignment.BottomStart)
@@ -640,6 +641,7 @@ private fun GameRail(
     listState: androidx.compose.foundation.lazy.LazyListState,
     rowKey: String,
     downloadIndicatorFor: (Long) -> GameDownloadIndicator,
+    showPlatformBadge: Boolean,
     onItemTap: (Int) -> Unit = {},
     onItemLongPress: (Int) -> Unit = {},
     modifier: Modifier = Modifier
@@ -694,6 +696,7 @@ private fun GameRail(
                         focusScale = focusScale,
                         scaleFromBottom = true,
                         downloadIndicator = downloadIndicatorFor(item.game.id),
+                        showPlatformBadge = showPlatformBadge,
                         modifier = Modifier
                             .graphicsLayer { this.translationX = translationX }
                             .width(cardWidth)

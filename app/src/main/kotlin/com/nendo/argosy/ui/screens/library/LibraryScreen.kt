@@ -323,6 +323,7 @@ fun LibraryScreen(
                                             isFocused = isFocused,
                                             showFocus = !uiState.isTouchMode || uiState.hasSelectedGame,
                                             cardHeight = cardHeight,
+                                            showPlatformBadge = uiState.currentPlatformIndex < 0,
                                             onClick = { viewModel.handleItemTap(index, onGameSelect) },
                                             onLongClick = { viewModel.handleItemLongPress(index) },
                                             modifier = Modifier.zIndex(if (isFocused) 1f else 0f)
@@ -502,6 +503,7 @@ private fun LibraryGameCard(
     isFocused: Boolean,
     showFocus: Boolean,
     cardHeight: Dp,
+    showPlatformBadge: Boolean = true,
     onClick: () -> Unit = {},
     onLongClick: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -521,6 +523,7 @@ private fun LibraryGameCard(
             isDownloaded = game.isDownloaded
         ),
         isFocused = effectiveFocused,
+        showPlatformBadge = showPlatformBadge,
         modifier = modifier
             .fillMaxWidth()
             .height(cardHeight)

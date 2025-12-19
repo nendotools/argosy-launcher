@@ -69,7 +69,8 @@ fun GameCard(
     modifier: Modifier = Modifier,
     focusScale: Float = Motion.scaleFocused,
     scaleFromBottom: Boolean = false,
-    downloadIndicator: GameDownloadIndicator = GameDownloadIndicator.NONE
+    downloadIndicator: GameDownloadIndicator = GameDownloadIndicator.NONE,
+    showPlatformBadge: Boolean = true
 ) {
     val themeConfig = LocalLauncherTheme.current
     val boxArtStyle = LocalBoxArtStyle.current
@@ -182,7 +183,7 @@ fun GameCard(
             }
         }
 
-        if (boxArtStyle.systemIconPosition != SystemIconPosition.OFF) {
+        if (showPlatformBadge && boxArtStyle.systemIconPosition != SystemIconPosition.OFF) {
             val badgeAlignment = when (boxArtStyle.systemIconPosition) {
                 SystemIconPosition.TOP_LEFT -> Alignment.TopStart
                 SystemIconPosition.TOP_RIGHT -> Alignment.TopEnd
