@@ -671,16 +671,22 @@ class HomeViewModel @Inject constructor(
 
     private suspend fun refreshRecommendationsIfNeeded() {
         val prefs = preferencesRepository.preferences.first()
-        val lastGen = prefs.lastRecommendationGeneration ?: return
+        val lastGen = prefs.lastRecommendationGeneration
 
-        val lastGenWeek = lastGen.atZone(java.time.ZoneId.systemDefault())
-            .toLocalDate()
-            .with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.SATURDAY))
+        val shouldGenerate = if (lastGen == null) {
+            true
+        } else {
+            val lastGenWeek = lastGen.atZone(java.time.ZoneId.systemDefault())
+                .toLocalDate()
+                .with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.SATURDAY))
 
-        val currentWeek = java.time.LocalDate.now()
-            .with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.SATURDAY))
+            val currentWeek = java.time.LocalDate.now()
+                .with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.SATURDAY))
 
-        if (currentWeek.isAfter(lastGenWeek)) {
+            currentWeek.isAfter(lastGenWeek)
+        }
+
+        if (shouldGenerate) {
             val ids = generateRecommendationsUseCase()
             if (ids.isNotEmpty()) {
                 val games = gameDao.getByIds(ids)

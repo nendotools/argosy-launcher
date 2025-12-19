@@ -3,7 +3,7 @@ package com.nendo.argosy.domain.model
 object Changelog {
     private val entries = listOf(
         ChangelogEntry(
-            version = "0.9.14",
+            version = "0.9.15",
             highlights = listOf(
                 "Bidirectional favorites sync with RomM",
                 "Weekly game recommendations on home screen",
