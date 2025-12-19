@@ -297,4 +297,26 @@ interface GameDao {
 
     @Query("SELECT titleId FROM games WHERE id = :gameId")
     suspend fun getTitleId(gameId: Long): String?
+
+    @Query("SELECT * FROM games WHERE playCount > 0 AND isHidden = 0 ORDER BY playTimeMinutes DESC")
+    suspend fun getPlayedGames(): List<GameEntity>
+
+    @Query("""
+        SELECT * FROM games
+        WHERE (playCount = 0 OR playCount IS NULL)
+        AND localPath IS NOT NULL
+        AND isHidden = 0
+    """)
+    suspend fun getUnplayedInstalledGames(): List<GameEntity>
+
+    @Query("""
+        SELECT * FROM games
+        WHERE (playCount = 0 OR playCount IS NULL)
+        AND localPath IS NULL
+        AND isHidden = 0
+    """)
+    suspend fun getUnplayedUndownloadedGames(): List<GameEntity>
+
+    @Query("SELECT * FROM games WHERE id IN (:ids)")
+    suspend fun getByIds(ids: List<Long>): List<GameEntity>
 }

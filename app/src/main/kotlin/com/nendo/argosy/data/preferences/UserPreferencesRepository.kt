@@ -80,6 +80,10 @@ class UserPreferencesRepository @Inject constructor(
         val SYSTEM_ICON_POSITION = stringPreferencesKey("system_icon_position")
         val SYSTEM_ICON_PADDING = stringPreferencesKey("system_icon_padding")
         val DEFAULT_VIEW = stringPreferencesKey("default_view")
+        val RECOMMENDED_GAME_IDS = stringPreferencesKey("recommended_game_ids")
+        val LAST_RECOMMENDATION_GENERATION = stringPreferencesKey("last_recommendation_generation")
+        val RECOMMENDATION_PENALTIES = stringPreferencesKey("recommendation_penalties")
+        val LAST_PENALTY_DECAY_WEEK = stringPreferencesKey("last_penalty_decay_week")
     }
 
     val userPreferences: Flow<UserPreferences> = dataStore.data.map { prefs ->
@@ -155,8 +159,30 @@ class UserPreferencesRepository @Inject constructor(
             boxArtGlowStrength = BoxArtGlowStrength.fromString(prefs[Keys.BOX_ART_GLOW_STRENGTH]),
             systemIconPosition = SystemIconPosition.fromString(prefs[Keys.SYSTEM_ICON_POSITION]),
             systemIconPadding = SystemIconPadding.fromString(prefs[Keys.SYSTEM_ICON_PADDING]),
-            defaultView = DefaultView.fromString(prefs[Keys.DEFAULT_VIEW])
+            defaultView = DefaultView.fromString(prefs[Keys.DEFAULT_VIEW]),
+            recommendedGameIds = prefs[Keys.RECOMMENDED_GAME_IDS]
+                ?.split(",")
+                ?.filter { it.isNotBlank() }
+                ?.mapNotNull { it.toLongOrNull() }
+                ?: emptyList(),
+            lastRecommendationGeneration = prefs[Keys.LAST_RECOMMENDATION_GENERATION]?.let { Instant.parse(it) },
+            recommendationPenalties = parseRecommendationPenalties(prefs[Keys.RECOMMENDATION_PENALTIES]),
+            lastPenaltyDecayWeek = prefs[Keys.LAST_PENALTY_DECAY_WEEK]
         )
+    }
+
+    private fun parseRecommendationPenalties(raw: String?): Map<Long, Float> {
+        if (raw.isNullOrBlank()) return emptyMap()
+        return raw.split(",")
+            .mapNotNull { entry ->
+                val parts = entry.split(":")
+                if (parts.size == 2) {
+                    val gameId = parts[0].toLongOrNull()
+                    val penalty = parts[1].toFloatOrNull()
+                    if (gameId != null && penalty != null) gameId to penalty else null
+                } else null
+            }
+            .toMap()
     }
 
     private fun parseSoundConfigs(raw: String?): Map<SoundType, SoundConfig> {
@@ -535,6 +561,36 @@ class UserPreferencesRepository @Inject constructor(
             prefs[Keys.DEFAULT_VIEW] = view.name
         }
     }
+
+    suspend fun setRecommendations(gameIds: List<Long>, timestamp: Instant) {
+        dataStore.edit { prefs ->
+            if (gameIds.isEmpty()) {
+                prefs.remove(Keys.RECOMMENDED_GAME_IDS)
+            } else {
+                prefs[Keys.RECOMMENDED_GAME_IDS] = gameIds.joinToString(",")
+            }
+            prefs[Keys.LAST_RECOMMENDATION_GENERATION] = timestamp.toString()
+        }
+    }
+
+    suspend fun clearRecommendations() {
+        dataStore.edit { prefs ->
+            prefs.remove(Keys.RECOMMENDED_GAME_IDS)
+            prefs.remove(Keys.LAST_RECOMMENDATION_GENERATION)
+        }
+    }
+
+    suspend fun setRecommendationPenalties(penalties: Map<Long, Float>, weekKey: String) {
+        dataStore.edit { prefs ->
+            val filtered = penalties.filter { it.value > 0f }
+            if (filtered.isEmpty()) {
+                prefs.remove(Keys.RECOMMENDATION_PENALTIES)
+            } else {
+                prefs[Keys.RECOMMENDATION_PENALTIES] = filtered.entries.joinToString(",") { "${it.key}:${it.value}" }
+            }
+            prefs[Keys.LAST_PENALTY_DECAY_WEEK] = weekKey
+        }
+    }
 }
 
 data class UserPreferences(
@@ -584,7 +640,11 @@ data class UserPreferences(
     val boxArtGlowStrength: BoxArtGlowStrength = BoxArtGlowStrength.MEDIUM,
     val systemIconPosition: SystemIconPosition = SystemIconPosition.TOP_LEFT,
     val systemIconPadding: SystemIconPadding = SystemIconPadding.MEDIUM,
-    val defaultView: DefaultView = DefaultView.SHOWCASE
+    val defaultView: DefaultView = DefaultView.SHOWCASE,
+    val recommendedGameIds: List<Long> = emptyList(),
+    val lastRecommendationGeneration: Instant? = null,
+    val recommendationPenalties: Map<Long, Float> = emptyMap(),
+    val lastPenaltyDecayWeek: String? = null
 )
 
 enum class ThemeMode {

@@ -15,6 +15,7 @@ import com.nendo.argosy.data.remote.romm.RomMRepository
 import com.nendo.argosy.data.remote.romm.RomMResult
 import com.nendo.argosy.domain.usecase.achievement.FetchAchievementsUseCase
 import com.nendo.argosy.domain.usecase.download.DownloadResult
+import com.nendo.argosy.domain.usecase.recommendation.GenerateRecommendationsUseCase
 import com.nendo.argosy.domain.usecase.sync.SyncLibraryResult
 import com.nendo.argosy.domain.usecase.sync.SyncLibraryUseCase
 import com.nendo.argosy.ui.input.InputHandler
@@ -61,6 +62,7 @@ private const val KEY_GAME_INDEX = "home_game_index"
 private const val ROW_TYPE_FAVORITES = "favorites"
 private const val ROW_TYPE_PLATFORM = "platform"
 private const val ROW_TYPE_CONTINUE = "continue"
+private const val ROW_TYPE_RECOMMENDATIONS = "recommendations"
 
 data class GameDownloadIndicator(
     val isDownloading: Boolean = false,
@@ -117,6 +119,7 @@ sealed class HomeRow {
     data object Favorites : HomeRow()
     data class Platform(val index: Int) : HomeRow()
     data object Continue : HomeRow()
+    data object Recommendations : HomeRow()
 }
 
 data class HomeUiState(
@@ -125,6 +128,7 @@ data class HomeUiState(
     val focusedGameIndex: Int = 0,
     val recentGames: List<HomeGameUi> = emptyList(),
     val favoriteGames: List<HomeGameUi> = emptyList(),
+    val recommendedGames: List<HomeGameUi> = emptyList(),
     val currentRow: HomeRow = HomeRow.Continue,
     val isLoading: Boolean = true,
     val isRommConfigured: Boolean = false,
@@ -141,6 +145,7 @@ data class HomeUiState(
     val availableRows: List<HomeRow>
         get() = buildList {
             if (recentGames.isNotEmpty()) add(HomeRow.Continue)
+            if (recommendedGames.isNotEmpty()) add(HomeRow.Recommendations)
             if (favoriteGames.isNotEmpty()) add(HomeRow.Favorites)
             platforms.forEachIndexed { index, _ -> add(HomeRow.Platform(index)) }
         }
@@ -165,6 +170,10 @@ data class HomeUiState(
                     label = "View All"
                 )
             }
+            HomeRow.Recommendations -> {
+                if (recommendedGames.isEmpty()) emptyList()
+                else recommendedGames.map { HomeRowItem.Game(it) }
+            }
         }
 
     val focusedItem: HomeRowItem?
@@ -178,6 +187,7 @@ data class HomeUiState(
             HomeRow.Favorites -> "Favorites"
             is HomeRow.Platform -> currentPlatform?.name ?: "Unknown"
             HomeRow.Continue -> "Continue Playing"
+            HomeRow.Recommendations -> "Recommended For You"
         }
 
     fun downloadIndicatorFor(gameId: Long): GameDownloadIndicator =
@@ -212,7 +222,8 @@ class HomeViewModel @Inject constructor(
     private val gameActions: GameActionsDelegate,
     private val gameLaunchDelegate: GameLaunchDelegate,
     private val fetchAchievementsUseCase: FetchAchievementsUseCase,
-    private val achievementUpdateBus: AchievementUpdateBus
+    private val achievementUpdateBus: AchievementUpdateBus,
+    private val generateRecommendationsUseCase: GenerateRecommendationsUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(restoreInitialState())
@@ -350,6 +361,7 @@ class HomeViewModel @Inject constructor(
             ROW_TYPE_FAVORITES -> HomeRow.Favorites
             ROW_TYPE_PLATFORM -> HomeRow.Platform(platformIndex)
             ROW_TYPE_CONTINUE -> HomeRow.Continue
+            ROW_TYPE_RECOMMENDATIONS -> HomeRow.Recommendations
             else -> HomeRow.Continue
         }
 
@@ -362,6 +374,7 @@ class HomeViewModel @Inject constructor(
             HomeRow.Favorites -> ROW_TYPE_FAVORITES to 0
             is HomeRow.Platform -> ROW_TYPE_PLATFORM to row.index
             HomeRow.Continue -> ROW_TYPE_CONTINUE to 0
+            HomeRow.Recommendations -> ROW_TYPE_RECOMMENDATIONS to 0
         }
         savedStateHandle[KEY_ROW_TYPE] = rowType
         savedStateHandle[KEY_PLATFORM_INDEX] = platformIndex
@@ -430,7 +443,6 @@ class HomeViewModel @Inject constructor(
                 )
             }
 
-            // Load platform games if starting on a platform row
             if (startRow is HomeRow.Platform) {
                 val platform = platforms.getOrNull(startRow.index)
                 if (platform != null) {
@@ -438,7 +450,7 @@ class HomeViewModel @Inject constructor(
                 }
             }
 
-            // Start observing download state
+            loadRecommendations()
             launch { observeDownloadState() }
         }
     }
@@ -551,6 +563,34 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    private suspend fun loadRecommendations() {
+        val prefs = preferencesRepository.preferences.first()
+        val storedIds = prefs.recommendedGameIds
+
+        if (storedIds.isNotEmpty()) {
+            val games = gameDao.getByIds(storedIds)
+            val orderedGames = storedIds.mapNotNull { id -> games.find { it.id == id } }
+            val gameUis = orderedGames.map { it.toUi() }
+            _uiState.update { it.copy(recommendedGames = gameUis) }
+        }
+    }
+
+    fun regenerateRecommendations() {
+        viewModelScope.launch {
+            val ids = generateRecommendationsUseCase(forceRegenerate = true)
+            if (ids.isNotEmpty()) {
+                val games = gameDao.getByIds(ids)
+                val orderedGames = ids.mapNotNull { id -> games.find { it.id == id } }
+                val gameUis = orderedGames.map { it.toUi() }
+                _uiState.update { it.copy(recommendedGames = gameUis) }
+                notificationManager.showSuccess("Recommendations updated")
+            } else {
+                _uiState.update { it.copy(recommendedGames = emptyList()) }
+                notificationManager.showError("Not enough games to generate recommendations")
+            }
+        }
+    }
+
     private suspend fun loadPlatforms() {
         val platforms = platformDao.getPlatformsWithGames()
         val platformUis = platforms.map { it.toUi() }
@@ -580,6 +620,31 @@ class HomeViewModel @Inject constructor(
             viewModelScope.launch {
                 romMRepository.refreshFavoritesIfNeeded()
                 loadFavorites()
+            }
+        }
+
+        viewModelScope.launch {
+            refreshRecommendationsIfNeeded()
+        }
+    }
+
+    private suspend fun refreshRecommendationsIfNeeded() {
+        val prefs = preferencesRepository.preferences.first()
+        val lastGen = prefs.lastRecommendationGeneration ?: return
+
+        val lastGenWeek = lastGen.atZone(java.time.ZoneId.systemDefault())
+            .toLocalDate()
+            .with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.SATURDAY))
+
+        val currentWeek = java.time.LocalDate.now()
+            .with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.SATURDAY))
+
+        if (currentWeek.isAfter(lastGenWeek)) {
+            val ids = generateRecommendationsUseCase()
+            if (ids.isNotEmpty()) {
+                val games = gameDao.getByIds(ids)
+                val orderedGames = ids.mapNotNull { id -> games.find { it.id == id } }
+                _uiState.update { it.copy(recommendedGames = orderedGames.map { g -> g.toUi() }) }
             }
         }
     }
@@ -660,6 +725,7 @@ class HomeViewModel @Inject constructor(
                 }
                 HomeRow.Continue -> loadRecentGames()
                 HomeRow.Favorites -> loadFavorites()
+                HomeRow.Recommendations -> loadRecommendations()
             }
         }
     }
@@ -956,6 +1022,9 @@ class HomeViewModel @Inject constructor(
                     s.copy(platformItems = items, focusedGameIndex = newIndex)
                 }
             }
+            HomeRow.Recommendations -> {
+                loadRecommendations()
+            }
         }
     }
 
@@ -1165,6 +1234,9 @@ class HomeViewModel @Inject constructor(
                     if (it.id == gameId) it.copy(achievementCount = total, earnedAchievementCount = earned) else it
                 },
                 favoriteGames = state.favoriteGames.map {
+                    if (it.id == gameId) it.copy(achievementCount = total, earnedAchievementCount = earned) else it
+                },
+                recommendedGames = state.recommendedGames.map {
                     if (it.id == gameId) it.copy(achievementCount = total, earnedAchievementCount = earned) else it
                 },
                 platformItems = state.platformItems.map { item ->
