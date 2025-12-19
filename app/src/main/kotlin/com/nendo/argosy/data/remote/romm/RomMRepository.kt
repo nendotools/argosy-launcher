@@ -25,18 +25,24 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import okhttp3.Interceptor
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
+import java.time.Duration
 import java.time.Instant
+import java.time.OffsetDateTime
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val SYNC_PAGE_SIZE = 100
 private const val TAG = "RomMRepository"
+private const val FAVORITES_CHECK_DEBOUNCE_SECONDS = 30L
+private const val FAVORITES_COLLECTION_NAME = "Favorites"
 
 @Singleton
 class RomMRepository @Inject constructor(
@@ -160,7 +166,7 @@ class RomMRepository @Inject constructor(
         val currentApi = api ?: return RomMResult.Error("Not connected")
 
         return try {
-            val scope = "me.read me.write platforms.read roms.read assets.read assets.write roms.user.read roms.user.write"
+            val scope = "me.read me.write platforms.read roms.read assets.read assets.write roms.user.read roms.user.write collections.read collections.write"
             val response = currentApi.login(username, password, scope)
             if (response.isSuccessful) {
                 val token = response.body()?.accessToken
@@ -1018,7 +1024,38 @@ class RomMRepository @Inject constructor(
         val pending = pendingSyncDao.getAll()
         var synced = 0
 
-        for (item in pending) {
+        val favoriteChanges = pending.filter { it.syncType == "FAVORITE" }
+        val otherChanges = pending.filter { it.syncType != "FAVORITE" }
+
+        if (favoriteChanges.isNotEmpty()) {
+            try {
+                val collection = getOrCreateFavoritesCollection()
+                if (collection != null) {
+                    val currentRemoteIds = collection.romIds.toMutableSet()
+
+                    for (item in favoriteChanges) {
+                        if (item.value == 1) {
+                            currentRemoteIds.add(item.rommId)
+                        } else {
+                            currentRemoteIds.remove(item.rommId)
+                        }
+                    }
+
+                    val result = updateFavoritesCollection(collection.id, currentRemoteIds.toList())
+                    if (result != null) {
+                        for (item in favoriteChanges) {
+                            pendingSyncDao.delete(item.id)
+                            synced++
+                        }
+                        userPreferencesRepository.setLastFavoritesSyncTime(parseTimestamp(result.updatedAt))
+                    }
+                }
+            } catch (e: Exception) {
+                Logger.info(TAG, "processPendingSync: failed to sync favorites: ${e.message}")
+            }
+        }
+
+        for (item in otherChanges) {
             try {
                 val props = when (item.syncType) {
                     "RATING" -> RomMUserPropsUpdate(data = RomMUserPropsUpdateData(rating = item.value))
@@ -1037,5 +1074,218 @@ class RomMRepository @Inject constructor(
             }
         }
         return synced
+    }
+
+    private fun parseTimestamp(timestamp: String?): Instant {
+        if (timestamp.isNullOrBlank()) return Instant.now()
+        return try {
+            OffsetDateTime.parse(timestamp).toInstant()
+        } catch (_: Exception) {
+            Instant.now()
+        }
+    }
+
+    private suspend fun getOrCreateFavoritesCollection(): RomMCollection? {
+        val currentApi = api ?: return null
+
+        try {
+            val response = currentApi.getCollections(isFavorite = true)
+            if (response.isSuccessful) {
+                val collections = response.body() ?: emptyList()
+                val existing = collections.firstOrNull { it.isFavorite }
+                if (existing != null) return existing
+
+                val createResponse = currentApi.createCollection(
+                    isFavorite = true,
+                    collection = RomMCollectionCreate(name = FAVORITES_COLLECTION_NAME)
+                )
+                if (createResponse.isSuccessful) {
+                    return createResponse.body()
+                }
+            }
+        } catch (e: Exception) {
+            Logger.info(TAG, "getOrCreateFavoritesCollection: failed: ${e.message}")
+        }
+        return null
+    }
+
+    private suspend fun updateFavoritesCollection(collectionId: Long, romIds: List<Long>): RomMCollection? {
+        val currentApi = api ?: return null
+
+        try {
+            val jsonArray = romIds.joinToString(",", "[", "]")
+            val requestBody = jsonArray.toRequestBody("application/json".toMediaType())
+            val response = currentApi.updateCollection(collectionId, requestBody)
+            if (response.isSuccessful) {
+                return response.body()
+            }
+        } catch (e: Exception) {
+            Logger.info(TAG, "updateFavoritesCollection: failed: ${e.message}")
+        }
+        return null
+    }
+
+    suspend fun syncFavorites(): RomMResult<Unit> {
+        val currentApi = api ?: return RomMResult.Error("Not connected")
+        if (_connectionState.value !is ConnectionState.Connected) {
+            return RomMResult.Error("Not connected")
+        }
+
+        return try {
+            val collection = getOrCreateFavoritesCollection()
+                ?: return RomMResult.Error("Failed to get favorites collection")
+
+            val remoteRommIds = collection.romIds.toSet()
+            val localRommIds = gameDao.getFavoriteRommIds().toSet()
+            val prefs = userPreferencesRepository.preferences.first()
+            val isFirstSync = prefs.lastFavoritesSync == null
+
+            if (isFirstSync) {
+                val mergedIds = (remoteRommIds + localRommIds).toList()
+                Logger.info(TAG, "syncFavorites: first sync, merging ${remoteRommIds.size} remote + ${localRommIds.size} local = ${mergedIds.size} total")
+
+                val result = updateFavoritesCollection(collection.id, mergedIds)
+                if (result != null) {
+                    if (mergedIds.isNotEmpty()) {
+                        gameDao.setFavoritesByRommIds(mergedIds)
+                    }
+                    userPreferencesRepository.setLastFavoritesSyncTime(parseTimestamp(result.updatedAt))
+                    userPreferencesRepository.setLastFavoritesCheckTime(Instant.now())
+                    return RomMResult.Success(Unit)
+                }
+                return RomMResult.Error("Failed to update favorites collection")
+            }
+
+            val pendingFavorites = pendingSyncDao.getAll().filter { it.syncType == "FAVORITE" }
+            if (pendingFavorites.isNotEmpty()) {
+                val currentRemoteIds = remoteRommIds.toMutableSet()
+                for (item in pendingFavorites) {
+                    if (item.value == 1) {
+                        currentRemoteIds.add(item.rommId)
+                    } else {
+                        currentRemoteIds.remove(item.rommId)
+                    }
+                }
+
+                val result = updateFavoritesCollection(collection.id, currentRemoteIds.toList())
+                if (result != null) {
+                    for (item in pendingFavorites) {
+                        pendingSyncDao.delete(item.id)
+                    }
+                    if (currentRemoteIds.isNotEmpty()) {
+                        gameDao.setFavoritesByRommIds(currentRemoteIds.toList())
+                        gameDao.clearFavoritesNotInRommIds(currentRemoteIds.toList())
+                    } else {
+                        gameDao.clearFavoritesNotInRommIds(emptyList())
+                    }
+                    userPreferencesRepository.setLastFavoritesSyncTime(parseTimestamp(result.updatedAt))
+                    userPreferencesRepository.setLastFavoritesCheckTime(Instant.now())
+                    return RomMResult.Success(Unit)
+                }
+            } else {
+                if (remoteRommIds.isNotEmpty()) {
+                    gameDao.setFavoritesByRommIds(remoteRommIds.toList())
+                    gameDao.clearFavoritesNotInRommIds(remoteRommIds.toList())
+                } else {
+                    gameDao.clearFavoritesNotInRommIds(emptyList())
+                }
+                userPreferencesRepository.setLastFavoritesSyncTime(parseTimestamp(collection.updatedAt))
+                userPreferencesRepository.setLastFavoritesCheckTime(Instant.now())
+            }
+
+            RomMResult.Success(Unit)
+        } catch (e: Exception) {
+            Logger.info(TAG, "syncFavorites: failed: ${e.message}")
+            RomMResult.Error(e.message ?: "Failed to sync favorites")
+        }
+    }
+
+    suspend fun toggleFavoriteWithSync(gameId: Long, rommId: Long, isFavorite: Boolean): RomMResult<Unit> {
+        gameDao.updateFavorite(gameId, isFavorite)
+
+        pendingSyncDao.deleteByGameAndType(gameId, "FAVORITE")
+
+        val currentApi = api
+        if (currentApi == null || _connectionState.value !is ConnectionState.Connected) {
+            val value = if (isFavorite) 1 else 0
+            pendingSyncDao.insert(PendingSyncEntity(gameId = gameId, rommId = rommId, syncType = "FAVORITE", value = value))
+            return RomMResult.Success(Unit)
+        }
+
+        return try {
+            val collection = getOrCreateFavoritesCollection()
+                ?: run {
+                    val value = if (isFavorite) 1 else 0
+                    pendingSyncDao.insert(PendingSyncEntity(gameId = gameId, rommId = rommId, syncType = "FAVORITE", value = value))
+                    return RomMResult.Success(Unit)
+                }
+
+            val currentIds = collection.romIds.toMutableSet()
+            if (isFavorite) {
+                currentIds.add(rommId)
+            } else {
+                currentIds.remove(rommId)
+            }
+
+            val result = updateFavoritesCollection(collection.id, currentIds.toList())
+            if (result != null) {
+                userPreferencesRepository.setLastFavoritesSyncTime(parseTimestamp(result.updatedAt))
+                RomMResult.Success(Unit)
+            } else {
+                val value = if (isFavorite) 1 else 0
+                pendingSyncDao.insert(PendingSyncEntity(gameId = gameId, rommId = rommId, syncType = "FAVORITE", value = value))
+                RomMResult.Success(Unit)
+            }
+        } catch (e: Exception) {
+            val value = if (isFavorite) 1 else 0
+            pendingSyncDao.insert(PendingSyncEntity(gameId = gameId, rommId = rommId, syncType = "FAVORITE", value = value))
+            RomMResult.Success(Unit)
+        }
+    }
+
+    suspend fun refreshFavoritesIfNeeded(): RomMResult<Unit> {
+        val currentApi = api ?: return RomMResult.Error("Not connected")
+        if (_connectionState.value !is ConnectionState.Connected) {
+            return RomMResult.Error("Not connected")
+        }
+
+        val prefs = userPreferencesRepository.preferences.first()
+        val lastCheck = prefs.lastFavoritesCheck
+        if (lastCheck != null) {
+            val elapsed = Duration.between(lastCheck, Instant.now())
+            if (elapsed.seconds < FAVORITES_CHECK_DEBOUNCE_SECONDS) {
+                return RomMResult.Success(Unit)
+            }
+        }
+
+        return try {
+            val collection = getOrCreateFavoritesCollection()
+                ?: return RomMResult.Error("Failed to get favorites collection")
+
+            val remoteUpdatedAt = parseTimestamp(collection.updatedAt)
+            val lastSync = prefs.lastFavoritesSync
+
+            userPreferencesRepository.setLastFavoritesCheckTime(Instant.now())
+
+            if (lastSync != null && !remoteUpdatedAt.isAfter(lastSync)) {
+                return RomMResult.Success(Unit)
+            }
+
+            Logger.info(TAG, "refreshFavoritesIfNeeded: remote is newer, applying changes")
+            val remoteRommIds = collection.romIds
+
+            if (remoteRommIds.isNotEmpty()) {
+                gameDao.setFavoritesByRommIds(remoteRommIds)
+                gameDao.clearFavoritesNotInRommIds(remoteRommIds)
+            } else {
+                gameDao.clearFavoritesNotInRommIds(emptyList())
+            }
+
+            userPreferencesRepository.setLastFavoritesSyncTime(remoteUpdatedAt)
+            RomMResult.Success(Unit)
+        } catch (e: Exception) {
+            Logger.info(TAG, "refreshFavoritesIfNeeded: failed: ${e.message}")
+            RomMResult.Error(e.message ?: "Failed to refresh favorites")
+        }
     }
 }

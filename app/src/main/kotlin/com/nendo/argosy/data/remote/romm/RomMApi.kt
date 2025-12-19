@@ -17,6 +17,7 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.Streaming
 
+@Suppress("TooManyFunctions")
 interface RomMApi {
 
     @GET("api/heartbeat")
@@ -27,7 +28,7 @@ interface RomMApi {
     suspend fun login(
         @Field("username") username: String,
         @Field("password") password: String,
-        @Field("scope") scope: String = "me.read me.write platforms.read roms.read assets.read assets.write roms.user.read roms.user.write"
+        @Field("scope") scope: String = "me.read me.write platforms.read roms.read assets.read assets.write roms.user.read roms.user.write collections.read collections.write"
     ): Response<RomMTokenResponse>
 
     @GET("api/users/me")
@@ -75,6 +76,24 @@ interface RomMApi {
         @Path("id") romId: Long,
         @Body props: RomMUserPropsUpdate
     ): Response<Unit>
+
+    @GET("api/collections")
+    suspend fun getCollections(
+        @Query("is_favorite") isFavorite: Boolean? = null
+    ): Response<List<RomMCollection>>
+
+    @POST("api/collections")
+    suspend fun createCollection(
+        @Query("is_favorite") isFavorite: Boolean = false,
+        @Body collection: RomMCollectionCreate
+    ): Response<RomMCollection>
+
+    @Multipart
+    @PUT("api/collections/{id}")
+    suspend fun updateCollection(
+        @Path("id") collectionId: Long,
+        @Part("rom_ids") romIds: RequestBody
+    ): Response<RomMCollection>
 
     @GET("api/saves")
     suspend fun getSavesByRom(

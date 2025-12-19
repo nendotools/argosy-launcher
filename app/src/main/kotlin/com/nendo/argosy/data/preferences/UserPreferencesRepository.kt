@@ -40,6 +40,8 @@ class UserPreferencesRepository @Inject constructor(
         val AB_ICON_LAYOUT = stringPreferencesKey("ab_icon_layout")  // "auto", "xbox", "nintendo"
         val SWAP_START_SELECT = booleanPreferencesKey("swap_start_select")
         val LAST_ROMM_SYNC = stringPreferencesKey("last_romm_sync")
+        val LAST_FAVORITES_SYNC = stringPreferencesKey("last_favorites_sync")
+        val LAST_FAVORITES_CHECK = stringPreferencesKey("last_favorites_check")
 
         val SYNC_FILTER_REGIONS = stringPreferencesKey("sync_filter_regions")
         val SYNC_FILTER_REGION_MODE = stringPreferencesKey("sync_filter_region_mode")
@@ -100,6 +102,8 @@ class UserPreferencesRepository @Inject constructor(
             abIconLayout = prefs[Keys.AB_ICON_LAYOUT] ?: "auto",
             swapStartSelect = prefs[Keys.SWAP_START_SELECT] ?: false,
             lastRommSync = prefs[Keys.LAST_ROMM_SYNC]?.let { Instant.parse(it) },
+            lastFavoritesSync = prefs[Keys.LAST_FAVORITES_SYNC]?.let { Instant.parse(it) },
+            lastFavoritesCheck = prefs[Keys.LAST_FAVORITES_CHECK]?.let { Instant.parse(it) },
             syncFilters = SyncFilterPreferences(
                 enabledRegions = prefs[Keys.SYNC_FILTER_REGIONS]
                     ?.split(",")
@@ -285,6 +289,18 @@ class UserPreferencesRepository @Inject constructor(
     suspend fun setLastRommSyncTime(time: Instant) {
         dataStore.edit { prefs ->
             prefs[Keys.LAST_ROMM_SYNC] = time.toString()
+        }
+    }
+
+    suspend fun setLastFavoritesSyncTime(time: Instant) {
+        dataStore.edit { prefs ->
+            prefs[Keys.LAST_FAVORITES_SYNC] = time.toString()
+        }
+    }
+
+    suspend fun setLastFavoritesCheckTime(time: Instant) {
+        dataStore.edit { prefs ->
+            prefs[Keys.LAST_FAVORITES_CHECK] = time.toString()
         }
     }
 
@@ -540,6 +556,8 @@ data class UserPreferences(
     val abIconLayout: String = "auto",
     val swapStartSelect: Boolean = false,
     val lastRommSync: Instant? = null,
+    val lastFavoritesSync: Instant? = null,
+    val lastFavoritesCheck: Instant? = null,
     val syncFilters: SyncFilterPreferences = SyncFilterPreferences(),
     val syncScreenshotsEnabled: Boolean = false,
     val hiddenApps: Set<String> = emptySet(),

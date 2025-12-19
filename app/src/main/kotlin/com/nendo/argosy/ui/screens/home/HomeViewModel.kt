@@ -382,6 +382,9 @@ class HomeViewModel @Inject constructor(
 
                 if (lastSync == null || lastSync.isBefore(oneWeekAgo)) {
                     syncFromRomm()
+                } else {
+                    romMRepository.refreshFavoritesIfNeeded()
+                    loadFavorites()
                 }
             }
         }
@@ -572,6 +575,13 @@ class HomeViewModel @Inject constructor(
     fun onResume() {
         gameLaunchDelegate.handleSessionEnd(viewModelScope)
         invalidateRecentGamesCache()
+
+        if (romMRepository.isConnected()) {
+            viewModelScope.launch {
+                romMRepository.refreshFavoritesIfNeeded()
+                loadFavorites()
+            }
+        }
     }
 
     private fun invalidateRecentGamesCache() {

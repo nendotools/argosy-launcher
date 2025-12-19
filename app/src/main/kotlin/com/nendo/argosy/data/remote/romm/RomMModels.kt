@@ -201,6 +201,25 @@ data class RomMRomPage(
 )
 
 @JsonClass(generateAdapter = true)
+data class RomMCollection(
+    @Json(name = "id") val id: Long,
+    @Json(name = "name") val name: String,
+    @Json(name = "description") val description: String? = null,
+    @Json(name = "rom_ids") val romIds: List<Long> = emptyList(),
+    @Json(name = "is_favorite") val isFavorite: Boolean = false,
+    @Json(name = "is_public") val isPublic: Boolean = false,
+    @Json(name = "created_at") val createdAt: String? = null,
+    @Json(name = "updated_at") val updatedAt: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class RomMCollectionCreate(
+    @Json(name = "name") val name: String,
+    @Json(name = "description") val description: String? = null,
+    @Json(name = "rom_ids") val romIds: List<Long> = emptyList()
+)
+
+@JsonClass(generateAdapter = true)
 data class RomMRomUser(
     @Json(name = "rating") val rating: Int = 0,
     @Json(name = "difficulty") val difficulty: Int = 0,

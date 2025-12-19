@@ -15,8 +15,9 @@ import com.nendo.argosy.data.local.entity.GameEntity
 import com.nendo.argosy.data.local.entity.PlatformEntity
 import com.nendo.argosy.data.model.GameSource
 import com.nendo.argosy.data.preferences.GridDensity
-import com.nendo.argosy.data.remote.romm.RomMResult
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
+import com.nendo.argosy.data.remote.romm.RomMRepository
+import com.nendo.argosy.data.remote.romm.RomMResult
 import com.nendo.argosy.domain.usecase.download.DownloadResult
 import com.nendo.argosy.ui.input.InputHandler
 import com.nendo.argosy.ui.input.InputResult
@@ -236,7 +237,8 @@ class LibraryViewModel @Inject constructor(
     private val preferencesRepository: UserPreferencesRepository,
     private val soundManager: SoundFeedbackManager,
     private val gameActions: GameActionsDelegate,
-    private val gameLaunchDelegate: GameLaunchDelegate
+    private val gameLaunchDelegate: GameLaunchDelegate,
+    private val romMRepository: RomMRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LibraryUiState())
@@ -328,6 +330,12 @@ class LibraryViewModel @Inject constructor(
 
     fun onResume() {
         gameLaunchDelegate.handleSessionEnd(viewModelScope)
+
+        if (romMRepository.isConnected()) {
+            viewModelScope.launch {
+                romMRepository.refreshFavoritesIfNeeded()
+            }
+        }
     }
 
     private fun loadFilterOptions() {

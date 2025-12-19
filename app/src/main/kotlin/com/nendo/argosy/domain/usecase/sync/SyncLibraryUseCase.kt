@@ -70,6 +70,9 @@ class SyncLibraryUseCase @Inject constructor(
 
                         Logger.info(TAG, "invoke: syncLibrary returned - added=${result.gamesAdded}, updated=${result.gamesUpdated}, deleted=${result.gamesDeleted}, errors=${result.errors}")
 
+                        Logger.info(TAG, "invoke: syncing favorites")
+                        romMRepository.syncFavorites()
+
                         val subtitle = buildString {
                             append("${result.gamesAdded} added, ${result.gamesUpdated} updated")
                             if (result.gamesDeleted > 0) {

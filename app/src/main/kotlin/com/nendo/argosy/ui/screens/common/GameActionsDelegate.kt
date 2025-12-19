@@ -22,7 +22,14 @@ class GameActionsDelegate @Inject constructor(
     suspend fun toggleFavorite(gameId: Long): Boolean? {
         val game = gameDao.getById(gameId) ?: return null
         val newFavoriteState = !game.isFavorite
-        gameDao.updateFavorite(gameId, newFavoriteState)
+
+        val rommId = game.rommId
+        if (rommId != null) {
+            romMRepository.toggleFavoriteWithSync(gameId, rommId, newFavoriteState)
+        } else {
+            gameDao.updateFavorite(gameId, newFavoriteState)
+        }
+
         soundManager.play(if (newFavoriteState) SoundType.FAVORITE else SoundType.UNFAVORITE)
         return newFavoriteState
     }
