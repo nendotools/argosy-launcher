@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -307,111 +308,112 @@ fun HomeScreen(
             )
         }
 
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            HomeHeader(
-                sectionTitle = uiState.rowTitle,
-                showPlatformNav = false
-            )
+        val configuration = LocalConfiguration.current
+        val screenWidth = configuration.screenWidthDp.dp
+        val cardWidth = screenWidth * 0.16f
+        val cardHeight = cardWidth * 4f / 3f
+        val focusScale = 1.8f
+        val railHeight = cardHeight * focusScale + 16.dp
 
-            val configuration = LocalConfiguration.current
-            val screenWidth = configuration.screenWidthDp.dp
-            val cardWidth = screenWidth * 0.16f
-            val cardHeight = cardWidth * 4f / 3f
-            val focusScale = 1.8f
-            val railHeight = cardHeight * focusScale + 16.dp
-
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .then(swipeGestureModifier)
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier.fillMaxSize()
             ) {
-                GameInfo(
-                    title = uiState.focusedGame?.title ?: "",
-                    developer = uiState.focusedGame?.developer,
-                    rating = uiState.focusedGame?.rating,
-                    userRating = uiState.focusedGame?.userRating ?: 0,
-                    userDifficulty = uiState.focusedGame?.userDifficulty ?: 0,
-                    achievementCount = uiState.focusedGame?.achievementCount ?: 0,
-                    earnedAchievementCount = uiState.focusedGame?.earnedAchievementCount ?: 0,
-                    modifier = Modifier
-                        .fillMaxWidth(0.6f)
-                        .align(Alignment.BottomEnd)
-                        .padding(bottom = 8.dp)
+                HomeHeader(
+                    sectionTitle = uiState.rowTitle,
+                    showPlatformNav = false
                 )
-            }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(railHeight)
-            ) {
-                when {
-                    uiState.isLoading -> {
-                        LoadingState()
-                    }
-                    uiState.currentItems.isEmpty() -> {
-                        EmptyState(
-                            isRommConfigured = uiState.isRommConfigured,
-                            onSync = { viewModel.syncFromRomm() }
-                        )
-                    }
-                    else -> {
-                        GameRail(
-                            items = uiState.currentItems,
-                            focusedIndex = uiState.focusedGameIndex,
-                            listState = listState,
-                            rowKey = uiState.currentRow.toString(),
-                            downloadIndicatorFor = uiState::downloadIndicatorFor,
-                            onItemTap = { index -> viewModel.handleItemTap(index, onGameSelect) },
-                            onItemLongPress = viewModel::handleItemLongPress,
-                            modifier = Modifier.align(Alignment.BottomStart)
-                        )
-                    }
-                }
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .then(swipeGestureModifier)
+                )
 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(railHeight * 0.4f)
-                        .align(Alignment.TopCenter)
-                        .then(swipeGestureModifier)
-                )
-            }
-
-            val focusedGame = uiState.focusedGame
-            if (focusedGame != null && !uiState.showGameMenu) {
-                SubtleFooterBar(
-                    hints = listOf(
-                        InputButton.DPAD_HORIZONTAL to "Game",
-                        InputButton.DPAD_VERTICAL to "Platform",
-                        InputButton.SOUTH to if (focusedGame.isDownloaded) "Play" else "Download",
-                        InputButton.NORTH to if (focusedGame.isFavorite) "Unfavorite" else "Favorite",
-                        InputButton.WEST to "Details"
-                    ),
-                    onHintClick = { button ->
-                        when (button) {
-                            InputButton.SOUTH -> {
-                                if (focusedGame.isDownloaded) {
-                                    viewModel.launchGame(focusedGame.id)
-                                } else {
-                                    viewModel.queueDownload(focusedGame.id)
-                                }
-                            }
-                            InputButton.NORTH -> viewModel.toggleFavorite(focusedGame.id)
-                            InputButton.WEST -> onGameSelect(focusedGame.id)
-                            else -> {}
+                        .height(railHeight)
+                ) {
+                    when {
+                        uiState.isLoading -> {
+                            LoadingState()
                         }
-                    },
-                    modifier = Modifier.padding(top = Dimens.spacingSm)
-                )
-            } else {
-                Spacer(modifier = Modifier.height(32.dp))
-            }
-        }
+                        uiState.currentItems.isEmpty() -> {
+                            EmptyState(
+                                isRommConfigured = uiState.isRommConfigured,
+                                onSync = { viewModel.syncFromRomm() }
+                            )
+                        }
+                        else -> {
+                            GameRail(
+                                items = uiState.currentItems,
+                                focusedIndex = uiState.focusedGameIndex,
+                                listState = listState,
+                                rowKey = uiState.currentRow.toString(),
+                                downloadIndicatorFor = uiState::downloadIndicatorFor,
+                                onItemTap = { index -> viewModel.handleItemTap(index, onGameSelect) },
+                                onItemLongPress = viewModel::handleItemLongPress,
+                                modifier = Modifier.align(Alignment.BottomStart)
+                            )
+                        }
+                    }
 
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(railHeight * 0.4f)
+                            .align(Alignment.TopCenter)
+                            .then(swipeGestureModifier)
+                    )
+                }
+
+                val focusedGame = uiState.focusedGame
+                if (focusedGame != null && !uiState.showGameMenu) {
+                    SubtleFooterBar(
+                        hints = listOf(
+                            InputButton.DPAD_HORIZONTAL to "Game",
+                            InputButton.DPAD_VERTICAL to "Platform",
+                            InputButton.SOUTH to if (focusedGame.isDownloaded) "Play" else "Download",
+                            InputButton.NORTH to if (focusedGame.isFavorite) "Unfavorite" else "Favorite",
+                            InputButton.WEST to "Details"
+                        ),
+                        onHintClick = { button ->
+                            when (button) {
+                                InputButton.SOUTH -> {
+                                    if (focusedGame.isDownloaded) {
+                                        viewModel.launchGame(focusedGame.id)
+                                    } else {
+                                        viewModel.queueDownload(focusedGame.id)
+                                    }
+                                }
+                                InputButton.NORTH -> viewModel.toggleFavorite(focusedGame.id)
+                                InputButton.WEST -> onGameSelect(focusedGame.id)
+                                else -> {}
+                            }
+                        },
+                        modifier = Modifier.padding(top = Dimens.spacingSm)
+                    )
+                } else {
+                    Spacer(modifier = Modifier.height(32.dp))
+                }
+            }
+
+            GameInfo(
+                title = uiState.focusedGame?.title ?: "",
+                developer = uiState.focusedGame?.developer,
+                rating = uiState.focusedGame?.rating,
+                userRating = uiState.focusedGame?.userRating ?: 0,
+                userDifficulty = uiState.focusedGame?.userDifficulty ?: 0,
+                achievementCount = uiState.focusedGame?.achievementCount ?: 0,
+                earnedAchievementCount = uiState.focusedGame?.earnedAchievementCount ?: 0,
+                modifier = Modifier
+                    .fillMaxWidth(0.6f)
+                    .align(Alignment.TopEnd)
+                    .padding(top = 144.dp)
+            )
+        }
         }
 
         AnimatedVisibility(
@@ -528,8 +530,7 @@ private fun GameInfo(
     Column(
         modifier = modifier
             .padding(horizontal = 48.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Bottom
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = title,
