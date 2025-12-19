@@ -99,7 +99,7 @@ data class DisplayState(
     val boxArtGlowStrength: BoxArtGlowStrength = BoxArtGlowStrength.MEDIUM,
     val systemIconPosition: SystemIconPosition = SystemIconPosition.TOP_LEFT,
     val systemIconPadding: SystemIconPadding = SystemIconPadding.MEDIUM,
-    val defaultView: DefaultView = DefaultView.HOME
+    val defaultView: DefaultView = DefaultView.SHOWCASE
 )
 
 data class ControlsState(

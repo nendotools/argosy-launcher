@@ -228,8 +228,8 @@ class DisplaySettingsDelegate @Inject constructor(
     fun cycleDefaultView(scope: CoroutineScope) {
         val current = _state.value.defaultView
         val next = when (current) {
-            DefaultView.HOME -> DefaultView.LIBRARY
-            DefaultView.LIBRARY -> DefaultView.HOME
+            DefaultView.SHOWCASE -> DefaultView.LIBRARY
+            DefaultView.LIBRARY -> DefaultView.SHOWCASE
         }
         scope.launch {
             preferencesRepository.setDefaultView(next)

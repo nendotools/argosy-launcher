@@ -807,9 +807,10 @@ class LibraryViewModel @Inject constructor(
     }
 
     fun createInputHandler(
+        isDefaultView: Boolean,
         onGameSelect: (Long) -> Unit,
-        onDrawerToggle: () -> Unit,
-        onBack: () -> Unit
+        onNavigateToDefault: () -> Unit,
+        onDrawerToggle: () -> Unit
     ): InputHandler = object : InputHandler {
         override fun onUp(): InputResult {
             val state = _uiState.value
@@ -873,8 +874,9 @@ class LibraryViewModel @Inject constructor(
                     toggleQuickMenu()
                     InputResult.HANDLED
                 }
+                isDefaultView -> InputResult.UNHANDLED
                 else -> {
-                    onBack()
+                    onNavigateToDefault()
                     InputResult.HANDLED
                 }
             }

@@ -105,8 +105,10 @@ private const val SCROLL_OFFSET = -25
 
 @Composable
 fun HomeScreen(
+    isDefaultView: Boolean,
     onGameSelect: (Long) -> Unit,
     onNavigateToLibrary: (platformId: String?, sourceFilter: String?) -> Unit = { _, _ -> },
+    onNavigateToDefault: () -> Unit,
     onDrawerToggle: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -184,9 +186,11 @@ fun HomeScreen(
     }
 
     val inputDispatcher = LocalInputDispatcher.current
-    val inputHandler = remember(onGameSelect, onDrawerToggle) {
+    val inputHandler = remember(onGameSelect, onDrawerToggle, isDefaultView) {
         viewModel.createInputHandler(
+            isDefaultView = isDefaultView,
             onGameSelect = onGameSelect,
+            onNavigateToDefault = onNavigateToDefault,
             onDrawerToggle = onDrawerToggle
         )
     }
@@ -195,7 +199,7 @@ fun HomeScreen(
     DisposableEffect(lifecycleOwner, inputHandler) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                inputDispatcher.subscribeView(inputHandler, forRoute = Screen.ROUTE_HOME)
+                inputDispatcher.subscribeView(inputHandler, forRoute = Screen.ROUTE_SHOWCASE)
                 viewModel.onResume()
                 viewModel.refreshPlatforms()
                 viewModel.refreshFavorites()
@@ -203,7 +207,7 @@ fun HomeScreen(
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        inputDispatcher.subscribeView(inputHandler, forRoute = Screen.ROUTE_HOME)
+        inputDispatcher.subscribeView(inputHandler, forRoute = Screen.ROUTE_SHOWCASE)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
         }

@@ -96,8 +96,9 @@ import kotlin.math.abs
 
 @Composable
 fun LibraryScreen(
+    isDefaultView: Boolean,
     onGameSelect: (Long) -> Unit,
-    onBack: () -> Unit,
+    onNavigateToDefault: () -> Unit,
     onDrawerToggle: () -> Unit,
     initialPlatformId: String? = null,
     initialSource: String? = null,
@@ -199,11 +200,12 @@ fun LibraryScreen(
     }
 
     val inputDispatcher = LocalInputDispatcher.current
-    val inputHandler = remember(onGameSelect, onBack, onDrawerToggle) {
+    val inputHandler = remember(onGameSelect, onDrawerToggle, isDefaultView) {
         viewModel.createInputHandler(
+            isDefaultView = isDefaultView,
             onGameSelect = onGameSelect,
-            onDrawerToggle = onDrawerToggle,
-            onBack = onBack
+            onNavigateToDefault = onNavigateToDefault,
+            onDrawerToggle = onDrawerToggle
         )
     }
 

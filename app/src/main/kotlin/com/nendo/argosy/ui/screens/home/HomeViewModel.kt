@@ -1026,7 +1026,9 @@ class HomeViewModel @Inject constructor(
     }
 
     fun createInputHandler(
+        isDefaultView: Boolean,
         onGameSelect: (Long) -> Unit,
+        onNavigateToDefault: () -> Unit,
         onDrawerToggle: () -> Unit
     ): InputHandler = object : InputHandler {
         override fun onUp(): InputResult {
@@ -1092,6 +1094,10 @@ class HomeViewModel @Inject constructor(
             }
             if (navigateToContinuePlaying()) {
                 return InputResult.handled(SoundType.SECTION_CHANGE)
+            }
+            if (!isDefaultView) {
+                onNavigateToDefault()
+                return InputResult.HANDLED
             }
             return InputResult.UNHANDLED
         }

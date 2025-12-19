@@ -119,7 +119,7 @@ fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
             CyclePreference(
                 title = "Default View",
                 value = when (uiState.display.defaultView) {
-                    DefaultView.HOME -> "Home"
+                    DefaultView.SHOWCASE -> "Showcase"
                     DefaultView.LIBRARY -> "Library"
                 },
                 isFocused = uiState.focusedIndex == 5,

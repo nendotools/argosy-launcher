@@ -56,7 +56,7 @@ fun PlatformBadge(
     Box(
         modifier = modifier
             .clip(shape)
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.8f))
+            .background(MaterialTheme.colorScheme.primary)
             .padding(horizontal = horizontalPadding, vertical = verticalPadding),
         contentAlignment = Alignment.Center
     ) {

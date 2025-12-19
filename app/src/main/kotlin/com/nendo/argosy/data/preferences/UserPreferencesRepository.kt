@@ -566,7 +566,7 @@ data class UserPreferences(
     val boxArtGlowStrength: BoxArtGlowStrength = BoxArtGlowStrength.MEDIUM,
     val systemIconPosition: SystemIconPosition = SystemIconPosition.TOP_LEFT,
     val systemIconPadding: SystemIconPadding = SystemIconPadding.MEDIUM,
-    val defaultView: DefaultView = DefaultView.HOME
+    val defaultView: DefaultView = DefaultView.SHOWCASE
 )
 
 enum class ThemeMode {
@@ -644,10 +644,13 @@ enum class SystemIconPadding(val dp: Int) {
 }
 
 enum class DefaultView {
-    HOME, LIBRARY;
+    SHOWCASE, LIBRARY;
 
     companion object {
-        fun fromString(value: String?): DefaultView =
-            entries.find { it.name == value } ?: HOME
+        fun fromString(value: String?): DefaultView = when (value) {
+            "HOME", "SHOWCASE" -> SHOWCASE
+            "LIBRARY" -> LIBRARY
+            else -> SHOWCASE
+        }
     }
 }

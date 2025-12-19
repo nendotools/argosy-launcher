@@ -4,12 +4,14 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.nendo.argosy.data.preferences.DefaultView
 import com.nendo.argosy.ui.screens.apps.AppsScreen
 import com.nendo.argosy.ui.screens.downloads.DownloadsScreen
 import com.nendo.argosy.ui.screens.firstrun.FirstRunScreen
@@ -23,9 +25,21 @@ import com.nendo.argosy.ui.screens.settings.SettingsScreen
 fun NavGraph(
     navController: NavHostController,
     startDestination: String,
+    defaultView: DefaultView,
     onDrawerToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val navigateToDefault = remember(defaultView) {
+        {
+            val route = when (defaultView) {
+                DefaultView.SHOWCASE -> Screen.Showcase.route
+                DefaultView.LIBRARY -> Screen.Library.route
+            }
+            navController.navigate(route) {
+                popUpTo(0) { inclusive = true }
+            }
+        }
+    }
     NavHost(
         modifier = modifier,
         navController = navController,
@@ -38,21 +52,23 @@ fun NavGraph(
         composable(Screen.FirstRun.route) {
             FirstRunScreen(
                 onComplete = {
-                    navController.navigate(Screen.Home.route) {
+                    navController.navigate(Screen.Showcase.route) {
                         popUpTo(Screen.FirstRun.route) { inclusive = true }
                     }
                 }
             )
         }
 
-        composable(Screen.Home.route) {
+        composable(Screen.Showcase.route) {
             HomeScreen(
+                isDefaultView = defaultView == DefaultView.SHOWCASE,
                 onGameSelect = { gameId ->
                     navController.navigate(Screen.GameDetail.createRoute(gameId))
                 },
                 onNavigateToLibrary = { platformId, sourceFilter ->
                     navController.navigate(Screen.Library.createRoute(platformId, sourceFilter))
                 },
+                onNavigateToDefault = navigateToDefault,
                 onDrawerToggle = onDrawerToggle
             )
         }
@@ -75,36 +91,33 @@ fun NavGraph(
             val platformId = backStackEntry.arguments?.getString("platformId")
             val source = backStackEntry.arguments?.getString("source")
             LibraryScreen(
+                isDefaultView = defaultView == DefaultView.LIBRARY,
                 initialPlatformId = platformId,
                 initialSource = source,
                 onGameSelect = { gameId ->
                     navController.navigate(Screen.GameDetail.createRoute(gameId))
                 },
-                onBack = { navController.popBackStack() },
+                onNavigateToDefault = navigateToDefault,
                 onDrawerToggle = onDrawerToggle
             )
         }
 
         composable(Screen.Downloads.route) {
             DownloadsScreen(
-                onBack = { navController.popBackStack() },
+                onBack = navigateToDefault,
                 onDrawerToggle = onDrawerToggle
             )
         }
 
         composable(Screen.Apps.route) {
             AppsScreen(
-                onBack = {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Home.route) { inclusive = false }
-                    }
-                },
+                onBack = navigateToDefault,
                 onDrawerToggle = onDrawerToggle
             )
         }
 
         composable(Screen.Settings.route) {
-            SettingsScreen(onBack = { navController.popBackStack() })
+            SettingsScreen(onBack = navigateToDefault)
         }
 
         composable(
@@ -114,7 +127,7 @@ fun NavGraph(
             val gameId = backStackEntry.arguments?.getLong("gameId") ?: return@composable
             GameDetailScreen(
                 gameId = gameId,
-                onBack = { navController.popBackStack() }
+                onBack = navigateToDefault
             )
         }
 
@@ -123,7 +136,7 @@ fun NavGraph(
                 onGameSelect = { gameId ->
                     navController.navigate(Screen.GameDetail.createRoute(gameId))
                 },
-                onBack = { navController.popBackStack() }
+                onBack = navigateToDefault
             )
         }
     }

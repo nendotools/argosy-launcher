@@ -21,7 +21,7 @@ import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.FeaturedPlayList
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.HorizontalDivider
@@ -202,7 +202,7 @@ private fun DrawerMenuItem(
 }
 
 private fun getIconForRoute(route: String): ImageVector = when (route) {
-    Screen.Home.route -> Icons.Default.Home
+    Screen.Showcase.route -> Icons.Filled.FeaturedPlayList
     Screen.Library.route -> Icons.Default.VideoLibrary
     Screen.Downloads.route -> Icons.Default.Download
     Screen.Apps.route -> Icons.Default.Apps
