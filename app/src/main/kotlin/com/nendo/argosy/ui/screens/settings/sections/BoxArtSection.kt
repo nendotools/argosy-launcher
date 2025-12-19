@@ -131,6 +131,7 @@ fun BoxArtSection(
                 cornerRadiusDp = display.boxArtCornerRadius.dp.dp,
                 borderThicknessDp = display.boxArtBorderThickness.dp.dp,
                 glowAlpha = display.boxArtGlowStrength.alpha,
+                isShadow = display.boxArtGlowStrength.isShadow,
                 systemIconPosition = display.systemIconPosition,
                 systemIconPaddingDp = display.systemIconPadding.dp.dp
             )
@@ -196,6 +197,8 @@ private fun BoxArtGlowStrength.displayName(): String = when (this) {
     BoxArtGlowStrength.LOW -> "Low"
     BoxArtGlowStrength.MEDIUM -> "Medium"
     BoxArtGlowStrength.HIGH -> "High"
+    BoxArtGlowStrength.SHADOW_SMALL -> "Shadow S"
+    BoxArtGlowStrength.SHADOW_LARGE -> "Shadow L"
 }
 
 private fun SystemIconPosition.displayName(): String = when (this) {

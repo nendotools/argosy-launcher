@@ -181,6 +181,7 @@ data class BoxArtStyleConfig(
     val cornerRadiusDp: Dp = 8.dp,
     val borderThicknessDp: Dp = 2.dp,
     val glowAlpha: Float = 0.4f,
+    val isShadow: Boolean = false,
     val systemIconPosition: SystemIconPosition = SystemIconPosition.TOP_LEFT,
     val systemIconPaddingDp: Dp = 8.dp
 )
@@ -229,6 +230,7 @@ fun ALauncherTheme(
         cornerRadiusDp = themeState.boxArtCornerRadius.dp.dp,
         borderThicknessDp = themeState.boxArtBorderThickness.dp.dp,
         glowAlpha = themeState.boxArtGlowStrength.alpha,
+        isShadow = themeState.boxArtGlowStrength.isShadow,
         systemIconPosition = themeState.systemIconPosition,
         systemIconPaddingDp = themeState.systemIconPadding.dp.dp
     )

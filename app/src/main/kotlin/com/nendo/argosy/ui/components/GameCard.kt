@@ -98,7 +98,7 @@ fun GameCard(
         label = "glow"
     )
 
-    val glowColor = themeConfig.focusGlowColor
+    val glowColor = if (boxArtStyle.isShadow) Color.Black else themeConfig.focusGlowColor
     val borderColor = MaterialTheme.colorScheme.primary
     val shape = RoundedCornerShape(boxArtStyle.cornerRadiusDp)
 
@@ -191,6 +191,7 @@ fun GameCard(
             PlatformBadge(
                 platformId = game.platformId,
                 cardWidthDp = maxWidth,
+                isFocused = isFocused,
                 modifier = Modifier.align(badgeAlignment)
             )
         }

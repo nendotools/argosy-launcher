@@ -616,8 +616,13 @@ enum class BoxArtBorderThickness(val dp: Int) {
     }
 }
 
-enum class BoxArtGlowStrength(val alpha: Float) {
-    OFF(0f), LOW(0.2f), MEDIUM(0.4f), HIGH(0.6f);
+enum class BoxArtGlowStrength(val alpha: Float, val isShadow: Boolean = false) {
+    OFF(0f),
+    LOW(0.2f),
+    MEDIUM(0.4f),
+    HIGH(0.6f),
+    SHADOW_SMALL(0.15f, isShadow = true),
+    SHADOW_LARGE(0.25f, isShadow = true);
 
     companion object {
         fun fromString(value: String?): BoxArtGlowStrength =
