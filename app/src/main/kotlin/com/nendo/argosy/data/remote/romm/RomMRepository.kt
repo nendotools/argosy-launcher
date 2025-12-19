@@ -881,6 +881,42 @@ class RomMRepository @Inject constructor(
         }
     }
 
+    suspend fun fetchAndStorePlatforms(defaultSyncEnabled: Boolean = true): RomMResult<List<PlatformEntity>> {
+        val currentApi = api ?: return RomMResult.Error("Not connected")
+        return try {
+            val response = currentApi.getPlatforms()
+            if (response.isSuccessful) {
+                val platforms = response.body() ?: emptyList()
+                val entities = platforms.map { remote ->
+                    val existing = platformDao.getById(remote.slug)
+                    val platformDef = PlatformDefinitions.getById(remote.slug)
+                    val logoUrl = remote.logoUrl?.let { buildMediaUrl(it) }
+                    val normalizedName = platformDef?.name
+                        ?: PlatformDefinitions.normalizeDisplayName(remote.name)
+                    PlatformEntity(
+                        id = remote.slug,
+                        name = normalizedName,
+                        shortName = platformDef?.shortName ?: normalizedName,
+                        romExtensions = platformDef?.extensions?.joinToString(",") ?: "",
+                        gameCount = remote.romCount,
+                        isVisible = existing?.isVisible ?: true,
+                        logoPath = logoUrl ?: existing?.logoPath,
+                        sortOrder = platformDef?.sortOrder ?: existing?.sortOrder ?: 999,
+                        lastScanned = existing?.lastScanned,
+                        syncEnabled = existing?.syncEnabled ?: defaultSyncEnabled,
+                        customRomPath = existing?.customRomPath
+                    )
+                }
+                entities.forEach { platformDao.insert(it) }
+                RomMResult.Success(entities.sortedBy { it.sortOrder })
+            } else {
+                RomMResult.Error("Failed to fetch platforms", response.code())
+            }
+        } catch (e: Exception) {
+            RomMResult.Error(e.message ?: "Failed to fetch platforms")
+        }
+    }
+
     fun isConnected(): Boolean = _connectionState.value is ConnectionState.Connected
 
     fun disconnect() {

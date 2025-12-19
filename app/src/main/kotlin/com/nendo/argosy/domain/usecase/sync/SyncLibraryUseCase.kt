@@ -70,6 +70,12 @@ class SyncLibraryUseCase @Inject constructor(
 
                         Logger.info(TAG, "invoke: syncLibrary returned - added=${result.gamesAdded}, updated=${result.gamesUpdated}, deleted=${result.gamesDeleted}, errors=${result.errors}")
 
+                        if (result.errors.singleOrNull() == "Sync already in progress") {
+                            Logger.info(TAG, "invoke: sync already in progress, returning silently")
+                            notificationManager.dismissByKey(NOTIFICATION_KEY)
+                            return@withContext SyncLibraryResult.Error("Sync already in progress")
+                        }
+
                         Logger.info(TAG, "invoke: syncing favorites")
                         romMRepository.syncFavorites()
 

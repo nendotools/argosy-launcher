@@ -4,6 +4,8 @@ import android.os.Build
 import android.os.Environment
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nendo.argosy.data.local.dao.PlatformDao
+import com.nendo.argosy.data.local.entity.PlatformEntity
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.remote.romm.RomMRepository
 import com.nendo.argosy.data.remote.romm.RomMResult
@@ -11,6 +13,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -21,6 +24,7 @@ enum class FirstRunStep {
     ROMM_SUCCESS,
     ROM_PATH,
     SAVE_SYNC,
+    PLATFORM_SELECT,
     COMPLETE
 }
 
@@ -39,13 +43,16 @@ data class FirstRunUiState(
     val launchFolderPicker: Boolean = false,
     val saveSyncEnabled: Boolean = false,
     val hasStoragePermission: Boolean = false,
-    val rommFocusField: Int? = null
+    val rommFocusField: Int? = null,
+    val platforms: List<PlatformEntity> = emptyList(),
+    val platformButtonFocus: Int = 1
 )
 
 @HiltViewModel
 class FirstRunViewModel @Inject constructor(
     private val preferencesRepository: UserPreferencesRepository,
-    private val romMRepository: RomMRepository
+    private val romMRepository: RomMRepository,
+    private val platformDao: PlatformDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(FirstRunUiState())
@@ -58,10 +65,17 @@ class FirstRunViewModel @Inject constructor(
                 FirstRunStep.ROMM_LOGIN -> FirstRunStep.ROMM_SUCCESS
                 FirstRunStep.ROMM_SUCCESS -> FirstRunStep.ROM_PATH
                 FirstRunStep.ROM_PATH -> FirstRunStep.SAVE_SYNC
-                FirstRunStep.SAVE_SYNC -> FirstRunStep.COMPLETE
+                FirstRunStep.SAVE_SYNC -> {
+                    if (state.rommPlatformCount > 10) FirstRunStep.PLATFORM_SELECT
+                    else FirstRunStep.COMPLETE
+                }
+                FirstRunStep.PLATFORM_SELECT -> FirstRunStep.COMPLETE
                 FirstRunStep.COMPLETE -> FirstRunStep.COMPLETE
             }
             state.copy(currentStep = nextStep, focusedIndex = 0)
+        }
+        if (_uiState.value.currentStep == FirstRunStep.PLATFORM_SELECT) {
+            loadPlatformsForSelection()
         }
     }
 
@@ -73,9 +87,49 @@ class FirstRunViewModel @Inject constructor(
                 FirstRunStep.ROMM_SUCCESS -> FirstRunStep.ROMM_LOGIN
                 FirstRunStep.ROM_PATH -> FirstRunStep.ROMM_SUCCESS
                 FirstRunStep.SAVE_SYNC -> FirstRunStep.ROM_PATH
-                FirstRunStep.COMPLETE -> FirstRunStep.SAVE_SYNC
+                FirstRunStep.PLATFORM_SELECT -> FirstRunStep.SAVE_SYNC
+                FirstRunStep.COMPLETE -> {
+                    if (state.rommPlatformCount > 10) FirstRunStep.PLATFORM_SELECT
+                    else FirstRunStep.SAVE_SYNC
+                }
             }
             state.copy(currentStep = prevStep, focusedIndex = 0)
+        }
+    }
+
+    private fun loadPlatformsForSelection() {
+        viewModelScope.launch {
+            when (val result = romMRepository.fetchAndStorePlatforms(defaultSyncEnabled = false)) {
+                is RomMResult.Success -> {
+                    _uiState.update { it.copy(platforms = result.data) }
+                }
+                is RomMResult.Error -> {
+                    val platforms = platformDao.observeAllPlatforms().first()
+                    _uiState.update { it.copy(platforms = platforms) }
+                }
+            }
+        }
+    }
+
+    fun togglePlatform(platformId: String) {
+        viewModelScope.launch {
+            val platform = _uiState.value.platforms.find { it.id == platformId } ?: return@launch
+            platformDao.updateSyncEnabled(platformId, !platform.syncEnabled)
+            val updatedPlatforms = platformDao.observeAllPlatforms().first()
+            _uiState.update { it.copy(platforms = updatedPlatforms) }
+        }
+    }
+
+    fun toggleAllPlatforms() {
+        viewModelScope.launch {
+            val platforms = _uiState.value.platforms
+            val allEnabled = platforms.all { it.syncEnabled }
+            val newState = !allEnabled
+            platforms.forEach { platform ->
+                platformDao.updateSyncEnabled(platform.id, newState)
+            }
+            val updatedPlatforms = platformDao.observeAllPlatforms().first()
+            _uiState.update { it.copy(platforms = updatedPlatforms) }
         }
     }
 
@@ -93,6 +147,7 @@ class FirstRunViewModel @Inject constructor(
                 }
             }
             FirstRunStep.SAVE_SYNC -> 1
+            FirstRunStep.PLATFORM_SELECT -> state.platforms.size
             FirstRunStep.COMPLETE -> 0
         }
     }
@@ -103,6 +158,16 @@ class FirstRunViewModel @Inject constructor(
         val newIndex = (state.focusedIndex + delta).coerceIn(0, maxIndex)
         if (newIndex == state.focusedIndex) return false
         _uiState.update { it.copy(focusedIndex = newIndex) }
+        return true
+    }
+
+    fun moveButtonFocus(delta: Int): Boolean {
+        val state = _uiState.value
+        if (state.currentStep != FirstRunStep.PLATFORM_SELECT) return false
+        if (state.focusedIndex < state.platforms.size) return false
+        val newIndex = (state.platformButtonFocus + delta).coerceIn(0, 1)
+        if (newIndex == state.platformButtonFocus) return false
+        _uiState.update { it.copy(platformButtonFocus = newIndex) }
         return true
     }
 
@@ -270,8 +335,21 @@ class FirstRunViewModel @Inject constructor(
             FirstRunStep.SAVE_SYNC -> {
                 if (state.focusedIndex == 0) enableSaveSync() else skipSaveSync()
             }
+            FirstRunStep.PLATFORM_SELECT -> {
+                if (state.focusedIndex >= state.platforms.size) {
+                    if (state.platformButtonFocus == 0) toggleAllPlatforms()
+                    else proceedFromPlatformSelect()
+                } else {
+                    val platform = state.platforms.getOrNull(state.focusedIndex)
+                    if (platform != null) togglePlatform(platform.id)
+                }
+            }
             FirstRunStep.COMPLETE -> {}
         }
+    }
+
+    fun proceedFromPlatformSelect() {
+        nextStep()
     }
 
     fun createInputHandler(

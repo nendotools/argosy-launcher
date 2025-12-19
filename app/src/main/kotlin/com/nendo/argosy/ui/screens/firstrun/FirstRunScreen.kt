@@ -22,10 +22,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Switch
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
@@ -61,7 +66,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LifecycleEventEffect
+import com.nendo.argosy.data.local.entity.PlatformEntity
+import com.nendo.argosy.ui.components.FooterBar
+import com.nendo.argosy.ui.components.InputButton
 import com.nendo.argosy.ui.input.LocalInputDispatcher
+import com.nendo.argosy.ui.theme.Dimens
 
 @Composable
 fun FirstRunScreen(
@@ -182,6 +191,14 @@ fun FirstRunScreen(
                     focusedIndex = uiState.focusedIndex,
                     onEnable = { viewModel.enableSaveSync() },
                     onSkip = { viewModel.skipSaveSync() }
+                )
+                FirstRunStep.PLATFORM_SELECT -> PlatformSelectStep(
+                    platforms = uiState.platforms,
+                    focusedIndex = uiState.focusedIndex,
+                    buttonFocusIndex = uiState.platformButtonFocus,
+                    onToggle = { viewModel.togglePlatform(it) },
+                    onToggleAll = { viewModel.toggleAllPlatforms() },
+                    onContinue = { viewModel.proceedFromPlatformSelect() }
                 )
                 FirstRunStep.COMPLETE -> CompleteStep(
                     gameCount = uiState.rommGameCount,
@@ -572,6 +589,127 @@ private fun SaveSyncStep(
             text = "You can enable this later in Settings.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun PlatformSelectStep(
+    platforms: List<PlatformEntity>,
+    focusedIndex: Int,
+    buttonFocusIndex: Int,
+    onToggle: (String) -> Unit,
+    onToggleAll: () -> Unit,
+    onContinue: () -> Unit
+) {
+    val listState = rememberLazyListState()
+    val enabledCount = platforms.count { it.syncEnabled }
+    val allEnabled = platforms.isNotEmpty() && enabledCount == platforms.size
+    val isOnButtons = focusedIndex >= platforms.size
+
+    LaunchedEffect(focusedIndex) {
+        if (platforms.isNotEmpty() && focusedIndex in platforms.indices) {
+            listState.animateScrollToItem(focusedIndex)
+        }
+    }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(32.dp)
+    ) {
+        Text(
+            text = "SELECT PLATFORMS",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Choose which platforms to sync",
+            style = MaterialTheme.typography.headlineSmall
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "$enabledCount of ${platforms.size} platforms selected",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .heightIn(max = 300.dp),
+            verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
+        ) {
+            itemsIndexed(platforms, key = { _, p -> p.id }) { index, platform ->
+                val isFocused = index == focusedIndex
+                PlatformToggleItem(
+                    platform = platform,
+                    isFocused = isFocused,
+                    onToggle = { onToggle(platform.id) }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(0.9f),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            FocusableOutlinedButton(
+                text = if (allEnabled) "Deselect All" else "Select All",
+                isFocused = isOnButtons && buttonFocusIndex == 0,
+                onClick = onToggleAll
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            FocusableButton(
+                text = "Continue",
+                isFocused = isOnButtons && buttonFocusIndex == 1,
+                onClick = onContinue
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlatformToggleItem(
+    platform: PlatformEntity,
+    isFocused: Boolean,
+    onToggle: () -> Unit
+) {
+    val backgroundColor = if (isFocused) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(backgroundColor, RoundedCornerShape(8.dp))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = platform.name,
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (isFocused) MaterialTheme.colorScheme.onPrimaryContainer
+                        else MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "${platform.gameCount} games",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isFocused) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(
+            checked = platform.syncEnabled,
+            onCheckedChange = { onToggle() }
         )
     }
 }

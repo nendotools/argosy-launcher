@@ -18,6 +18,14 @@ class FirstRunInputHandler(
         return if (viewModel.moveFocus(1)) InputResult.HANDLED else InputResult.UNHANDLED
     }
 
+    override fun onLeft(): InputResult {
+        return if (viewModel.moveButtonFocus(-1)) InputResult.HANDLED else InputResult.UNHANDLED
+    }
+
+    override fun onRight(): InputResult {
+        return if (viewModel.moveButtonFocus(1)) InputResult.HANDLED else InputResult.UNHANDLED
+    }
+
     override fun onConfirm(): InputResult {
         val state = viewModel.uiState.value
         if (state.currentStep == FirstRunStep.COMPLETE) {
@@ -34,7 +42,20 @@ class FirstRunInputHandler(
         if (state.currentStep == FirstRunStep.WELCOME) {
             return InputResult.UNHANDLED
         }
+        if (state.currentStep == FirstRunStep.PLATFORM_SELECT) {
+            viewModel.proceedFromPlatformSelect()
+            return InputResult.HANDLED
+        }
         viewModel.previousStep()
         return InputResult.HANDLED
+    }
+
+    override fun onContextMenu(): InputResult {
+        val state = viewModel.uiState.value
+        if (state.currentStep == FirstRunStep.PLATFORM_SELECT) {
+            viewModel.toggleAllPlatforms()
+            return InputResult.HANDLED
+        }
+        return InputResult.UNHANDLED
     }
 }
