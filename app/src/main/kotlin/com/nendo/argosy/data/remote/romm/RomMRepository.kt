@@ -1267,7 +1267,12 @@ class RomMRepository @Inject constructor(
 
             userPreferencesRepository.setLastFavoritesCheckTime(Instant.now())
 
-            if (lastSync != null && !remoteUpdatedAt.isAfter(lastSync)) {
+            if (lastSync == null) {
+                Logger.info(TAG, "refreshFavoritesIfNeeded: first sync, delegating to syncFavorites")
+                return syncFavorites()
+            }
+
+            if (!remoteUpdatedAt.isAfter(lastSync)) {
                 return RomMResult.Success(Unit)
             }
 
