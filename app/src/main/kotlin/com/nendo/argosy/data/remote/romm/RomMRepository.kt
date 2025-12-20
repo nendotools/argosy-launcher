@@ -908,7 +908,8 @@ class RomMRepository @Inject constructor(
                     )
                 }
                 entities.forEach { platformDao.insert(it) }
-                RomMResult.Success(entities.sortedBy { it.sortOrder })
+                val uniqueEntities = entities.distinctBy { it.id }
+                RomMResult.Success(uniqueEntities.sortedBy { it.sortOrder })
             } else {
                 RomMResult.Error("Failed to fetch platforms", response.code())
             }
