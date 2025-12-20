@@ -257,7 +257,13 @@ fun HomeScreen(
     val overlayBaseColor = if (isDarkTheme) Color.Black else Color.White
 
     val effectiveBackgroundPath = if (uiState.useGameBackground) {
-        uiState.focusedGame?.backgroundPath
+        uiState.focusedGame?.let { game ->
+            when {
+                game.backgroundPath?.startsWith("/") == true -> game.backgroundPath
+                game.coverPath?.startsWith("/") == true -> game.coverPath
+                else -> game.backgroundPath ?: game.coverPath
+            }
+        }
     } else {
         uiState.customBackgroundPath
     }
