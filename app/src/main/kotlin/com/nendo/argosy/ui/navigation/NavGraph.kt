@@ -152,7 +152,7 @@ fun NavGraph(
             val gameId = backStackEntry.arguments?.getLong("gameId") ?: return@composable
             GameDetailScreen(
                 gameId = gameId,
-                onBack = navigateToDefault
+                onBack = { navController.popBackStack() }
             )
         }
 
