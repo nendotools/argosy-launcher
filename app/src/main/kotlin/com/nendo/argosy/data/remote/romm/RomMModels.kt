@@ -235,6 +235,7 @@ data class RomMUserPropsUpdateData(
     @Json(name = "rating") val rating: Int? = null,
     @Json(name = "difficulty") val difficulty: Int? = null,
     @Json(name = "completion") val completion: Int? = null,
+    @Json(name = "status") val status: String? = null,
     @Json(name = "backlogged") val backlogged: Boolean? = null,
     @Json(name = "now_playing") val nowPlaying: Boolean? = null
 )

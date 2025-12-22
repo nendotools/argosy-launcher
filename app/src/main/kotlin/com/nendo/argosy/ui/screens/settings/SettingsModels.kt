@@ -111,7 +111,9 @@ data class ControlsState(
     val swapXY: Boolean = false,
     val abIconLayout: String = "auto",
     val detectedLayout: String? = null,
-    val swapStartSelect: Boolean = false
+    val swapStartSelect: Boolean = false,
+    val accuratePlayTimeEnabled: Boolean = false,
+    val hasUsageStatsPermission: Boolean = false
 )
 
 data class SoundState(

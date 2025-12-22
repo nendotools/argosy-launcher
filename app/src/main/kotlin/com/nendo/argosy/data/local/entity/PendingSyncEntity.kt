@@ -11,6 +11,7 @@ data class PendingSyncEntity(
     val gameId: Long,
     val rommId: Long,
     val syncType: String,
-    val value: Int,
+    val value: Int = 0,
+    val stringValue: String? = null,
     val createdAt: Instant = Instant.now()
 )

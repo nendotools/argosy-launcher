@@ -262,6 +262,9 @@ interface GameDao {
     @Query("UPDATE games SET completion = :completion WHERE id = :gameId")
     suspend fun updateCompletion(gameId: Long, completion: Int)
 
+    @Query("UPDATE games SET status = :status WHERE id = :gameId")
+    suspend fun updateStatus(gameId: Long, status: String?)
+
     @Query("UPDATE games SET backlogged = :backlogged WHERE id = :gameId")
     suspend fun updateBacklogged(gameId: Long, backlogged: Boolean)
 
@@ -304,6 +307,7 @@ interface GameDao {
     @Query("""
         SELECT * FROM games
         WHERE (playCount = 0 OR playCount IS NULL)
+        AND (completion = 0 OR completion IS NULL)
         AND localPath IS NOT NULL
         AND isHidden = 0
     """)
@@ -312,6 +316,7 @@ interface GameDao {
     @Query("""
         SELECT * FROM games
         WHERE (playCount = 0 OR playCount IS NULL)
+        AND (completion = 0 OR completion IS NULL)
         AND localPath IS NULL
         AND isHidden = 0
     """)

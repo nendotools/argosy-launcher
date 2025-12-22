@@ -165,6 +165,18 @@ fun GameHeader(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            if (game.playTimeMinutes > 0 || game.status != null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (game.playTimeMinutes > 0) {
+                        PlayTimeChip(minutes = game.playTimeMinutes)
+                    }
+                    game.status?.let { status ->
+                        StatusChip(statusValue = status)
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             ActionButtons(game = game, uiState = uiState, viewModel = viewModel)
 
             uiState.saveStatusInfo?.let { statusInfo ->

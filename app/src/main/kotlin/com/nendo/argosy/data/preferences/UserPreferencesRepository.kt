@@ -86,6 +86,7 @@ class UserPreferencesRepository @Inject constructor(
         val LAST_PENALTY_DECAY_WEEK = stringPreferencesKey("last_penalty_decay_week")
         val LAST_SEEN_VERSION = stringPreferencesKey("last_seen_version")
         val LIBRARY_RECENT_SEARCHES = stringPreferencesKey("library_recent_searches")
+        val ACCURATE_PLAY_TIME_ENABLED = booleanPreferencesKey("accurate_play_time_enabled")
     }
 
     val userPreferences: Flow<UserPreferences> = dataStore.data.map { prefs ->
@@ -174,7 +175,8 @@ class UserPreferencesRepository @Inject constructor(
             libraryRecentSearches = prefs[Keys.LIBRARY_RECENT_SEARCHES]
                 ?.split(",")
                 ?.filter { it.isNotBlank() }
-                ?: emptyList()
+                ?: emptyList(),
+            accuratePlayTimeEnabled = prefs[Keys.ACCURATE_PLAY_TIME_ENABLED] ?: false
         )
     }
 
@@ -616,6 +618,12 @@ class UserPreferencesRepository @Inject constructor(
             prefs[Keys.LIBRARY_RECENT_SEARCHES] = updated.take(5).joinToString(",")
         }
     }
+
+    suspend fun setAccuratePlayTimeEnabled(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.ACCURATE_PLAY_TIME_ENABLED] = enabled
+        }
+    }
 }
 
 data class UserPreferences(
@@ -671,7 +679,8 @@ data class UserPreferences(
     val recommendationPenalties: Map<Long, Float> = emptyMap(),
     val lastPenaltyDecayWeek: String? = null,
     val lastSeenVersion: String? = null,
-    val libraryRecentSearches: List<String> = emptyList()
+    val libraryRecentSearches: List<String> = emptyList(),
+    val accuratePlayTimeEnabled: Boolean = false
 )
 
 enum class ThemeMode {

@@ -5,6 +5,7 @@ import com.nendo.argosy.data.local.entity.GameEntity
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import kotlinx.coroutines.flow.first
 import java.time.DayOfWeek
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
@@ -36,6 +37,7 @@ class GenerateRecommendationsUseCase @Inject constructor(
 
         val genreWeights = calculateGenreWeights(playedGames)
         val platformWeights = calculatePlatformWeights(playedGames)
+        val playTimeBoost = calculatePlayTimeBoost(playedGames)
 
         val undownloadedGames = gameDao.getUnplayedUndownloadedGames()
         val installedUnplayed = gameDao.getUnplayedInstalledGames()
@@ -50,7 +52,8 @@ class GenerateRecommendationsUseCase @Inject constructor(
             UNDOWNLOADED_TARGET,
             genreWeights,
             platformWeights,
-            penalties
+            penalties,
+            playTimeBoost
         )
 
         recommendations.addAll(undownloadedPicks)
@@ -63,7 +66,8 @@ class GenerateRecommendationsUseCase @Inject constructor(
             remainingSlots,
             genreWeights,
             platformWeights,
-            penalties
+            penalties,
+            playTimeBoost
         )
 
         recommendations.addAll(installedPicks)
@@ -75,7 +79,8 @@ class GenerateRecommendationsUseCase @Inject constructor(
                 TOTAL_RECOMMENDATIONS - recommendations.size,
                 genreWeights,
                 platformWeights,
-                penalties
+                penalties,
+                playTimeBoost
             )
             recommendations.addAll(additionalUndownloaded)
         }
@@ -121,13 +126,20 @@ class GenerateRecommendationsUseCase @Inject constructor(
         return result
     }
 
+    private fun calculateRecencyFactor(lastPlayed: Instant?): Double {
+        if (lastPlayed == null) return 0.1
+        val daysSincePlay = Duration.between(lastPlayed, Instant.now()).toDays()
+        return 1.0 / (1.0 + (daysSincePlay / 30.0))
+    }
+
     private fun calculateGenreWeights(playedGames: List<GameEntity>): Map<String, Double> {
         val weights = mutableMapOf<String, Double>()
         for (game in playedGames) {
             val genre = game.genre ?: continue
             val playCount = game.playCount.coerceAtLeast(1)
             val playTimeHours = game.playTimeMinutes / 60.0
-            val weight = playCount + playTimeHours
+            val recencyFactor = calculateRecencyFactor(game.lastPlayed)
+            val weight = (playCount + playTimeHours) * recencyFactor
             weights[genre] = weights.getOrDefault(genre, 0.0) + weight
         }
         return weights
@@ -138,28 +150,40 @@ class GenerateRecommendationsUseCase @Inject constructor(
         for (game in playedGames) {
             val playCount = game.playCount.coerceAtLeast(1)
             val playTimeHours = game.playTimeMinutes / 60.0
-            val weight = playCount + playTimeHours
+            val recencyFactor = calculateRecencyFactor(game.lastPlayed)
+            val weight = (playCount + playTimeHours) * recencyFactor
             weights[game.platformId] = weights.getOrDefault(game.platformId, 0.0) + weight
         }
         return weights
+    }
+
+    private fun calculatePlayTimeBoost(playedGames: List<GameEntity>): Double {
+        val effectivePlayTimeHours = playedGames.sumOf { game ->
+            val playTimeHours = game.playTimeMinutes / 60.0
+            val recencyFactor = calculateRecencyFactor(game.lastPlayed)
+            playTimeHours * recencyFactor
+        }
+        return (effectivePlayTimeHours / 10.0).coerceIn(0.0, 0.25)
     }
 
     private fun calculatePreferenceScore(
         game: GameEntity,
         genreWeights: Map<String, Double>,
         platformWeights: Map<String, Double>,
-        penalties: Map<Long, Float>
+        penalties: Map<Long, Float>,
+        playTimeBoost: Double
     ): Double {
         val genreScore = game.genre?.let { genreWeights[it] } ?: 0.0
         val platformScore = platformWeights[game.platformId] ?: 0.0
         val ratingScore = (game.rating ?: 0f).toDouble()
 
         val baseScore = (genreScore * 0.5) + (platformScore * 0.3) + (ratingScore * 0.2)
+        val boostedScore = baseScore * (1.0 + playTimeBoost)
 
         val penalty = penalties[game.id] ?: 0f
         val penaltyMultiplier = 1.0 - penalty
 
-        return baseScore * penaltyMultiplier
+        return boostedScore * penaltyMultiplier
     }
 
     private fun weightedRandomSelect(
@@ -167,13 +191,14 @@ class GenerateRecommendationsUseCase @Inject constructor(
         count: Int,
         genreWeights: Map<String, Double>,
         platformWeights: Map<String, Double>,
-        penalties: Map<Long, Float>
+        penalties: Map<Long, Float>,
+        playTimeBoost: Double
     ): List<Long> {
         if (games.isEmpty()) return emptyList()
         if (games.size <= count) return games.map { it.id }
 
         val scored = games.map { game ->
-            game to calculatePreferenceScore(game, genreWeights, platformWeights, penalties)
+            game to calculatePreferenceScore(game, genreWeights, platformWeights, penalties, playTimeBoost)
         }
 
         val candidatePoolSize = (count * 4).coerceAtMost(games.size)

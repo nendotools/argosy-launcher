@@ -382,6 +382,7 @@ class RomMRepository @Inject constructor(
             userRating = rom.romUser?.rating ?: existing?.userRating ?: 0,
             userDifficulty = rom.romUser?.difficulty ?: existing?.userDifficulty ?: 0,
             completion = rom.romUser?.completion ?: existing?.completion ?: 0,
+            status = rom.romUser?.status ?: existing?.status,
             backlogged = rom.romUser?.backlogged ?: existing?.backlogged ?: false,
             nowPlaying = rom.romUser?.nowPlaying ?: existing?.nowPlaying ?: false,
             isFavorite = existing?.isFavorite ?: false,
@@ -750,6 +751,40 @@ class RomMRepository @Inject constructor(
         }
     }
 
+    suspend fun refreshUserProps(gameId: Long): RomMResult<Unit> {
+        val currentApi = api ?: return RomMResult.Success(Unit)
+        val game = gameDao.getById(gameId) ?: return RomMResult.Error("Game not found")
+        val rommId = game.rommId ?: return RomMResult.Success(Unit)
+
+        return try {
+            val response = currentApi.getRom(rommId)
+            if (!response.isSuccessful) {
+                Logger.warn(TAG, "refreshUserProps: failed to fetch rom $rommId: ${response.code()}")
+                return RomMResult.Success(Unit)
+            }
+
+            val rom = response.body() ?: return RomMResult.Success(Unit)
+            val romUser = rom.romUser ?: return RomMResult.Success(Unit)
+
+            val updatedGame = game.copy(
+                userRating = romUser.rating,
+                userDifficulty = romUser.difficulty,
+                status = romUser.status,
+                backlogged = romUser.backlogged,
+                nowPlaying = romUser.nowPlaying
+            )
+
+            if (updatedGame != game) {
+                gameDao.update(updatedGame)
+            }
+
+            RomMResult.Success(Unit)
+        } catch (e: Exception) {
+            Logger.warn(TAG, "refreshUserProps: exception for game $gameId: ${e.message}")
+            RomMResult.Success(Unit)
+        }
+    }
+
     suspend fun refreshGameData(gameId: Long): RomMResult<Unit> {
         val currentApi = api ?: return RomMResult.Error("Not connected")
         val game = gameDao.getById(gameId) ?: return RomMResult.Error("Game not found")
@@ -1035,6 +1070,36 @@ class RomMRepository @Inject constructor(
         }
     }
 
+    suspend fun updateUserStatus(gameId: Long, status: String?): RomMResult<Unit> {
+        val game = gameDao.getById(gameId) ?: return RomMResult.Error("Game not found")
+
+        gameDao.updateStatus(gameId, status)
+
+        val rommId = game.rommId ?: return RomMResult.Success(Unit)
+
+        pendingSyncDao.deleteByGameAndType(gameId, "STATUS")
+
+        val currentApi = api
+        if (currentApi == null || _connectionState.value !is ConnectionState.Connected) {
+            pendingSyncDao.insert(PendingSyncEntity(gameId = gameId, rommId = rommId, syncType = "STATUS", stringValue = status))
+            return RomMResult.Success(Unit)
+        }
+
+        return try {
+            val response = currentApi.updateRomUserProps(
+                rommId,
+                RomMUserPropsUpdate(data = RomMUserPropsUpdateData(status = status))
+            )
+            if (!response.isSuccessful) {
+                pendingSyncDao.insert(PendingSyncEntity(gameId = gameId, rommId = rommId, syncType = "STATUS", stringValue = status))
+            }
+            RomMResult.Success(Unit)
+        } catch (e: Exception) {
+            pendingSyncDao.insert(PendingSyncEntity(gameId = gameId, rommId = rommId, syncType = "STATUS", stringValue = status))
+            RomMResult.Success(Unit)
+        }
+    }
+
     suspend fun checkConnection(retryCount: Int = 2) {
         if (api == null) {
             Logger.info(TAG, "checkConnection: api is null, initializing")
@@ -1115,6 +1180,7 @@ class RomMRepository @Inject constructor(
                 val props = when (item.syncType) {
                     "RATING" -> RomMUserPropsUpdate(data = RomMUserPropsUpdateData(rating = item.value))
                     "DIFFICULTY" -> RomMUserPropsUpdate(data = RomMUserPropsUpdateData(difficulty = item.value))
+                    "STATUS" -> RomMUserPropsUpdate(data = RomMUserPropsUpdateData(status = item.stringValue))
                     else -> continue
                 }
                 val response = currentApi.updateRomUserProps(item.rommId, props)

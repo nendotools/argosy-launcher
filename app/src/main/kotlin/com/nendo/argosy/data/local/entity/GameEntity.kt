@@ -66,6 +66,7 @@ data class GameEntity(
     val userRating: Int = 0,
     val userDifficulty: Int = 0,
     val completion: Int = 0,
+    val status: String? = null,
     val backlogged: Boolean = false,
     val nowPlaying: Boolean = false,
 

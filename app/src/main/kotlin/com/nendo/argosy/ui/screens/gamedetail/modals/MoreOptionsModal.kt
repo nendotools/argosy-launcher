@@ -6,6 +6,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.nendo.argosy.domain.model.CompletionStatus
 import com.nendo.argosy.ui.components.Modal
 import com.nendo.argosy.ui.screens.gamedetail.GameDetailUi
 import com.nendo.argosy.ui.screens.gamedetail.components.OptionItem
@@ -48,6 +50,12 @@ fun MoreOptionsModal(
                 icon = Icons.Default.Whatshot,
                 label = "Set Difficulty",
                 value = if (game.userDifficulty > 0) "${game.userDifficulty}/10" else "Not set",
+                isFocused = focusIndex == currentIndex++
+            )
+            OptionItem(
+                icon = Icons.Default.CheckCircle,
+                label = "Set Status",
+                value = CompletionStatus.fromApiValue(game.status)?.label ?: "Not set",
                 isFocused = focusIndex == currentIndex++
             )
         }

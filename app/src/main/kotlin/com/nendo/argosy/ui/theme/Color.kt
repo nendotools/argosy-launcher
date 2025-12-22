@@ -32,4 +32,8 @@ object ALauncherColors {
     val StarGold = Color(0xFFFFD700)
     val DifficultyRed = Color(0xFFE53935)
     val TrophyAmber = Color(0xFFFFB300)
+
+    val CompletionPlaying = Color(0xFF5C6BC0)
+    val CompletionBeaten = Color(0xFF66BB6A)
+    val CompletionCompleted = Color(0xFFFFB300)
 }

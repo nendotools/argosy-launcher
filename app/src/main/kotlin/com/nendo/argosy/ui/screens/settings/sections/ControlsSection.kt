@@ -18,7 +18,7 @@ import com.nendo.argosy.ui.theme.Motion
 @Composable
 fun ControlsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
     val listState = rememberLazyListState()
-    val maxIndex = if (uiState.controls.hapticEnabled) 3 else 2
+    val maxIndex = if (uiState.controls.hapticEnabled) 4 else 3
 
     LaunchedEffect(uiState.focusedIndex) {
         if (uiState.focusedIndex in 0..maxIndex) {

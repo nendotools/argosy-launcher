@@ -311,8 +311,10 @@ class SettingsViewModel @Inject constructor(
                 swapXY = prefs.swapXY,
                 abIconLayout = prefs.abIconLayout,
                 detectedLayout = controlsDelegate.detectControllerLayout(),
-                swapStartSelect = prefs.swapStartSelect
+                swapStartSelect = prefs.swapStartSelect,
+                accuratePlayTimeEnabled = prefs.accuratePlayTimeEnabled
             ))
+            controlsDelegate.refreshUsageStatsPermission()
 
             soundsDelegate.updateState(SoundState(
                 enabled = prefs.soundEnabled,
@@ -676,7 +678,7 @@ class SettingsViewModel @Inject constructor(
                     val showIconPadding = state.display.systemIconPosition != com.nendo.argosy.data.preferences.SystemIconPosition.OFF
                     if (showIconPadding) 4 else 3
                 }
-                SettingsSection.CONTROLS -> if (state.controls.hapticEnabled) 4 else 3
+                SettingsSection.CONTROLS -> if (state.controls.hapticEnabled) 5 else 4
                 SettingsSection.SOUNDS -> if (state.sounds.enabled) 1 + SoundType.entries.size else 0
                 SettingsSection.EMULATORS -> {
                     val platformCount = state.emulators.platforms.size
@@ -901,6 +903,27 @@ class SettingsViewModel @Inject constructor(
 
     fun setSwapStartSelect(enabled: Boolean) {
         controlsDelegate.setSwapStartSelect(viewModelScope, enabled)
+    }
+
+    fun setAccuratePlayTimeEnabled(enabled: Boolean) {
+        controlsDelegate.setAccuratePlayTimeEnabled(viewModelScope, enabled)
+    }
+
+    fun refreshUsageStatsPermission() {
+        controlsDelegate.refreshUsageStatsPermission()
+    }
+
+    fun openUsageStatsSettings() {
+        controlsDelegate.openUsageStatsSettings()
+    }
+
+    private fun handlePlayTimeToggle(controls: ControlsState) {
+        val newEnabled = !controls.accuratePlayTimeEnabled
+        if (newEnabled && !controls.hasUsageStatsPermission) {
+            openUsageStatsSettings()
+        } else {
+            setAccuratePlayTimeEnabled(newEnabled)
+        }
     }
 
     fun showRegionPicker() {
@@ -1288,9 +1311,10 @@ class SettingsViewModel @Inject constructor(
                         4 -> cancelRommConfig()
                     }
                 } else {
+                    // Indices: 0=RomM, 1=SyncSettings, 2=SyncLibrary, 3=AccuratePlayTime, 4=SaveCache, 5=SyncSaves, 6+=Steam
                     val steamBaseIndex = when {
-                        isConnected && state.syncSettings.saveSyncEnabled -> 5
-                        isConnected -> 3
+                        isConnected && state.syncSettings.saveSyncEnabled -> 6
+                        isConnected -> 4
                         else -> 1
                     }
                     val launcherCount = state.steam.installedLaunchers.size
@@ -1299,8 +1323,17 @@ class SettingsViewModel @Inject constructor(
                         state.focusedIndex == 0 -> startRommConfig()
                         state.focusedIndex == 1 && isConnected -> navigateToSection(SettingsSection.SYNC_SETTINGS)
                         state.focusedIndex == 2 && isConnected && isOnline -> syncRomm()
-                        state.focusedIndex == 3 && isConnected && state.syncSettings.saveSyncEnabled -> cycleSaveCacheLimit()
-                        state.focusedIndex == 4 && isConnected && state.syncSettings.saveSyncEnabled && isOnline -> runSaveSyncNow()
+                        state.focusedIndex == 3 && isConnected -> {
+                            val hasPermission = state.controls.hasUsageStatsPermission
+                            if (!state.controls.accuratePlayTimeEnabled && !hasPermission) {
+                                openUsageStatsSettings()
+                            } else {
+                                setAccuratePlayTimeEnabled(!state.controls.accuratePlayTimeEnabled)
+                            }
+                            return InputResult.handled(SoundType.TOGGLE)
+                        }
+                        state.focusedIndex == 4 && isConnected && state.syncSettings.saveSyncEnabled -> cycleSaveCacheLimit()
+                        state.focusedIndex == 5 && isConnected && state.syncSettings.saveSyncEnabled && isOnline -> runSaveSyncNow()
                         state.focusedIndex >= steamBaseIndex && state.focusedIndex < refreshIndex -> {
                             if (state.steam.hasStoragePermission && !state.steam.isSyncing) {
                                 confirmLauncherAction()
@@ -1443,6 +1476,7 @@ class SettingsViewModel @Inject constructor(
                         2 -> { setSwapAB(!state.controls.swapAB); true }
                         3 -> { setSwapXY(!state.controls.swapXY); true }
                         4 -> { setSwapStartSelect(!state.controls.swapStartSelect); true }
+                        5 -> { handlePlayTimeToggle(state.controls); true }
                         else -> false
                     }
                 } else {
@@ -1451,6 +1485,7 @@ class SettingsViewModel @Inject constructor(
                         1 -> { setSwapAB(!state.controls.swapAB); true }
                         2 -> { setSwapXY(!state.controls.swapXY); true }
                         3 -> { setSwapStartSelect(!state.controls.swapStartSelect); true }
+                        4 -> { handlePlayTimeToggle(state.controls); true }
                         else -> false
                     }
                 }

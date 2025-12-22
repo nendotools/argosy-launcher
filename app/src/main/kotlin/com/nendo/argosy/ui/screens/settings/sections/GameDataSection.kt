@@ -41,6 +41,7 @@ import com.nendo.argosy.ui.components.ActionPreference
 import com.nendo.argosy.ui.components.CyclePreference
 import com.nendo.argosy.ui.components.InfoPreference
 import com.nendo.argosy.ui.components.NavigationPreference
+import com.nendo.argosy.ui.components.SwitchPreference
 import com.nendo.argosy.ui.screens.settings.ConnectionStatus
 import com.nendo.argosy.ui.screens.settings.SettingsSection
 import com.nendo.argosy.ui.screens.settings.SettingsUiState
@@ -87,6 +88,7 @@ private fun GameDataContent(
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             viewModel.refreshSteamSettings()
+            viewModel.refreshUsageStatsPermission()
         }
     }
 
@@ -178,6 +180,37 @@ private fun GameDataContent(
                     onClick = { viewModel.syncRomm() }
                 )
             }
+
+            // === TRACKING ===
+            item {
+                Spacer(modifier = Modifier.height(Dimens.spacingSm))
+                SectionHeader("TRACKING")
+            }
+            item {
+                val hasPermission = uiState.controls.hasUsageStatsPermission
+                val isEnabled = uiState.controls.accuratePlayTimeEnabled
+                val subtitle = when {
+                    isEnabled && hasPermission -> "Tracking active screen time"
+                    isEnabled && !hasPermission -> "Permission required - tap to grant"
+                    else -> "Track only when screen is on"
+                }
+                SwitchPreference(
+                    title = "Accurate Play Time",
+                    subtitle = subtitle,
+                    isEnabled = isEnabled,
+                    isFocused = uiState.focusedIndex == 3,
+                    onToggle = { enabled ->
+                        if (enabled && !hasPermission) {
+                            viewModel.openUsageStatsSettings()
+                        } else {
+                            viewModel.setAccuratePlayTimeEnabled(enabled)
+                        }
+                    },
+                    onLabelClick = if (isEnabled && !hasPermission) {
+                        { viewModel.openUsageStatsSettings() }
+                    } else null
+                )
+            }
         }
 
         // === SAVE GAMES === (only if connected + save sync enabled)
@@ -190,7 +223,7 @@ private fun GameDataContent(
                 CyclePreference(
                     title = "Local Save Cache",
                     value = "${uiState.syncSettings.saveCacheLimit} saves per game",
-                    isFocused = uiState.focusedIndex == 3,
+                    isFocused = uiState.focusedIndex == 4,
                     onClick = { viewModel.cycleSaveCacheLimit() }
                 )
             }
@@ -204,7 +237,7 @@ private fun GameDataContent(
                     icon = Icons.Default.Sync,
                     title = "Sync Saves",
                     subtitle = pendingText,
-                    isFocused = uiState.focusedIndex == 4,
+                    isFocused = uiState.focusedIndex == 5,
                     isEnabled = isOnline,
                     onClick = { viewModel.runSaveSyncNow() }
                 )
@@ -360,17 +393,17 @@ private fun calculateMaxIndex(isConnected: Boolean, saveSyncEnabled: Boolean, la
 
 private fun calculateSteamBaseIndex(isConnected: Boolean, saveSyncEnabled: Boolean): Int {
     return when {
-        isConnected && saveSyncEnabled -> 5  // Rom Manager(0), Sync Settings(1), Sync Library(2), Save Cache(3), Sync Saves(4), Steam starts at 5
-        isConnected -> 3                      // Rom Manager(0), Sync Settings(1), Sync Library(2), Steam starts at 3
+        isConnected && saveSyncEnabled -> 6  // Rom Manager(0), Sync Settings(1), Sync Library(2), Accurate Play Time(3), Save Cache(4), Sync Saves(5), Steam starts at 6
+        isConnected -> 4                      // Rom Manager(0), Sync Settings(1), Sync Library(2), Accurate Play Time(3), Steam starts at 4
         else -> 1                             // Rom Manager(0), Steam starts at 1
     }
 }
 
 private fun calculateSteamHeaderScrollIndex(isConnected: Boolean, saveSyncEnabled: Boolean): Int {
     return when {
-        isConnected && saveSyncEnabled -> 8  // SERVER(0), RomM(1), LIBRARY(2), SyncSet(3), SyncLib(4), SAVES(5), Cache(6), SyncSaves(7), STEAM(8)
-        isConnected -> 5                      // SERVER(0), RomM(1), LIBRARY(2), SyncSet(3), SyncLib(4), STEAM(5)
-        else -> 2                             // SERVER(0), RomM(1), STEAM(2)
+        isConnected && saveSyncEnabled -> 10  // SERVER(0), RomM(1), LIBRARY(2), SyncSet(3), SyncLib(4), TRACKING(5), PlayTime(6), SAVES(7), Cache(8), SyncSaves(9), STEAM(10)
+        isConnected -> 7                       // SERVER(0), RomM(1), LIBRARY(2), SyncSet(3), SyncLib(4), TRACKING(5), PlayTime(6), STEAM(7)
+        else -> 2                              // SERVER(0), RomM(1), STEAM(2)
     }
 }
 
@@ -385,17 +418,19 @@ private fun calculateScrollIndex(
         }
         !saveSyncEnabled -> {
             when {
-                focusedIndex == 0 -> 1
-                focusedIndex in 1..2 -> focusedIndex + 2
-                else -> focusedIndex + 3
+                focusedIndex == 0 -> 1                      // Rom Manager (after SERVER header)
+                focusedIndex in 1..2 -> focusedIndex + 2    // Sync Settings, Sync Library (after LIBRARY header)
+                focusedIndex == 3 -> focusedIndex + 3       // Accurate Play Time (after TRACKING header)
+                else -> focusedIndex + 4                    // Steam items (after STEAM header)
             }
         }
         else -> {
             when {
-                focusedIndex == 0 -> 1
-                focusedIndex in 1..2 -> focusedIndex + 2
-                focusedIndex in 3..4 -> focusedIndex + 3
-                else -> focusedIndex + 4
+                focusedIndex == 0 -> 1                      // Rom Manager
+                focusedIndex in 1..2 -> focusedIndex + 2    // Sync Settings, Sync Library
+                focusedIndex == 3 -> focusedIndex + 3       // Accurate Play Time (after TRACKING header)
+                focusedIndex in 4..5 -> focusedIndex + 4    // Save Cache, Sync Saves (after SAVES header)
+                else -> focusedIndex + 5                    // Steam items (after STEAM header)
             }
         }
     }

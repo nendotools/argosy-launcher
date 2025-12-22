@@ -39,6 +39,8 @@ fun GameEntity.toGameDetailUi(
         rating = rating,
         userRating = userRating,
         userDifficulty = userDifficulty,
+        completion = completion,
+        status = status,
         isRommGame = rommId != null || source == GameSource.STEAM,
         isFavorite = isFavorite,
         playCount = playCount,

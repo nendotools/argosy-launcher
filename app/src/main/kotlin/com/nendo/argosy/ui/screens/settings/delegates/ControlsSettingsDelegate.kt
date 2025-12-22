@@ -1,5 +1,6 @@
 package com.nendo.argosy.ui.screens.settings.delegates
 
+import android.app.Application
 import com.nendo.argosy.data.preferences.HapticIntensity
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.ui.input.ControllerDetector
@@ -7,6 +8,7 @@ import com.nendo.argosy.ui.input.DetectedIconLayout
 import com.nendo.argosy.ui.input.HapticFeedbackManager
 import com.nendo.argosy.ui.input.HapticPattern
 import com.nendo.argosy.ui.screens.settings.ControlsState
+import com.nendo.argosy.util.PermissionHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,8 +19,10 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 class ControlsSettingsDelegate @Inject constructor(
+    private val application: Application,
     private val preferencesRepository: UserPreferencesRepository,
-    private val hapticManager: HapticFeedbackManager
+    private val hapticManager: HapticFeedbackManager,
+    private val permissionHelper: PermissionHelper
 ) {
     private val _state = MutableStateFlow(ControlsState())
     val state: StateFlow<ControlsState> = _state.asStateFlow()
@@ -104,5 +108,21 @@ class ControlsSettingsDelegate @Inject constructor(
             preferencesRepository.setSwapStartSelect(enabled)
             _state.update { it.copy(swapStartSelect = enabled) }
         }
+    }
+
+    fun refreshUsageStatsPermission() {
+        val hasPermission = permissionHelper.hasUsageStatsPermission(application)
+        _state.update { it.copy(hasUsageStatsPermission = hasPermission) }
+    }
+
+    fun setAccuratePlayTimeEnabled(scope: CoroutineScope, enabled: Boolean) {
+        scope.launch {
+            preferencesRepository.setAccuratePlayTimeEnabled(enabled)
+            _state.update { it.copy(accuratePlayTimeEnabled = enabled) }
+        }
+    }
+
+    fun openUsageStatsSettings() {
+        permissionHelper.openUsageStatsSettings(application)
     }
 }

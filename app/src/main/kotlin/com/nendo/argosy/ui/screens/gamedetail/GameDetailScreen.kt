@@ -54,6 +54,7 @@ import com.nendo.argosy.ui.screens.gamedetail.modals.CorePickerModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.DiscPickerModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.EmulatorPickerModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.MissingDiscModal
+import com.nendo.argosy.ui.screens.gamedetail.modals.StatusPickerModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.MoreOptionsModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.PermissionRequiredModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.RatingPickerModal
@@ -458,6 +459,18 @@ private fun GameDetailModals(
             type = uiState.ratingPickerType,
             value = uiState.ratingPickerValue,
             onDismiss = viewModel::dismissRatingPicker
+        )
+    }
+
+    AnimatedVisibility(
+        visible = uiState.showStatusPicker,
+        enter = fadeIn(),
+        exit = fadeOut()
+    ) {
+        StatusPickerModal(
+            selectedValue = uiState.statusPickerValue,
+            currentValue = uiState.game?.status,
+            onDismiss = viewModel::dismissStatusPicker
         )
     }
 

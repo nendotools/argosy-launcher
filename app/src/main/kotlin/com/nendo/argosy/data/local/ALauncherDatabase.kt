@@ -46,7 +46,7 @@ import com.nendo.argosy.data.local.entity.SaveSyncEntity
         SaveCacheEntity::class,
         OrphanedFileEntity::class
     ],
-    version = 28,
+    version = 29,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -409,6 +409,22 @@ abstract class ALauncherDatabase : RoomDatabase() {
                     )
                 """)
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_orphaned_files_path ON orphaned_files(path)")
+            }
+        }
+
+        val MIGRATION_28_29 = object : Migration(28, 29) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE games ADD COLUMN status TEXT")
+                db.execSQL("""
+                    UPDATE games SET status = CASE completion
+                        WHEN 1 THEN 'incomplete'
+                        WHEN 2 THEN 'finished'
+                        WHEN 3 THEN 'completed_100'
+                        ELSE NULL
+                    END
+                    WHERE completion > 0
+                """)
+                db.execSQL("ALTER TABLE pending_sync ADD COLUMN stringValue TEXT")
             }
         }
     }
