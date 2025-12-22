@@ -2,7 +2,6 @@ package com.nendo.argosy.ui.screens.apps
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.provider.Settings
 import androidx.lifecycle.ViewModel
@@ -31,7 +30,6 @@ import javax.inject.Inject
 data class AppUi(
     val packageName: String,
     val label: String,
-    val icon: Drawable,
     val isHidden: Boolean = false,
     val isSystemApp: Boolean = false
 )
@@ -399,7 +397,6 @@ class AppsViewModel @Inject constructor(
     private fun InstalledApp.toUi(isHidden: Boolean = false, isSystemApp: Boolean = false) = AppUi(
         packageName = packageName,
         label = label,
-        icon = icon,
         isHidden = isHidden,
         isSystemApp = isSystemApp
     )

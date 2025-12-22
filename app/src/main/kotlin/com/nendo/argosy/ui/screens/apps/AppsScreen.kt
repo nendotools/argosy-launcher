@@ -1,11 +1,9 @@
 package com.nendo.argosy.ui.screens.apps
 
 import android.content.Intent
-import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.provider.Settings
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -56,14 +54,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.drawable.toBitmap
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.SubcomposeAsyncImage
+import com.nendo.argosy.ui.coil.AppIconData
 import com.nendo.argosy.ui.input.LocalInputDispatcher
 import com.nendo.argosy.ui.navigation.Screen
 import com.nendo.argosy.ui.components.FooterBar
@@ -73,7 +71,6 @@ import com.nendo.argosy.ui.theme.Motion
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.platform.LocalConfiguration
-import android.util.Log
 import kotlinx.coroutines.launch
 
 @Composable
@@ -238,7 +235,7 @@ fun AppsScreen(
                             key = { _, app -> app.packageName }
                         ) { index, app ->
                             AppCard(
-                                icon = app.icon,
+                                packageName = app.packageName,
                                 label = app.label,
                                 isFocused = index == uiState.focusedIndex,
                                 showFocus = !uiState.isTouchMode || uiState.hasSelectedApp,
@@ -402,12 +399,10 @@ private fun ContextMenuItem(
     }
 }
 
-private const val TAG = "AppsScreen"
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AppCard(
-    icon: Drawable?,
+    packageName: String,
     label: String,
     isFocused: Boolean,
     showFocus: Boolean = true,
@@ -447,38 +442,28 @@ private fun AppCard(
             .padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        val bitmap = remember(icon) {
-            try {
-                icon?.toBitmap(128, 128)?.asImageBitmap()
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to convert icon for $label: ${e.message}")
-                null
+        SubcomposeAsyncImage(
+            model = AppIconData(packageName),
+            contentDescription = label,
+            modifier = Modifier.size(64.dp),
+            error = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            RoundedCornerShape(8.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = label.take(1).uppercase(),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
-        }
-
-        if (bitmap != null) {
-            Image(
-                bitmap = bitmap,
-                contentDescription = label,
-                modifier = Modifier.size(64.dp)
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(
-                        MaterialTheme.colorScheme.surfaceVariant,
-                        RoundedCornerShape(8.dp)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = label.take(1).uppercase(),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
+        )
 
         Spacer(modifier = Modifier.height(8.dp))
 

@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
-import android.graphics.drawable.Drawable
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
@@ -19,7 +18,6 @@ import javax.inject.Singleton
 data class InstalledApp(
     val packageName: String,
     val label: String,
-    val icon: Drawable,
     val isSystemApp: Boolean
 )
 
@@ -66,7 +64,6 @@ class AppsRepository @Inject constructor(
                 InstalledApp(
                     packageName = appInfo.packageName,
                     label = resolveInfo.loadLabel(packageManager).toString(),
-                    icon = resolveInfo.loadIcon(packageManager),
                     isSystemApp = isSystem
                 )
             }
