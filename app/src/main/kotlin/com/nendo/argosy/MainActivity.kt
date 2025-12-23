@@ -103,6 +103,7 @@ class MainActivity : ComponentActivity() {
             activityScope.launch {
                 romMRepository.initialize()
             }
+            ambientAudioManager.fadeIn()
         }
         hasResumedBefore = true
     }

@@ -26,6 +26,7 @@ class AmbientAudioManager @Inject constructor(
     private var enabled = false
     private var targetVolume = 0.5f
     private var fadeAnimator: ValueAnimator? = null
+    private var fadeOutCancelled = false
 
     private val audioAttributes = AudioAttributes.Builder()
         .setUsage(AudioAttributes.USAGE_GAME)
@@ -111,6 +112,7 @@ class AmbientAudioManager @Inject constructor(
 
         val player = mediaPlayer ?: return
 
+        fadeOutCancelled = true
         fadeAnimator?.cancel()
 
         try {
@@ -141,6 +143,7 @@ class AmbientAudioManager @Inject constructor(
             return
         }
 
+        fadeOutCancelled = false
         fadeAnimator?.cancel()
 
         fadeAnimator = ValueAnimator.ofFloat(targetVolume, 0f).apply {
@@ -151,7 +154,9 @@ class AmbientAudioManager @Inject constructor(
             }
             addListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: Animator) {
-                    pauseInternal()
+                    if (!fadeOutCancelled) {
+                        pauseInternal()
+                    }
                     onComplete()
                 }
             })
