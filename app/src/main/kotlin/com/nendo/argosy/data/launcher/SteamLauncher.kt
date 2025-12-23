@@ -8,6 +8,7 @@ interface SteamLauncher {
     val packageName: String
     val displayName: String
     val supportsScanning: Boolean get() = false
+    val scanMayIncludeUninstalled: Boolean get() = false
 
     fun isInstalled(context: Context): Boolean {
         return try {
@@ -19,4 +20,6 @@ interface SteamLauncher {
     }
 
     fun createLaunchIntent(steamAppId: Long): Intent
+
+    suspend fun scan(context: Context): List<ScannedSteamGame> = emptyList()
 }

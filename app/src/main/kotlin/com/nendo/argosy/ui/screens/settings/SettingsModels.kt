@@ -235,7 +235,8 @@ data class InstalledSteamLauncher(
     val packageName: String,
     val displayName: String,
     val gameCount: Int = 0,
-    val supportsScanning: Boolean = false
+    val supportsScanning: Boolean = false,
+    val scanMayIncludeUninstalled: Boolean = false
 )
 
 data class SteamSettingsState(

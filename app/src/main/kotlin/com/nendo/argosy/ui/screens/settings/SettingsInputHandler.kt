@@ -176,8 +176,8 @@ class SettingsInputHandler(
                 val isConnected = state.server.connectionStatus == ConnectionStatus.ONLINE ||
                     state.server.connectionStatus == ConnectionStatus.OFFLINE
                 val steamBaseIndex = when {
-                    isConnected && state.syncSettings.saveSyncEnabled -> 5
-                    isConnected -> 3
+                    isConnected && state.syncSettings.saveSyncEnabled -> 6
+                    isConnected -> 4
                     else -> 1
                 }
                 val launcherIndex = state.focusedIndex - steamBaseIndex
@@ -289,8 +289,8 @@ class SettingsInputHandler(
                 val isConnected = state.server.connectionStatus == ConnectionStatus.ONLINE ||
                     state.server.connectionStatus == ConnectionStatus.OFFLINE
                 val steamBaseIndex = when {
-                    isConnected && state.syncSettings.saveSyncEnabled -> 5
-                    isConnected -> 3
+                    isConnected && state.syncSettings.saveSyncEnabled -> 6
+                    isConnected -> 4
                     else -> 1
                 }
                 val launcherIndex = state.focusedIndex - steamBaseIndex

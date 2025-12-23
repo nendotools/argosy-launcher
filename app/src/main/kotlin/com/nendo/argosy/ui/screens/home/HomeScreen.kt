@@ -386,7 +386,7 @@ fun HomeScreen(
                                 listState = listState,
                                 rowKey = uiState.currentRow.toString(),
                                 downloadIndicatorFor = uiState::downloadIndicatorFor,
-                                showPlatformBadge = uiState.currentRow !is HomeRow.Platform,
+                                showPlatformBadge = uiState.currentRow !is HomeRow.Platform && uiState.currentRow != HomeRow.Steam,
                                 onItemTap = { index -> viewModel.handleItemTap(index, onGameSelect) },
                                 onItemLongPress = viewModel::handleItemLongPress,
                                 modifier = Modifier.align(Alignment.BottomStart)

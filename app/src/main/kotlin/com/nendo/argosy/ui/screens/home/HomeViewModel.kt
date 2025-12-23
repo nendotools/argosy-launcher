@@ -67,6 +67,9 @@ private const val ROW_TYPE_FAVORITES = "favorites"
 private const val ROW_TYPE_PLATFORM = "platform"
 private const val ROW_TYPE_CONTINUE = "continue"
 private const val ROW_TYPE_RECOMMENDATIONS = "recommendations"
+private const val ROW_TYPE_STEAM = "steam"
+
+private const val STEAM_PLATFORM_ID = "steam"
 
 data class GameDownloadIndicator(
     val isDownloading: Boolean = false,
@@ -125,6 +128,7 @@ sealed class HomeRow {
     data class Platform(val index: Int) : HomeRow()
     data object Continue : HomeRow()
     data object Recommendations : HomeRow()
+    data object Steam : HomeRow()
 }
 
 data class HomeUiState(
@@ -134,6 +138,7 @@ data class HomeUiState(
     val recentGames: List<HomeGameUi> = emptyList(),
     val favoriteGames: List<HomeGameUi> = emptyList(),
     val recommendedGames: List<HomeGameUi> = emptyList(),
+    val steamGames: List<HomeGameUi> = emptyList(),
     val currentRow: HomeRow = HomeRow.Continue,
     val isLoading: Boolean = true,
     val isRommConfigured: Boolean = false,
@@ -153,6 +158,7 @@ data class HomeUiState(
             if (recentGames.isNotEmpty()) add(HomeRow.Continue)
             if (recommendedGames.isNotEmpty()) add(HomeRow.Recommendations)
             if (favoriteGames.isNotEmpty()) add(HomeRow.Favorites)
+            if (steamGames.isNotEmpty()) add(HomeRow.Steam)
             platforms.forEachIndexed { index, _ -> add(HomeRow.Platform(index)) }
         }
 
@@ -180,6 +186,14 @@ data class HomeUiState(
                 if (recommendedGames.isEmpty()) emptyList()
                 else recommendedGames.map { HomeRowItem.Game(it) }
             }
+            HomeRow.Steam -> {
+                if (steamGames.isEmpty()) emptyList()
+                else steamGames.map { HomeRowItem.Game(it) } + HomeRowItem.ViewAll(
+                    platformId = "steam",
+                    platformName = "Steam",
+                    logoPath = null
+                )
+            }
         }
 
     val focusedItem: HomeRowItem?
@@ -194,6 +208,7 @@ data class HomeUiState(
             is HomeRow.Platform -> currentPlatform?.name ?: "Unknown"
             HomeRow.Continue -> "Continue Playing"
             HomeRow.Recommendations -> "Recommended For You"
+            HomeRow.Steam -> "Steam"
         }
 
     fun downloadIndicatorFor(gameId: Long): GameDownloadIndicator =
@@ -368,6 +383,7 @@ class HomeViewModel @Inject constructor(
             ROW_TYPE_PLATFORM -> HomeRow.Platform(platformIndex)
             ROW_TYPE_CONTINUE -> HomeRow.Continue
             ROW_TYPE_RECOMMENDATIONS -> HomeRow.Recommendations
+            ROW_TYPE_STEAM -> HomeRow.Steam
             else -> HomeRow.Continue
         }
 
@@ -381,6 +397,7 @@ class HomeViewModel @Inject constructor(
             is HomeRow.Platform -> ROW_TYPE_PLATFORM to row.index
             HomeRow.Continue -> ROW_TYPE_CONTINUE to 0
             HomeRow.Recommendations -> ROW_TYPE_RECOMMENDATIONS to 0
+            HomeRow.Steam -> ROW_TYPE_STEAM to 0
         }
         savedStateHandle[KEY_ROW_TYPE] = rowType
         savedStateHandle[KEY_PLATFORM_INDEX] = platformIndex
@@ -411,8 +428,10 @@ class HomeViewModel @Inject constructor(
 
     private fun loadData() {
         viewModelScope.launch {
-            val platforms = platformDao.getPlatformsWithGames()
+            val allPlatforms = platformDao.getPlatformsWithGames()
+            val platforms = allPlatforms.filter { it.id != STEAM_PLATFORM_ID }
             val favorites = gameDao.getFavorites()
+            val steamGames = gameDao.getByPlatformSorted(STEAM_PLATFORM_ID, limit = PLATFORM_GAMES_LIMIT)
 
             val candidatePool = gameDao.getRecentlyPlayed(RECENT_GAMES_CANDIDATE_POOL)
             val validatedRecent = mutableListOf<HomeGameUi>()
@@ -431,10 +450,12 @@ class HomeViewModel @Inject constructor(
 
             val platformUis = platforms.map { it.toUi() }
             val favoriteUis = favorites.map { it.toUi() }
+            val steamGameUis = steamGames.map { it.toUi() }
 
             val startRow = when {
                 validatedRecent.isNotEmpty() -> HomeRow.Continue
                 favoriteUis.isNotEmpty() -> HomeRow.Favorites
+                steamGameUis.isNotEmpty() -> HomeRow.Steam
                 platformUis.isNotEmpty() -> HomeRow.Platform(0)
                 else -> HomeRow.Continue
             }
@@ -444,6 +465,7 @@ class HomeViewModel @Inject constructor(
                     platforms = platformUis,
                     recentGames = validatedRecent,
                     favoriteGames = favoriteUis,
+                    steamGames = steamGameUis,
                     currentRow = startRow,
                     isLoading = false
                 )
@@ -598,14 +620,19 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun loadPlatforms() {
-        val platforms = platformDao.getPlatformsWithGames()
+        val allPlatforms = platformDao.getPlatformsWithGames()
+        val platforms = allPlatforms.filter { it.id != STEAM_PLATFORM_ID }
         val platformUis = platforms.map { it.toUi() }
+        val steamGames = gameDao.getByPlatformSorted(STEAM_PLATFORM_ID, limit = PLATFORM_GAMES_LIMIT)
+        val steamGameUis = steamGames.map { it.toUi() }
         _uiState.update { state ->
             val shouldSwitchRow = platforms.isNotEmpty() &&
                 state.currentRow == HomeRow.Continue &&
-                state.recentGames.isEmpty()
+                state.recentGames.isEmpty() &&
+                state.steamGames.isEmpty()
             state.copy(
                 platforms = platformUis,
+                steamGames = steamGameUis,
                 currentRow = if (shouldSwitchRow) HomeRow.Platform(0) else state.currentRow,
                 isLoading = false
             )
@@ -778,6 +805,7 @@ class HomeViewModel @Inject constructor(
                 HomeRow.Continue -> loadRecentGames()
                 HomeRow.Favorites -> loadFavorites()
                 HomeRow.Recommendations -> loadRecommendations()
+                HomeRow.Steam -> { }
             }
         }
     }
@@ -1076,6 +1104,22 @@ class HomeViewModel @Inject constructor(
             }
             HomeRow.Recommendations -> {
                 loadRecommendations()
+            }
+            HomeRow.Steam -> {
+                val games = gameDao.getByPlatformSorted(STEAM_PLATFORM_ID, limit = PLATFORM_GAMES_LIMIT)
+                val gameUis = games.map { it.toUi() }
+                val newIndex = if (focusedGameId != null) {
+                    gameUis.indexOfFirst { it.id == focusedGameId }
+                        .takeIf { it >= 0 } ?: state.focusedGameIndex.coerceAtMost(gameUis.lastIndex.coerceAtLeast(0))
+                } else state.focusedGameIndex
+
+                _uiState.update { s ->
+                    val newState = s.copy(steamGames = gameUis, focusedGameIndex = newIndex)
+                    if (s.currentRow == HomeRow.Steam && gameUis.isEmpty()) {
+                        val newRow = newState.availableRows.firstOrNull() ?: HomeRow.Continue
+                        newState.copy(currentRow = newRow, focusedGameIndex = 0)
+                    } else newState
+                }
             }
         }
     }

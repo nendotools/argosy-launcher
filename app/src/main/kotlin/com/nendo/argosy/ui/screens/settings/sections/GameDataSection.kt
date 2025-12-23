@@ -275,6 +275,7 @@ private fun GameDataContent(
 
                 SteamLauncherPreference(
                     displayName = launcher.displayName,
+                    subtitle = if (launcher.scanMayIncludeUninstalled) "Scan may include titles no longer installed" else null,
                     supportsScanning = launcher.supportsScanning,
                     isSyncing = isSyncingThis,
                     isFocused = isFocused,

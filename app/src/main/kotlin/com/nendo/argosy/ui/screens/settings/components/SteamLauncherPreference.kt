@@ -30,6 +30,7 @@ import com.nendo.argosy.ui.theme.Dimens
 @Composable
 fun SteamLauncherPreference(
     displayName: String,
+    subtitle: String? = null,
     supportsScanning: Boolean,
     isSyncing: Boolean,
     isFocused: Boolean,
@@ -77,9 +78,14 @@ fun SteamLauncherPreference(
                 style = MaterialTheme.typography.titleMedium,
                 color = if (isEnabled) contentColor else contentColor.copy(alpha = 0.5f)
             )
-            if (isSyncing) {
+            val subtitleText = when {
+                isSyncing -> "Scanning..."
+                subtitle != null -> subtitle
+                else -> null
+            }
+            if (subtitleText != null) {
                 Text(
-                    text = "Scanning...",
+                    text = subtitleText,
                     style = MaterialTheme.typography.bodySmall,
                     color = secondaryColor
                 )

@@ -131,6 +131,7 @@ fun SteamSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
 
                 SteamLauncherPreference(
                     displayName = launcher.displayName,
+                    subtitle = if (launcher.scanMayIncludeUninstalled) "Scan may include titles no longer installed" else null,
                     supportsScanning = launcher.supportsScanning,
                     isSyncing = isSyncingThis,
                     isFocused = isFocused,
@@ -231,6 +232,7 @@ fun SteamSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
 @Composable
 private fun SteamLauncherPreference(
     displayName: String,
+    subtitle: String?,
     supportsScanning: Boolean,
     isSyncing: Boolean,
     isFocused: Boolean,
@@ -278,9 +280,14 @@ private fun SteamLauncherPreference(
                 style = MaterialTheme.typography.titleMedium,
                 color = if (isEnabled) contentColor else contentColor.copy(alpha = 0.5f)
             )
-            if (isSyncing) {
+            val subtitleText = when {
+                isSyncing -> "Scanning..."
+                subtitle != null -> subtitle
+                else -> null
+            }
+            if (subtitleText != null) {
                 Text(
-                    text = "Scanning...",
+                    text = subtitleText,
                     style = MaterialTheme.typography.bodySmall,
                     color = secondaryColor
                 )

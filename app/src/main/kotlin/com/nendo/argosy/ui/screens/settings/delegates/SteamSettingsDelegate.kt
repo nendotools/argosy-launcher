@@ -3,7 +3,6 @@ package com.nendo.argosy.ui.screens.settings.delegates
 import android.content.Context
 import android.os.Build
 import android.os.Environment
-import com.nendo.argosy.data.launcher.GameHubLogScanner
 import com.nendo.argosy.data.launcher.SteamLaunchers
 import com.nendo.argosy.data.repository.SteamRepository
 import com.nendo.argosy.data.repository.SteamResult
@@ -46,7 +45,8 @@ class SteamSettingsDelegate @Inject constructor(
                     packageName = launcher.packageName,
                     displayName = launcher.displayName,
                     gameCount = 0,
-                    supportsScanning = launcher.supportsScanning
+                    supportsScanning = launcher.supportsScanning,
+                    scanMayIncludeUninstalled = launcher.scanMayIncludeUninstalled
                 )
             }
 
@@ -105,7 +105,7 @@ class SteamSettingsDelegate @Inject constructor(
 
             val scannedGames = if (steamLauncher?.supportsScanning == true) {
                 withContext(Dispatchers.IO) {
-                    GameHubLogScanner.scan(packageName)
+                    steamLauncher.scan(context)
                 }
             } else {
                 emptyList()

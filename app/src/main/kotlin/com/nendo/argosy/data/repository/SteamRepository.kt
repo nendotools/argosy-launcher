@@ -109,6 +109,7 @@ class SteamRepository @Inject constructor(
 
             val game = GameEntity(
                 platformId = STEAM_PLATFORM_ID,
+                platformSlug = STEAM_PLATFORM_ID,
                 title = appData.name,
                 sortTitle = createSortTitle(appData.name),
                 localPath = null,
