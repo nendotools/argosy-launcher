@@ -96,14 +96,14 @@ class FileBrowserViewModel @Inject constructor(
                         isLoading = false
                     )
                 }
-            } catch (e: SecurityException) {
+            } catch (@Suppress("SwallowedException") e: SecurityException) {
                 _state.update { state ->
                     state.copy(
                         error = "Cannot access directory",
                         isLoading = false
                     )
                 }
-            } catch (e: Exception) {
+            } catch (@Suppress("SwallowedException") e: Exception) {
                 _state.update { state ->
                     state.copy(
                         error = e.message ?: "Unknown error",

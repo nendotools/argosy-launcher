@@ -100,7 +100,7 @@ class StorageVolumeDetector @Inject constructor(
             try {
                 val getPathMethod = StorageVolume::class.java.getMethod("getPath")
                 getPathMethod.invoke(volume) as? String
-            } catch (e: Exception) {
+            } catch (@Suppress("SwallowedException") e: Exception) {
                 null
             }
         }
@@ -172,7 +172,7 @@ class StorageVolumeDetector @Inject constructor(
                     path !in existingPaths && file.exists() && file.canRead()
                 }
                 .map { path -> createVolumeFromProbe(path) }
-        } catch (e: Exception) {
+        } catch (@Suppress("SwallowedException") e: Exception) {
             emptyList()
         }
     }
@@ -181,7 +181,7 @@ class StorageVolumeDetector @Inject constructor(
         return try {
             val stat = StatFs(path)
             stat.availableBytes to stat.totalBytes
-        } catch (e: Exception) {
+        } catch (@Suppress("SwallowedException") e: Exception) {
             0L to 0L
         }
     }
