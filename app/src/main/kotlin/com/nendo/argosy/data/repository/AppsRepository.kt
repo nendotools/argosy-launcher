@@ -67,6 +67,7 @@ class AppsRepository @Inject constructor(
                     isSystemApp = isSystem
                 )
             }
+            .distinctBy { it.packageName }
             .filter { includeSystemApps || !it.isSystemApp }
             .filter { it.packageName != context.packageName }
             .sortedBy { it.label.lowercase() }
