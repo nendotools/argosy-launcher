@@ -162,6 +162,10 @@ class SaveSyncRepository @Inject constructor(
             }
         }
 
+        Logger.verbose(TAG) {
+            "discoverSavePath: FAILED - no save found for '$gameTitle' (romPath=$romPath) " +
+                "after checking ${paths.size} paths"
+        }
         null
     }
 
@@ -255,18 +259,46 @@ class SaveSyncRepository @Inject constructor(
         extensions: List<String>
     ): String? {
         val dir = File(basePath)
-        if (!dir.exists() || !dir.isDirectory) return null
+        if (!dir.exists() || !dir.isDirectory) {
+            Logger.verbose(TAG) { "findSaveByRomName: dir does not exist: $basePath" }
+            return null
+        }
 
-        val romName = File(romPath).nameWithoutExtension
+        val romFile = File(romPath)
+        val romName = romFile.nameWithoutExtension
+        val isZipContainer = romFile.extension.equals("zip", ignoreCase = true)
+
+        Logger.verbose(TAG) {
+            "findSaveByRomName: romPath=${romFile.name}, romName=$romName, " +
+                "isZip=$isZipContainer, extensions=$extensions, searchDir=$basePath"
+        }
+
+        if (isZipContainer) {
+            Logger.verbose(TAG) {
+                "findSaveByRomName: WARNING - ROM is in ZIP container, " +
+                    "save filename may differ from container name '$romName'"
+            }
+        }
 
         for (ext in extensions) {
             if (ext == "*") continue
             val saveFile = File(dir, "$romName.$ext")
+            Logger.verbose(TAG) { "findSaveByRomName: checking ${saveFile.name} -> exists=${saveFile.exists()}" }
             if (saveFile.exists() && saveFile.isFile) {
                 Logger.debug(TAG, "findSaveByRomName: found ${saveFile.absolutePath}")
                 return saveFile.absolutePath
             }
         }
+
+        if (Logger.isVerbose) {
+            val existingFiles = dir.listFiles()?.filter { it.isFile }?.map { it.name } ?: emptyList()
+            Logger.verbose(TAG) {
+                "findSaveByRomName: no match for '$romName' in $basePath, " +
+                    "existing files (${existingFiles.size}): ${existingFiles.take(10).joinToString()}" +
+                    if (existingFiles.size > 10) "..." else ""
+            }
+        }
+
         return null
     }
 
@@ -369,14 +401,30 @@ class SaveSyncRepository @Inject constructor(
         if (romPath != null) {
             val romFile = File(romPath)
             val romName = romFile.nameWithoutExtension
-            return "$romName.$extension"
+            val isZipContainer = romFile.extension.equals("zip", ignoreCase = true)
+            val result = "$romName.$extension"
+
+            Logger.verbose(TAG) {
+                "buildRetroArchFileName: romPath=${romFile.name}, derived=$result, isZip=$isZipContainer"
+            }
+
+            if (isZipContainer) {
+                Logger.verbose(TAG) {
+                    "buildRetroArchFileName: WARNING - using ZIP container name '$romName', " +
+                        "but RetroArch may use inner ROM filename for saves"
+                }
+            }
+
+            return result
         }
 
         val sanitized = gameTitle
             .replace(Regex("[^a-zA-Z0-9\\s]"), "")
             .replace(Regex("\\s+"), " ")
             .trim()
-        return "$sanitized.$extension"
+        val result = "$sanitized.$extension"
+        Logger.verbose(TAG) { "buildRetroArchFileName: no romPath, using sanitized title -> $result" }
+        return result
     }
 
     fun constructSavePathWithFileName(
@@ -593,8 +641,27 @@ class SaveSyncRepository @Inject constructor(
                 if (ext.isNotEmpty()) "$DEFAULT_SAVE_NAME.$ext" else DEFAULT_SAVE_NAME
             }
 
-            val romBaseName = game.localPath?.let { File(it).nameWithoutExtension }
+            val romFile = game.localPath?.let { File(it) }
+            val romBaseName = romFile?.nameWithoutExtension
+            val isZipContainer = romFile?.extension?.equals("zip", ignoreCase = true) == true
+
+            Logger.verbose(TAG) {
+                "uploadSave: romPath=${romFile?.name}, romBaseName=$romBaseName, isZip=$isZipContainer"
+            }
+
+            if (isZipContainer) {
+                Logger.verbose(TAG) {
+                    "uploadSave: WARNING - ROM is in ZIP container, romBaseName '$romBaseName' " +
+                        "may not match actual save filename used by emulator"
+                }
+            }
+
             val serverSaves = checkSavesForGame(gameId, rommId)
+
+            Logger.verbose(TAG) {
+                val saveNames = serverSaves.map { it.fileName }
+                "uploadSave: server has ${serverSaves.size} saves: $saveNames"
+            }
 
             val latestServerSave = if (channelName != null) {
                 serverSaves.find { File(it.fileName).nameWithoutExtension.equals(channelName, ignoreCase = true) }
@@ -610,6 +677,12 @@ class SaveSyncRepository @Inject constructor(
                     baseName.equals(DEFAULT_SAVE_NAME, ignoreCase = true) ||
                         romBaseName != null && baseName.equals(romBaseName, ignoreCase = true)
                 }
+            }
+
+            Logger.verbose(TAG) {
+                "uploadSave: latestServerSave=${latestServerSave?.fileName}, " +
+                    "existingServerSave=${existingServerSave?.fileName}, " +
+                    "matching against romBaseName='$romBaseName'"
             }
 
             if (channelName == null && latestServerSave != null) {

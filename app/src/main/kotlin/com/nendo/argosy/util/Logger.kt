@@ -113,6 +113,9 @@ object Logger {
         }
     }
 
+    val isVerbose: Boolean
+        get() = fileLoggingEnabled && fileLogLevel == LogLevel.DEBUG
+
     fun debug(tag: String, message: String) = log(LogLevel.DEBUG, tag, message)
     fun info(tag: String, message: String) = log(LogLevel.INFO, tag, message)
     fun warn(tag: String, message: String, throwable: Throwable? = null) =
@@ -120,7 +123,14 @@ object Logger {
     fun error(tag: String, message: String, throwable: Throwable? = null) =
         log(LogLevel.ERROR, tag, message, throwable)
 
-    private fun log(level: LogLevel, tag: String, message: String, throwable: Throwable? = null) {
+    inline fun verbose(tag: String, message: () -> String) {
+        if (isVerbose) {
+            debug(tag, message())
+        }
+    }
+
+    @PublishedApi
+    internal fun log(level: LogLevel, tag: String, message: String, throwable: Throwable? = null) {
         when (level) {
             LogLevel.DEBUG -> if (throwable != null) AndroidLog.d(tag, message, throwable) else AndroidLog.d(tag, message)
             LogLevel.INFO -> if (throwable != null) AndroidLog.i(tag, message, throwable) else AndroidLog.i(tag, message)
