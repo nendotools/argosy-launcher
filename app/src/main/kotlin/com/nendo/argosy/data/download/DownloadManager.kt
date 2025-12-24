@@ -154,7 +154,7 @@ class DownloadManager @Inject constructor(
     }
 
     private suspend fun getDownloadDir(platformSlug: String): File {
-        val platform = platformDao.getById(platformSlug)
+        val platform = platformDao.getBySlug(platformSlug)
         if (platform?.customRomPath != null) {
             return File(platform.customRomPath).also { it.mkdirs() }
         }

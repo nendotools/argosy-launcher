@@ -185,7 +185,7 @@ class StorageSettingsDelegate @Inject constructor(
             val platforms = platformDao.observeConfigurablePlatforms().first()
 
             val configs = platforms.map { platform ->
-                val effectivePath = platform.customRomPath ?: "$globalPath/${platform.id}"
+                val effectivePath = platform.customRomPath ?: "$globalPath/${platform.slug}"
                 val downloadedCount = gameDao.countDownloadedByPlatform(platform.id)
                 PlatformStorageConfig(
                     platformId = platform.id,
@@ -233,7 +233,7 @@ class StorageSettingsDelegate @Inject constructor(
         scope.launch {
             val platform = platformDao.getById(platformId) ?: return@launch
             val globalPath = _state.value.romStoragePath
-            val oldPath = platform.customRomPath ?: "$globalPath/${platform.id}"
+            val oldPath = platform.customRomPath ?: "$globalPath/${platform.slug}"
 
             val gamesWithPaths = gameRepository.getGamesWithLocalPathsForPlatform(platformId)
             if (gamesWithPaths.isNotEmpty()) {
@@ -263,7 +263,7 @@ class StorageSettingsDelegate @Inject constructor(
             val platform = platformDao.getById(platformId) ?: return@launch
             val customPath = platform.customRomPath ?: return@launch
             val globalPath = _state.value.romStoragePath
-            val newPath = "$globalPath/${platform.id}"
+            val newPath = "$globalPath/${platform.slug}"
 
             val gamesWithPaths = gameRepository.getGamesWithLocalPathsForPlatform(platformId)
             if (gamesWithPaths.isNotEmpty()) {

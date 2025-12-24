@@ -69,7 +69,7 @@ class MigrateStorageUseCase @Inject constructor(
                     val relativePath = if (oldFile.absolutePath.startsWith(oldPath)) {
                         oldFile.absolutePath.removePrefix(oldPath).trimStart('/')
                     } else {
-                        "${game.platformId}/${oldFile.name}"
+                        "${game.platformSlug}/${oldFile.name}"
                     }
                     val newFile = File(newPath, relativePath)
 
