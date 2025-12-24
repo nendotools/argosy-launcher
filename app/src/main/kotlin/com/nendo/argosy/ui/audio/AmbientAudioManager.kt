@@ -5,7 +5,6 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.content.Context
 import android.media.AudioAttributes
-import android.media.AudioManager
 import android.media.MediaPlayer
 import android.net.Uri
 import android.util.Log
@@ -27,8 +26,7 @@ class AmbientAudioManager @Inject constructor(
     private var enabled = false
     private var targetVolume = 0.5f
     private var fadeAnimator: ValueAnimator? = null
-
-    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private var fadeOutCancelled = false
 
     private val audioAttributes = AudioAttributes.Builder()
         .setUsage(AudioAttributes.USAGE_GAME)
@@ -108,17 +106,13 @@ class AmbientAudioManager @Inject constructor(
             return
         }
 
-        if (audioManager.isMusicActive) {
-            Log.d(TAG, "fadeIn skipped: other music is playing")
-            return
-        }
-
         if (mediaPlayer == null) {
             currentUri?.let { preparePlayer(it) }
         }
 
         val player = mediaPlayer ?: return
 
+        fadeOutCancelled = true
         fadeAnimator?.cancel()
 
         try {
@@ -149,6 +143,7 @@ class AmbientAudioManager @Inject constructor(
             return
         }
 
+        fadeOutCancelled = false
         fadeAnimator?.cancel()
 
         fadeAnimator = ValueAnimator.ofFloat(targetVolume, 0f).apply {
@@ -159,7 +154,9 @@ class AmbientAudioManager @Inject constructor(
             }
             addListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: Animator) {
-                    pauseInternal()
+                    if (!fadeOutCancelled) {
+                        pauseInternal()
+                    }
                     onComplete()
                 }
             })
