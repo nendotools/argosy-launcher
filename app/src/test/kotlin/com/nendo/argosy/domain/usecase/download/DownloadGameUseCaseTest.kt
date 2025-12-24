@@ -158,10 +158,12 @@ class DownloadGameUseCaseTest {
         id: Long = 123L,
         rommId: Long? = 456L,
         title: String = "Test Game",
-        coverPath: String? = null
+        coverPath: String? = null,
+        platformSlug: String = "nes"
     ) = GameEntity(
         id = id,
         platformId = "nes",
+        platformSlug = platformSlug,
         title = title,
         sortTitle = title.lowercase(),
         localPath = null,
