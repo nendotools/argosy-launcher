@@ -139,6 +139,7 @@ fun SaveChannelModal(
             TabBar(
                 selectedTab = state.selectedTab,
                 hasSaveSlots = state.hasSaveSlots,
+                supportsStates = state.supportsStates,
                 hasStates = state.hasStates,
                 onTabSelect = onTabSelect
             )
@@ -306,6 +307,7 @@ private fun ActiveSaveIndicator(activeChannel: String?) {
 private fun TabBar(
     selectedTab: SaveTab,
     hasSaveSlots: Boolean,
+    supportsStates: Boolean,
     hasStates: Boolean,
     onTabSelect: (SaveTab) -> Unit
 ) {
@@ -325,12 +327,14 @@ private fun TabBar(
             isEnabled = true,
             onClick = { onTabSelect(SaveTab.TIMELINE) }
         )
-        TabButton(
-            label = "States",
-            isSelected = selectedTab == SaveTab.STATES,
-            isEnabled = hasStates,
-            onClick = { onTabSelect(SaveTab.STATES) }
-        )
+        if (supportsStates) {
+            TabButton(
+                label = "States",
+                isSelected = selectedTab == SaveTab.STATES,
+                isEnabled = hasStates,
+                onClick = { onTabSelect(SaveTab.STATES) }
+            )
+        }
     }
 }
 

@@ -168,8 +168,9 @@ class GameLaunchDelegate @Inject constructor(
     ) {
         val session = playSessionTracker.activeSession.value ?: return
 
-        if (playSessionTracker.canResumeSession(session.gameId)) {
-            android.util.Log.d("GameLaunchDelegate", "handleSessionEnd: skipping, emulator still running")
+        val sessionDuration = playSessionTracker.getSessionDuration()
+        if (sessionDuration != null && sessionDuration.toMinutes() < 1) {
+            android.util.Log.d("GameLaunchDelegate", "handleSessionEnd: skipping, session too short (${sessionDuration.seconds}s)")
             return
         }
 

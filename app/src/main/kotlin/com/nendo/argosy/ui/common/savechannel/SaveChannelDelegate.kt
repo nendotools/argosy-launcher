@@ -74,13 +74,18 @@ class SaveChannelDelegate @Inject constructor(
             val slots = entries.filter { it.isLocked }.sortedBy { it.channelName?.lowercase() }
             val timeline = buildTimeline(entries, activeChannel, activeSaveTimestamp)
 
-            val states = getUnifiedStatesUseCase(
-                gameId = gameId,
-                emulatorId = emulatorId,
-                channelName = activeChannel,
-                currentCoreId = currentCoreId,
-                currentCoreVersion = currentCoreVersion
-            )
+            val isRetroArch = emulatorId?.startsWith("retroarch") == true
+            val states = if (isRetroArch) {
+                getUnifiedStatesUseCase(
+                    gameId = gameId,
+                    emulatorId = emulatorId,
+                    channelName = activeChannel,
+                    currentCoreId = currentCoreId,
+                    currentCoreVersion = currentCoreVersion
+                )
+            } else {
+                emptyList()
+            }
 
             val initialTab = determineInitialTab(slots.isNotEmpty(), activeChannel)
 
@@ -89,6 +94,7 @@ class SaveChannelDelegate @Inject constructor(
                     slotsEntries = slots,
                     timelineEntries = timeline,
                     statesEntries = states,
+                    supportsStates = isRetroArch,
                     selectedTab = initialTab,
                     focusIndex = 0,
                     activeSaveTimestamp = activeSaveTimestamp,
@@ -219,7 +225,7 @@ class SaveChannelDelegate @Inject constructor(
                     _state.update { it.copy(activeChannel = channelName, activeSaveTimestamp = null) }
                     onSaveStatusChanged(SaveStatusEvent(channelName = channelName, timestamp = null))
 
-                    if (emulatorPackage != null) {
+                    if (emulatorPackage != null && state.supportsStates) {
                         val stateResult = restoreCachedStatesUseCase(
                             gameId = currentGameId,
                             channelName = channelName,
@@ -292,7 +298,7 @@ class SaveChannelDelegate @Inject constructor(
         val emulatorPackage = state.emulatorPackage
 
         scope.launch {
-            if (emulatorPackage != null) {
+            if (emulatorPackage != null && state.supportsStates) {
                 val stateResult = restoreCachedStatesUseCase(
                     gameId = currentGameId,
                     channelName = targetChannel,

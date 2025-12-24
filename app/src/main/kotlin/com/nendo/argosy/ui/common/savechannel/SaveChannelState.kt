@@ -20,6 +20,7 @@ data class SaveChannelState(
     val emulatorPackage: String? = null,
     val currentCoreId: String? = null,
     val currentCoreVersion: String? = null,
+    val supportsStates: Boolean = false,
     val showRestoreConfirmation: Boolean = false,
     val restoreSelectedEntry: UnifiedSaveEntry? = null,
     val showRenameDialog: Boolean = false,
@@ -36,7 +37,7 @@ data class SaveChannelState(
     val stateReplaceAutoTarget: UnifiedStateEntry? = null
 ) {
     val hasSaveSlots: Boolean get() = slotsEntries.isNotEmpty()
-    val hasStates: Boolean get() = statesEntries.isNotEmpty()
+    val hasStates: Boolean get() = supportsStates && statesEntries.isNotEmpty()
 
     val currentTabEntries: List<UnifiedSaveEntry>
         get() = when (selectedTab) {
