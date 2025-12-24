@@ -27,7 +27,7 @@ class DownloadGameUseCase @Inject constructor(
             ?: return DownloadResult.Error("Game not synced from RomM")
 
         if (game.isMultiDisc) {
-            return downloadMultiDiscGame(gameId, game.title, game.coverPath, game.platformId)
+            return downloadMultiDiscGame(gameId, game.title, game.coverPath, game.platformSlug)
         }
 
         return when (val result = romMRepository.getRom(rommId)) {
@@ -45,7 +45,7 @@ class DownloadGameUseCase @Inject constructor(
                     rommId = rommId,
                     fileName = fileName,
                     gameTitle = game.title,
-                    platformSlug = rom.platformSlug,
+                    platformSlug = game.platformSlug,
                     coverPath = game.coverPath,
                     expectedSizeBytes = rom.fileSize
                 )
@@ -61,7 +61,7 @@ class DownloadGameUseCase @Inject constructor(
         gameId: Long,
         gameTitle: String,
         coverPath: String?,
-        platformId: String
+        platformSlug: String
     ): DownloadResult {
         val discs = gameDiscDao.getDiscsForGame(gameId)
         if (discs.isEmpty()) {
@@ -90,7 +90,7 @@ class DownloadGameUseCase @Inject constructor(
                     rommId = disc.rommId,
                     fileName = fileName,
                     gameTitle = gameTitle,
-                    platformSlug = rom.platformSlug,
+                    platformSlug = platformSlug,
                     coverPath = coverPath,
                     expectedSizeBytes = rom.fileSize
                 )
@@ -113,7 +113,7 @@ class DownloadGameUseCase @Inject constructor(
             return DownloadResult.Error("Not a multi-disc game")
         }
 
-        return downloadMultiDiscGame(gameId, game.title, game.coverPath, game.platformId)
+        return downloadMultiDiscGame(gameId, game.title, game.coverPath, game.platformSlug)
     }
 
     companion object {

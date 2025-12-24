@@ -55,7 +55,8 @@ class RomMRepository @Inject constructor(
     private val pendingSyncDao: PendingSyncDao,
     private val orphanedFileDao: OrphanedFileDao,
     private val imageCacheManager: ImageCacheManager,
-    private val saveSyncRepository: dagger.Lazy<com.nendo.argosy.data.repository.SaveSyncRepository>
+    private val saveSyncRepository: dagger.Lazy<com.nendo.argosy.data.repository.SaveSyncRepository>,
+    private val gameRepository: dagger.Lazy<com.nendo.argosy.data.repository.GameRepository>
 ) {
     private var api: RomMApi? = null
     private var baseUrl: String = ""
@@ -288,6 +289,8 @@ class RomMRepository @Inject constructor(
         } finally {
             _syncProgress.value = SyncProgress(isSyncing = false)
         }
+
+        gameRepository.get().cleanupEmptyNumericFolders()
 
         return SyncResult(platformsSynced, gamesAdded, gamesUpdated, gamesDeleted, errors)
     }
