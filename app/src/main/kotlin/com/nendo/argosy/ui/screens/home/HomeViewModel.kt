@@ -17,6 +17,7 @@ import com.nendo.argosy.data.remote.romm.RomMRepository
 import com.nendo.argosy.data.remote.romm.RomMResult
 import com.nendo.argosy.domain.model.Changelog
 import com.nendo.argosy.domain.model.ChangelogEntry
+import com.nendo.argosy.domain.model.CompletionStatus
 import com.nendo.argosy.domain.model.RequiredAction
 import com.nendo.argosy.domain.usecase.achievement.FetchAchievementsUseCase
 import com.nendo.argosy.domain.usecase.download.DownloadResult
@@ -49,12 +50,22 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
+import java.time.DayOfWeek
 import java.time.Instant
+import java.time.LocalDate
 import java.time.temporal.ChronoUnit
+import java.time.temporal.TemporalAdjusters
 import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 
 private const val PLATFORM_GAMES_LIMIT = 20
+private const val MAX_DISPLAYED_RECOMMENDATIONS = 8
+private const val RECOMMENDATION_PENALTY = 0.9f
+private val EXCLUDED_RECOMMENDATION_STATUSES = setOf(
+    CompletionStatus.FINISHED.apiValue,
+    CompletionStatus.COMPLETED_100.apiValue,
+    CompletionStatus.NEVER_PLAYING.apiValue
+)
 private const val RECENT_GAMES_LIMIT = 10
 private const val RECENT_GAMES_CANDIDATE_POOL = 40
 private const val AUTO_SYNC_DAYS = 7L
@@ -626,8 +637,36 @@ class HomeViewModel @Inject constructor(
         if (storedIds.isNotEmpty()) {
             val games = gameDao.getByIds(storedIds)
             val orderedGames = storedIds.mapNotNull { id -> games.find { it.id == id } }
-            val gameUis = orderedGames.map { it.toUi() }
+
+            val displayedGames = orderedGames
+                .filter { it.status !in EXCLUDED_RECOMMENDATION_STATUSES }
+                .take(MAX_DISPLAYED_RECOMMENDATIONS)
+
+            applyPenaltiesToDisplayed(displayedGames.map { it.id })
+
+            val gameUis = displayedGames.map { it.toUi() }
             _uiState.update { it.copy(recommendedGames = gameUis) }
+        }
+    }
+
+    private suspend fun applyPenaltiesToDisplayed(displayedIds: List<Long>) {
+        val prefs = preferencesRepository.preferences.first()
+        val penalties = prefs.recommendationPenalties.toMutableMap()
+        var updated = false
+
+        for (id in displayedIds) {
+            val current = penalties[id] ?: 0f
+            if (current < RECOMMENDATION_PENALTY) {
+                penalties[id] = RECOMMENDATION_PENALTY
+                updated = true
+            }
+        }
+
+        if (updated) {
+            val weekKey = LocalDate.now()
+                .with(TemporalAdjusters.previousOrSame(DayOfWeek.SATURDAY))
+                .toString()
+            preferencesRepository.setRecommendationPenalties(penalties, weekKey)
         }
     }
 
@@ -637,7 +676,14 @@ class HomeViewModel @Inject constructor(
             if (ids.isNotEmpty()) {
                 val games = gameDao.getByIds(ids)
                 val orderedGames = ids.mapNotNull { id -> games.find { it.id == id } }
-                val gameUis = orderedGames.map { it.toUi() }
+
+                val displayedGames = orderedGames
+                    .filter { it.status !in EXCLUDED_RECOMMENDATION_STATUSES }
+                    .take(MAX_DISPLAYED_RECOMMENDATIONS)
+
+                applyPenaltiesToDisplayed(displayedGames.map { it.id })
+
+                val gameUis = displayedGames.map { it.toUi() }
                 _uiState.update { it.copy(recommendedGames = gameUis) }
                 notificationManager.showSuccess("Recommendations updated")
             } else {
