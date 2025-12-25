@@ -89,6 +89,7 @@ object PlatformDefinitions {
         "game-gear" to "gg",
         "sega_game_gear" to "gg",
         "sega-game-gear" to "gg",
+        "sgg" to "gg",
         "sega_saturn" to "saturn",
         "sega-saturn" to "saturn",
         "sega_sg1000" to "sg1000",
