@@ -22,6 +22,11 @@ data class DiscUi(
     val isLastPlayed: Boolean
 )
 
+data class UpdateFileUi(
+    val fileName: String,
+    val sizeBytes: Long
+)
+
 data class AchievementUi(
     val raId: Long,
     val title: String,
@@ -117,6 +122,9 @@ data class GameDetailUiState(
     val discPickerFocusIndex: Int = 0,
     val showMissingDiscPrompt: Boolean = false,
     val missingDiscNumbers: List<Int> = emptyList(),
+    val updateFiles: List<UpdateFileUi> = emptyList(),
+    val showUpdatesPicker: Boolean = false,
+    val updatesPickerFocusIndex: Int = 0,
     val syncProgress: SyncProgress = SyncProgress.Idle,
     @Deprecated("Use syncProgress instead")
     val syncState: SyncState = SyncState.Idle,

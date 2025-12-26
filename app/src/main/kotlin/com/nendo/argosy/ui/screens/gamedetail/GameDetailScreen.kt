@@ -60,6 +60,7 @@ import com.nendo.argosy.ui.screens.gamedetail.modals.SteamLauncherPickerModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.MoreOptionsModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.PermissionRequiredModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.RatingPickerModal
+import com.nendo.argosy.ui.screens.gamedetail.modals.UpdatesPickerModal
 import com.nendo.argosy.ui.common.savechannel.SaveChannelModal
 import com.nendo.argosy.ui.theme.LocalLauncherTheme
 import com.nendo.argosy.ui.theme.Motion
@@ -429,8 +430,21 @@ private fun GameDetailModals(
             game = game,
             focusIndex = uiState.moreOptionsFocusIndex,
             isDownloaded = uiState.downloadStatus == GameDownloadStatus.DOWNLOADED,
+            updateCount = uiState.updateFiles.size,
             onOptionSelect = { index -> viewModel.selectOptionAtIndex(index, onBack) },
             onDismiss = viewModel::toggleMoreOptions
+        )
+    }
+
+    AnimatedVisibility(
+        visible = uiState.showUpdatesPicker,
+        enter = fadeIn(),
+        exit = fadeOut()
+    ) {
+        UpdatesPickerModal(
+            files = uiState.updateFiles,
+            focusIndex = uiState.updatesPickerFocusIndex,
+            onDismiss = viewModel::dismissUpdatesPicker
         )
     }
 

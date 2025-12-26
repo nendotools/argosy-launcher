@@ -561,13 +561,20 @@ class DownloadManager @Inject constructor(
                                     tempFile.delete()
                                 }
 
+                                val finalPath = processDownloadedFile(
+                                    targetFile = targetFile,
+                                    platformDir = platformDir,
+                                    platformSlug = progress.platformSlug,
+                                    gameTitle = progress.gameTitle
+                                )
+
                                 if (progress.isDiscDownload && progress.discId != null) {
-                                    gameDiscDao.updateLocalPath(progress.discId, targetFile.absolutePath)
+                                    gameDiscDao.updateLocalPath(progress.discId, finalPath)
                                     m3uManager.generateM3uIfComplete(progress.gameId)
                                 } else {
                                     gameDao.updateLocalPath(
                                         progress.gameId,
-                                        targetFile.absolutePath,
+                                        finalPath,
                                         GameSource.ROMM_SYNCED
                                     )
                                 }
@@ -576,7 +583,7 @@ class DownloadManager @Inject constructor(
                                     DownloadCompletionEvent(
                                         gameId = progress.gameId,
                                         rommId = progress.rommId,
-                                        localPath = targetFile.absolutePath,
+                                        localPath = finalPath,
                                         isDiscDownload = progress.isDiscDownload
                                     )
                                 )
@@ -609,6 +616,34 @@ class DownloadManager @Inject constructor(
             }
         } else {
             FileOutputStream(tempFile)
+        }
+    }
+
+    private fun processDownloadedFile(
+        targetFile: File,
+        platformDir: File,
+        platformSlug: String,
+        gameTitle: String
+    ): String {
+        if (!ZipExtractor.isNswPlatform(platformSlug)) {
+            return targetFile.absolutePath
+        }
+
+        return if (ZipExtractor.isZipFile(targetFile)) {
+            val extracted = ZipExtractor.extractForNsw(
+                zipFile = targetFile,
+                gameTitle = gameTitle,
+                platformDir = platformDir
+            )
+            targetFile.delete()
+            extracted.gameFile?.absolutePath ?: extracted.gameFolder.absolutePath
+        } else {
+            val organizedFile = ZipExtractor.organizeNswSingleFile(
+                romFile = targetFile,
+                gameTitle = gameTitle,
+                platformDir = platformDir
+            )
+            organizedFile.absolutePath
         }
     }
 

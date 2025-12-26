@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nendo.argosy.data.cache.ImageCacheManager
 import com.nendo.argosy.data.download.DownloadManager
+import com.nendo.argosy.data.download.ZipExtractor
 import com.nendo.argosy.data.update.ApkInstallManager
 import com.nendo.argosy.data.remote.playstore.PlayStoreService
 import com.nendo.argosy.data.download.DownloadState
@@ -304,6 +305,17 @@ class GameDetailViewModel @Inject constructor(
                 loadSaveStatusInfo(gameId, emulatorId!!, game.activeSaveChannel, game.activeSaveTimestamp)
             } else null
 
+            val updateFilesUi = if (ZipExtractor.isNswPlatform(game.platformSlug) && game.localPath != null) {
+                ZipExtractor.listUpdateFiles(game.localPath).map { file ->
+                    UpdateFileUi(
+                        fileName = file.name,
+                        sizeBytes = file.length()
+                    )
+                }
+            } else {
+                emptyList()
+            }
+
             _uiState.update { state ->
                 state.copy(
                     game = game.toGameDetailUi(
@@ -325,7 +337,8 @@ class GameDetailViewModel @Inject constructor(
                     availableCores = if (isRetroArch) EmulatorRegistry.getCoresForPlatform(game.platformSlug) else emptyList(),
                     selectedCoreId = selectedCoreId,
                     saveChannel = state.saveChannel.copy(activeChannel = game.activeSaveChannel),
-                    saveStatusInfo = saveStatusInfo
+                    saveStatusInfo = saveStatusInfo,
+                    updateFiles = updateFilesUi
                 )
             }
 
@@ -717,6 +730,7 @@ class GameDetailViewModel @Inject constructor(
             val isMultiDisc = it.game?.isMultiDisc == true
             val isSteamGame = it.game?.isSteamGame == true
             val isEmulatedGame = !isSteamGame && !isAndroidApp
+            val hasUpdates = it.updateFiles.isNotEmpty()
 
             var optionCount = 1  // Base: Hide (always present)
             if (canManageSaves) optionCount++  // Manage Cached Saves
@@ -724,6 +738,7 @@ class GameDetailViewModel @Inject constructor(
             if (isSteamGame || isEmulatedGame) optionCount++  // Emulator/Launcher (not for Android)
             if (isRetroArch && isEmulatedGame) optionCount++  // Change Core (emulated only)
             if (isMultiDisc) optionCount++  // Select Disc
+            if (hasUpdates) optionCount++  // Updates/DLC
             if (isDownloaded || isAndroidApp) optionCount++  // Delete/Uninstall
 
             val maxIndex = optionCount - 1
@@ -748,6 +763,7 @@ class GameDetailViewModel @Inject constructor(
         val isAndroidApp = state.game?.isAndroidApp == true
         val canTrackProgress = isRommGame || isAndroidApp
         val isEmulatedGame = !isSteamGame && !isAndroidApp
+        val hasUpdates = state.updateFiles.isNotEmpty()
         val index = state.moreOptionsFocusIndex
 
         var currentIdx = 0
@@ -758,6 +774,7 @@ class GameDetailViewModel @Inject constructor(
         val emulatorOrLauncherIdx = if (isSteamGame || isEmulatedGame) currentIdx++ else -1
         val coreIdx = if (isRetroArch && isEmulatedGame) currentIdx++ else -1
         val discIdx = if (isMultiDisc) currentIdx++ else -1
+        val updatesIdx = if (hasUpdates) currentIdx++ else -1
         val refreshIdx = if (canTrackProgress) currentIdx++ else -1
         val deleteIdx = if (isDownloaded || isAndroidApp) currentIdx++ else -1
         val hideIdx = currentIdx
@@ -770,6 +787,7 @@ class GameDetailViewModel @Inject constructor(
             emulatorOrLauncherIdx -> if (isSteamGame) showSteamLauncherPicker() else showEmulatorPicker()
             coreIdx -> showCorePicker()
             discIdx -> showDiscPicker()
+            updatesIdx -> showUpdatesPicker()
             refreshIdx -> refreshAndroidOrRommData()
             deleteIdx -> {
                 toggleMoreOptions()
@@ -979,6 +997,31 @@ class GameDetailViewModel @Inject constructor(
         val disc = _uiState.value.discs.getOrNull(index) ?: return
         _uiState.update { it.copy(showDiscPicker = false) }
         playGame(disc.id)
+    }
+
+    fun showUpdatesPicker() {
+        if (_uiState.value.updateFiles.isEmpty()) return
+        _uiState.update {
+            it.copy(
+                showMoreOptions = false,
+                showUpdatesPicker = true,
+                updatesPickerFocusIndex = 0
+            )
+        }
+        soundManager.play(SoundType.OPEN_MODAL)
+    }
+
+    fun dismissUpdatesPicker() {
+        _uiState.update { it.copy(showUpdatesPicker = false) }
+        soundManager.play(SoundType.CLOSE_MODAL)
+    }
+
+    fun moveUpdatesPickerFocus(delta: Int) {
+        _uiState.update { state ->
+            val maxIndex = (state.updateFiles.size - 1).coerceAtLeast(0)
+            val newIndex = (state.updatesPickerFocusIndex + delta).coerceIn(0, maxIndex)
+            state.copy(updatesPickerFocusIndex = newIndex)
+        }
     }
 
     fun dismissMissingDiscPrompt() {
@@ -1447,6 +1490,10 @@ class GameDetailViewModel @Inject constructor(
                     moveDiscPickerFocus(-1)
                     InputResult.HANDLED
                 }
+                state.showUpdatesPicker -> {
+                    moveUpdatesPickerFocus(-1)
+                    InputResult.HANDLED
+                }
                 state.showEmulatorPicker -> {
                     moveEmulatorPickerFocus(-1)
                     InputResult.HANDLED
@@ -1490,6 +1537,10 @@ class GameDetailViewModel @Inject constructor(
                 }
                 state.showDiscPicker -> {
                     moveDiscPickerFocus(1)
+                    InputResult.HANDLED
+                }
+                state.showUpdatesPicker -> {
+                    moveUpdatesPickerFocus(1)
                     InputResult.HANDLED
                 }
                 state.showEmulatorPicker -> {
@@ -1653,6 +1704,7 @@ class GameDetailViewModel @Inject constructor(
                 state.showMissingDiscPrompt -> dismissMissingDiscPrompt()
                 state.showCorePicker -> dismissCorePicker()
                 state.showDiscPicker -> dismissDiscPicker()
+                state.showUpdatesPicker -> dismissUpdatesPicker()
                 state.showEmulatorPicker -> dismissEmulatorPicker()
                 state.showSteamLauncherPicker -> dismissSteamLauncherPicker()
                 state.showMoreOptions -> toggleMoreOptions()
@@ -1704,6 +1756,10 @@ class GameDetailViewModel @Inject constructor(
                 dismissDiscPicker()
                 return InputResult.UNHANDLED
             }
+            if (state.showUpdatesPicker) {
+                dismissUpdatesPicker()
+                return InputResult.UNHANDLED
+            }
             if (state.showMoreOptions) {
                 toggleMoreOptions()
                 return InputResult.UNHANDLED
@@ -1750,8 +1806,8 @@ class GameDetailViewModel @Inject constructor(
 
             val anyModalOpen = state.showMoreOptions || state.showEmulatorPicker ||
                 state.showSteamLauncherPicker || state.showCorePicker || state.showRatingPicker ||
-                state.showStatusPicker || state.showDiscPicker || state.showMissingDiscPrompt ||
-                state.showScreenshotViewer || saveState.isVisible
+                state.showStatusPicker || state.showDiscPicker || state.showUpdatesPicker ||
+                state.showMissingDiscPrompt || state.showScreenshotViewer || saveState.isVisible
 
             if (anyModalOpen) {
                 dismissAllModals()
@@ -1778,6 +1834,7 @@ class GameDetailViewModel @Inject constructor(
                 showRatingPicker = false,
                 showStatusPicker = false,
                 showDiscPicker = false,
+                showUpdatesPicker = false,
                 showMissingDiscPrompt = false,
                 showScreenshotViewer = false,
                 showPermissionModal = false,

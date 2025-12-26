@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.runtime.Composable
@@ -26,11 +27,13 @@ fun MoreOptionsModal(
     game: GameDetailUi,
     focusIndex: Int,
     isDownloaded: Boolean,
+    updateCount: Int = 0,
     onOptionSelect: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
     val canTrackProgress = game.isRommGame || game.isAndroidApp
     val isEmulatedGame = !game.isSteamGame && !game.isAndroidApp
+    val hasUpdates = updateCount > 0
     var currentIndex = 0
 
     Modal(title = "MORE OPTIONS", onDismiss = onDismiss) {
@@ -100,6 +103,16 @@ fun MoreOptionsModal(
             OptionItem(
                 icon = Icons.Default.Album,
                 label = "Select Disc",
+                isFocused = focusIndex == idx,
+                onClick = { onOptionSelect(idx) }
+            )
+        }
+        if (hasUpdates) {
+            val idx = currentIndex++
+            OptionItem(
+                icon = Icons.Default.SystemUpdate,
+                label = "Updates/DLC",
+                value = "$updateCount",
                 isFocused = focusIndex == idx,
                 onClick = { onOptionSelect(idx) }
             )
