@@ -204,6 +204,84 @@ class RomMRepository @Inject constructor(
         }
     }
 
+    suspend fun syncPlatform(platformId: String): SyncResult = withContext(NonCancellable + Dispatchers.IO) {
+        if (!syncMutex.tryLock()) {
+            return@withContext SyncResult(0, 0, 0, 0, listOf("Sync already in progress"))
+        }
+
+        try {
+            return@withContext doSyncPlatform(platformId)
+        } finally {
+            syncMutex.unlock()
+        }
+    }
+
+    private suspend fun doSyncPlatform(platformId: String): SyncResult {
+        val currentApi = api ?: return SyncResult(0, 0, 0, 0, listOf("Not connected"))
+
+        val prefs = userPreferencesRepository.preferences.first()
+        val filters = prefs.syncFilters
+
+        _syncProgress.value = SyncProgress(isSyncing = true, platformsTotal = 1)
+
+        try {
+            val platformResponse = currentApi.getPlatform(platformId.toLong())
+            if (!platformResponse.isSuccessful) {
+                return SyncResult(0, 0, 0, 0, listOf("Failed to fetch platform: ${platformResponse.code()}"))
+            }
+
+            val platform = platformResponse.body()
+                ?: return SyncResult(0, 0, 0, 0, listOf("Platform not found"))
+
+            syncPlatformMetadata(platform)
+
+            _syncProgress.value = _syncProgress.value.copy(currentPlatform = platform.name)
+
+            val result = syncPlatformRoms(currentApi, platform, filters)
+
+            consolidateMultiDiscGames(currentApi, result.multiDiscGroups)
+
+            var gamesDeleted = 0
+            if (filters.deleteOrphans) {
+                gamesDeleted = deleteOrphanedGamesForPlatform(platformId, result.seenIds)
+            }
+
+            val count = gameDao.countByPlatform(platformId)
+            platformDao.updateGameCount(platformId, count)
+
+            return SyncResult(1, result.added, result.updated, gamesDeleted, result.error?.let { listOf(it) } ?: emptyList())
+        } catch (e: Exception) {
+            return SyncResult(0, 0, 0, 0, listOf(e.message ?: "Platform sync failed"))
+        } finally {
+            _syncProgress.value = SyncProgress(isSyncing = false)
+        }
+    }
+
+    private suspend fun deleteOrphanedGamesForPlatform(platformId: String, seenRommIds: Set<Long>): Int {
+        var deleted = 0
+
+        val remoteGames = gameDao.getBySource(GameSource.ROMM_REMOTE).filter { it.platformId == platformId }
+        for (game in remoteGames) {
+            val rommId = game.rommId ?: continue
+            if (rommId !in seenRommIds) {
+                gameDao.delete(game.id)
+                deleted++
+            }
+        }
+
+        val syncedGames = gameDao.getBySource(GameSource.ROMM_SYNCED).filter { it.platformId == platformId }
+        for (game in syncedGames) {
+            val rommId = game.rommId ?: continue
+            if (rommId !in seenRommIds) {
+                game.localPath?.let { safeDeleteFile(it) }
+                gameDao.delete(game.id)
+                deleted++
+            }
+        }
+
+        return deleted
+    }
+
     private suspend fun doSyncLibrary(
         onProgress: ((current: Int, total: Int, platformName: String) -> Unit)?
     ): SyncResult {
@@ -238,7 +316,7 @@ class RomMRepository @Inject constructor(
             }
 
             for (platform in platforms) {
-                syncPlatform(platform)
+                syncPlatformMetadata(platform)
             }
 
             val enabledPlatforms = platforms.filter { platform ->
@@ -295,7 +373,7 @@ class RomMRepository @Inject constructor(
         return SyncResult(platformsSynced, gamesAdded, gamesUpdated, gamesDeleted, errors)
     }
 
-    private suspend fun syncPlatform(remote: RomMPlatform) {
+    private suspend fun syncPlatformMetadata(remote: RomMPlatform) {
         val platformId = remote.id.toString()
         val existing = platformDao.getById(platformId)
             ?: platformDao.getBySlug(remote.slug)

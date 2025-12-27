@@ -9,6 +9,7 @@ import com.nendo.argosy.data.repository.GameRepository
 import com.nendo.argosy.domain.usecase.MigratePlatformStorageUseCase
 import com.nendo.argosy.domain.usecase.MigrateStorageUseCase
 import com.nendo.argosy.domain.usecase.PurgePlatformUseCase
+import com.nendo.argosy.domain.usecase.sync.SyncPlatformUseCase
 import com.nendo.argosy.ui.screens.settings.PlatformMigrationInfo
 import com.nendo.argosy.ui.screens.settings.PlatformStorageConfig
 import com.nendo.argosy.ui.screens.settings.StorageState
@@ -31,7 +32,8 @@ class StorageSettingsDelegate @Inject constructor(
     private val gameDao: GameDao,
     private val migrateStorageUseCase: MigrateStorageUseCase,
     private val migratePlatformStorageUseCase: MigratePlatformStorageUseCase,
-    private val purgePlatformUseCase: PurgePlatformUseCase
+    private val purgePlatformUseCase: PurgePlatformUseCase,
+    private val syncPlatformUseCase: SyncPlatformUseCase
 ) {
     private val _state = MutableStateFlow(StorageState())
     val state: StateFlow<StorageState> = _state.asStateFlow()
@@ -365,7 +367,7 @@ class StorageSettingsDelegate @Inject constructor(
 
     fun movePlatformSettingsFocus(delta: Int) {
         val config = getCurrentModalConfig() ?: return
-        val maxIndex = if (config.customRomPath != null) 3 else 2
+        val maxIndex = if (config.customRomPath != null) 4 else 3
         _state.update {
             val newIndex = (it.platformSettingsFocusIndex + delta).coerceIn(0, maxIndex)
             it.copy(platformSettingsFocusIndex = newIndex)
@@ -387,6 +389,10 @@ class StorageSettingsDelegate @Inject constructor(
                 openPlatformFolderPicker(scope, platformId)
             }
             2 -> {
+                closePlatformSettingsModal()
+                syncPlatform(scope, platformId, config.platformName)
+            }
+            3 -> {
                 if (hasCustomPath) {
                     closePlatformSettingsModal()
                     resetPlatformToGlobal(scope, platformId)
@@ -395,7 +401,7 @@ class StorageSettingsDelegate @Inject constructor(
                     requestPurgePlatform(platformId)
                 }
             }
-            3 -> {
+            4 -> {
                 if (hasCustomPath) {
                     closePlatformSettingsModal()
                     requestPurgePlatform(platformId)
@@ -407,5 +413,13 @@ class StorageSettingsDelegate @Inject constructor(
     private fun getCurrentModalConfig(): PlatformStorageConfig? {
         val platformId = _state.value.platformSettingsModalId ?: return null
         return _state.value.platformConfigs.find { it.platformId == platformId }
+    }
+
+    fun syncPlatform(scope: CoroutineScope, platformId: String, platformName: String) {
+        scope.launch {
+            syncPlatformUseCase(platformId, platformName)
+            loadPlatformConfigs(scope)
+            refreshCollectionStats(scope)
+        }
     }
 }

@@ -333,6 +333,7 @@ fun SettingsScreen(
                         onDismiss = { viewModel.closePlatformSettingsModal() },
                         onToggleSync = { viewModel.togglePlatformSync(platformId, !config.syncEnabled) },
                         onChangePath = { viewModel.openPlatformFolderPicker(platformId) },
+                        onResync = { viewModel.syncPlatform(platformId, config.platformName) },
                         onResetPath = { viewModel.resetPlatformToGlobal(platformId) },
                         onPurge = { viewModel.requestPurgePlatform(platformId) }
                     )

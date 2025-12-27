@@ -380,32 +380,44 @@ fun LibraryScreen(
             enter = fadeIn(),
             exit = fadeOut()
         ) {
-            uiState.focusedGame?.let { game ->
+            val focusedGame = uiState.focusedGame
+            val currentPlatform = uiState.currentPlatform
+            if (focusedGame != null) {
                 QuickMenuOverlay(
-                    game = game,
+                    game = focusedGame,
                     focusIndex = uiState.quickMenuFocusIndex,
                     onDismiss = { viewModel.toggleQuickMenu() },
                     onPrimaryAction = {
                         viewModel.toggleQuickMenu()
                         when {
-                            game.needsInstall -> viewModel.installApk(game.id)
-                            game.isDownloaded -> viewModel.launchGame(game.id)
-                            else -> viewModel.downloadGame(game.id)
+                            focusedGame.needsInstall -> viewModel.installApk(focusedGame.id)
+                            focusedGame.isDownloaded -> viewModel.launchGame(focusedGame.id)
+                            else -> viewModel.downloadGame(focusedGame.id)
                         }
                     },
-                    onFavorite = { viewModel.toggleFavorite(game.id) },
+                    onFavorite = { viewModel.toggleFavorite(focusedGame.id) },
                     onDetails = {
                         viewModel.toggleQuickMenu()
-                        onGameSelect(game.id)
+                        onGameSelect(focusedGame.id)
                     },
-                    onRefresh = { viewModel.refreshGameData(game.id) },
+                    onRefresh = { viewModel.refreshGameData(focusedGame.id) },
                     onDelete = {
                         viewModel.toggleQuickMenu()
-                        viewModel.deleteLocalFile(game.id)
+                        viewModel.deleteLocalFile(focusedGame.id)
                     },
                     onHide = {
                         viewModel.toggleQuickMenu()
-                        viewModel.hideGame(game.id)
+                        viewModel.hideGame(focusedGame.id)
+                    }
+                )
+            } else if (currentPlatform != null) {
+                PlatformQuickMenuOverlay(
+                    platformName = currentPlatform.name,
+                    focusIndex = uiState.quickMenuFocusIndex,
+                    onDismiss = { viewModel.toggleQuickMenu() },
+                    onResync = {
+                        viewModel.toggleQuickMenu()
+                        viewModel.syncCurrentPlatform()
                     }
                 )
             }
@@ -1052,6 +1064,54 @@ private fun QuickMenuItem(
                 text = "[$value]",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlatformQuickMenuOverlay(
+    platformName: String,
+    focusIndex: Int,
+    onDismiss: () -> Unit,
+    onResync: () -> Unit
+) {
+    val isDarkTheme = LocalLauncherTheme.current.isDarkTheme
+    val overlayColor = if (isDarkTheme) Color.Black.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.5f)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(overlayColor)
+            .clickable(
+                onClick = onDismiss,
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .background(
+                    MaterialTheme.colorScheme.surface,
+                    RoundedCornerShape(12.dp)
+                )
+                .clickable(enabled = false, onClick = {})
+                .padding(24.dp)
+                .width(350.dp)
+        ) {
+            Text(
+                text = platformName.uppercase(),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            QuickMenuItem(
+                icon = Icons.Default.Refresh,
+                label = "Resync Platform",
+                isFocused = focusIndex == 0,
+                onClick = onResync
             )
         }
     }

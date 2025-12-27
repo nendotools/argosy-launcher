@@ -23,6 +23,7 @@ import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.remote.romm.RomMRepository
 import com.nendo.argosy.data.remote.romm.RomMResult
 import com.nendo.argosy.domain.usecase.download.DownloadResult
+import com.nendo.argosy.domain.usecase.sync.SyncPlatformUseCase
 import com.nendo.argosy.ui.input.InputHandler
 import com.nendo.argosy.ui.input.InputResult
 import com.nendo.argosy.ui.input.SoundFeedbackManager
@@ -249,7 +250,8 @@ class LibraryViewModel @Inject constructor(
     private val romMRepository: RomMRepository,
     private val playStoreService: PlayStoreService,
     private val imageCacheManager: ImageCacheManager,
-    private val apkInstallManager: ApkInstallManager
+    private val apkInstallManager: ApkInstallManager,
+    private val syncPlatformUseCase: SyncPlatformUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LibraryUiState())
@@ -456,6 +458,14 @@ class LibraryViewModel @Inject constructor(
         loadGames()
     }
 
+    fun syncCurrentPlatform() {
+        val platform = _uiState.value.currentPlatform ?: return
+        viewModelScope.launch {
+            syncPlatformUseCase(platform.id, platform.name)
+            loadGames()
+        }
+    }
+
     fun setInitialPlatform(platformId: String) {
         val state = _uiState.value
         if (state.platforms.isEmpty()) {
@@ -652,13 +662,18 @@ class LibraryViewModel @Inject constructor(
     fun moveQuickMenuFocus(delta: Int) {
         _uiState.update {
             val game = it.focusedGame
-            val isDownloaded = game?.isDownloaded == true
-            val needsInstall = game?.needsInstall == true
-            val isRommGame = game?.isRommGame == true
-            val isAndroidApp = game?.isAndroidApp == true
-            val canRefresh = isRommGame || isAndroidApp
-            var maxIndex = if (isDownloaded || needsInstall) 4 else 3
-            if (canRefresh) maxIndex++
+            val maxIndex = if (game == null) {
+                0
+            } else {
+                val isDownloaded = game.isDownloaded
+                val needsInstall = game.needsInstall
+                val isRommGame = game.isRommGame
+                val isAndroidApp = game.isAndroidApp
+                val canRefresh = isRommGame || isAndroidApp
+                var idx = if (isDownloaded || needsInstall) 4 else 3
+                if (canRefresh) idx++
+                idx
+            }
             val newIndex = (it.quickMenuFocusIndex + delta).coerceIn(0, maxIndex)
             it.copy(quickMenuFocusIndex = newIndex)
         }

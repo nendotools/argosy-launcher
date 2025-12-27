@@ -1188,6 +1188,10 @@ class SettingsViewModel @Inject constructor(
         storageDelegate.resetPlatformToGlobal(viewModelScope, platformId)
     }
 
+    fun syncPlatform(platformId: String, platformName: String) {
+        storageDelegate.syncPlatform(viewModelScope, platformId, platformName)
+    }
+
     fun requestPurgePlatform(platformId: String) {
         storageDelegate.requestPurgePlatform(platformId)
     }

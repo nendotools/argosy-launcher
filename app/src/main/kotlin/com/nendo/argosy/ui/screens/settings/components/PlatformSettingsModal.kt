@@ -32,6 +32,7 @@ fun PlatformSettingsModal(
     onDismiss: () -> Unit,
     onToggleSync: () -> Unit,
     onChangePath: () -> Unit,
+    onResync: () -> Unit,
     onResetPath: () -> Unit,
     onPurge: () -> Unit
 ) {
@@ -55,10 +56,16 @@ fun PlatformSettingsModal(
             onClick = onChangePath
         )
 
+        OptionItem(
+            label = "Resync Platform",
+            isFocused = focusIndex == 2,
+            onClick = onResync
+        )
+
         if (hasCustomPath) {
             OptionItem(
                 label = "Reset to Default",
-                isFocused = focusIndex == 2,
+                isFocused = focusIndex == 3,
                 onClick = onResetPath
             )
         }
@@ -70,7 +77,7 @@ fun PlatformSettingsModal(
 
         OptionItem(
             label = "Purge All Data",
-            isFocused = if (hasCustomPath) focusIndex == 3 else focusIndex == 2,
+            isFocused = if (hasCustomPath) focusIndex == 4 else focusIndex == 3,
             isDangerous = true,
             onClick = onPurge
         )
