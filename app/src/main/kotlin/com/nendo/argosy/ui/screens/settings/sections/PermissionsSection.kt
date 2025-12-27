@@ -1,6 +1,7 @@
 package com.nendo.argosy.ui.screens.settings.sections
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -127,6 +128,7 @@ private fun PermissionCard(
             .fillMaxWidth()
             .heightIn(min = Dimens.settingsItemMinHeight)
             .clip(shape)
+            .clickable(onClick = onClick)
             .background(backgroundColor, shape)
             .padding(Dimens.spacingMd),
         verticalAlignment = Alignment.Top

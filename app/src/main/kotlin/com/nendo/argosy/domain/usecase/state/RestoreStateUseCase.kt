@@ -1,9 +1,7 @@
 package com.nendo.argosy.domain.usecase.state
 
-import com.nendo.argosy.data.emulator.CoreVersionExtractor
 import com.nendo.argosy.data.emulator.StatePathRegistry
 import com.nendo.argosy.data.emulator.VersionValidationResult
-import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.repository.StateCacheManager
 import java.io.File
 import javax.inject.Inject
@@ -22,9 +20,7 @@ sealed class RestoreStateResult {
 }
 
 class RestoreStateUseCase @Inject constructor(
-    private val stateCacheManager: StateCacheManager,
-    private val gameDao: GameDao,
-    private val coreVersionExtractor: CoreVersionExtractor
+    private val stateCacheManager: StateCacheManager
 ) {
     suspend operator fun invoke(
         cacheId: Long,

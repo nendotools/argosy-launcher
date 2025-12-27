@@ -7,7 +7,6 @@ import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.entity.StateCacheEntity
 import com.nendo.argosy.data.repository.StateCacheManager
 import com.nendo.argosy.domain.model.UnifiedStateEntry
-import java.io.File
 import javax.inject.Inject
 
 class GetUnifiedStatesUseCase @Inject constructor(
@@ -138,6 +137,7 @@ class GetUnifiedStatesUseCase @Inject constructor(
         }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun resolveEmulatorId(platformSlug: String): String? {
         return null
     }

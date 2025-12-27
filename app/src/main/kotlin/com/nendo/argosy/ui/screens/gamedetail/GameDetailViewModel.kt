@@ -30,7 +30,6 @@ import com.nendo.argosy.data.remote.romm.RomMResult
 import com.nendo.argosy.data.repository.GameRepository
 import com.nendo.argosy.domain.usecase.download.DownloadResult
 import com.nendo.argosy.domain.model.SyncProgress
-import com.nendo.argosy.domain.model.SyncState
 import com.nendo.argosy.data.local.dao.SaveSyncDao
 import com.nendo.argosy.data.local.entity.SaveSyncEntity
 import com.nendo.argosy.domain.usecase.save.CheckSaveSyncPermissionUseCase

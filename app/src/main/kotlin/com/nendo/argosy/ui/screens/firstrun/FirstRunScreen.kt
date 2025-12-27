@@ -1,10 +1,8 @@
 package com.nendo.argosy.ui.screens.firstrun
 
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
-import android.os.Environment
 import android.provider.Settings
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
@@ -67,8 +65,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.nendo.argosy.data.local.entity.PlatformEntity
-import com.nendo.argosy.ui.components.FooterBar
-import com.nendo.argosy.ui.components.InputButton
 import com.nendo.argosy.ui.filebrowser.FileBrowserMode
 import com.nendo.argosy.ui.filebrowser.FileBrowserScreen
 import com.nendo.argosy.ui.input.LocalInputDispatcher

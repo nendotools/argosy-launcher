@@ -12,7 +12,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.nendo.argosy.data.preferences.DefaultView
-import com.nendo.argosy.domain.model.RequiredAction
 import com.nendo.argosy.ui.screens.apps.AppsScreen
 import com.nendo.argosy.ui.screens.downloads.DownloadsScreen
 import com.nendo.argosy.ui.screens.firstrun.FirstRunScreen

@@ -17,8 +17,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -36,9 +34,6 @@ class StateCacheManager @Inject constructor(
     private val coreVersionExtractor: CoreVersionExtractor,
     private val retroArchConfigParser: RetroArchConfigParser
 ) {
-    private val TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")
-        .withZone(ZoneId.systemDefault())
-
     companion object {
         private const val TAG = "StateCacheManager"
         private const val MIN_UNLOCKED_SLOTS = 3
