@@ -130,6 +130,8 @@ fun FileBrowserScreen(
                         onEntryClick = { entry ->
                             if (entry.isDirectory) {
                                 viewModel.navigate(entry.path)
+                            } else if (mode == FileBrowserMode.FILE_SELECTION) {
+                                onPathSelected(entry.path)
                             }
                         },
                         modifier = Modifier.weight(1f)
@@ -508,9 +510,10 @@ private fun FileBrowserFooter(
     onUseCurrentFolder: () -> Unit,
     onCancel: () -> Unit
 ) {
+    val selectHint = if (mode == FileBrowserMode.FILE_SELECTION) "Select File" else "Open"
     val hints = buildList {
         add(InputButton.DPAD to "Navigate")
-        add(InputButton.SOUTH to "Select")
+        add(InputButton.SOUTH to selectHint)
         add(InputButton.EAST to "Back")
         if (mode == FileBrowserMode.FOLDER_SELECTION && currentPath.isNotEmpty()) {
             add(InputButton.WEST to "Use Current Directory")
