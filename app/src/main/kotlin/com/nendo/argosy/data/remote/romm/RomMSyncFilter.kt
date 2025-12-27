@@ -9,7 +9,7 @@ object RomMSyncFilter {
     private val NO_INTRO_HACK_REGEX = Regex("\\[h[0-9a-z ]*\\]")
     private val HACK_BRACKET_REGEX = Regex("\\[.*\\bhack\\b.*\\]")
     private val HACK_PAREN_REGEX = Regex("\\(.*\\bhack\\b.*\\)")
-    private val BAD_DUMP_REGEX = Regex("\\[[boftpBOFTP][0-9]*\\]")
+    private val BAD_DUMP_REGEX = Regex("\\[[bopBOP][0-9]*\\]")
 
     fun shouldSyncRom(rom: RomMRom, filters: SyncFilterPreferences): Boolean {
         if (!passesExtensionFilter(rom)) return false
@@ -38,6 +38,8 @@ object RomMSyncFilter {
     }
 
     private fun passesRegionFilter(rom: RomMRom, filters: SyncFilterPreferences): Boolean {
+        if (filters.enabledRegions.isEmpty()) return true
+
         val romRegions = rom.regions
         if (romRegions.isNullOrEmpty()) return true
 
