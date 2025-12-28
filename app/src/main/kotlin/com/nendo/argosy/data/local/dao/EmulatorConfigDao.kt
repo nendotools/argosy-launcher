@@ -42,4 +42,7 @@ interface EmulatorConfigDao {
 
     @Query("UPDATE emulator_configs SET coreName = :coreName WHERE platformId = :platformId AND gameId IS NULL AND isDefault = 1")
     suspend fun updateCoreNameForPlatform(platformId: String, coreName: String?)
+
+    @Query("UPDATE emulator_configs SET platformId = :newPlatformId WHERE platformId = :oldPlatformId")
+    suspend fun migratePlatform(oldPlatformId: String, newPlatformId: String)
 }

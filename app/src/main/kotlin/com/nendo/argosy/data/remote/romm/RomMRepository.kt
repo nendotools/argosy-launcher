@@ -2,6 +2,7 @@ package com.nendo.argosy.data.remote.romm
 
 import com.nendo.argosy.data.cache.ImageCacheManager
 import com.nendo.argosy.util.Logger
+import com.nendo.argosy.data.local.dao.EmulatorConfigDao
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.dao.GameDiscDao
 import com.nendo.argosy.data.local.dao.OrphanedFileDao
@@ -54,6 +55,7 @@ class RomMRepository @Inject constructor(
     private val platformDao: PlatformDao,
     private val pendingSyncDao: PendingSyncDao,
     private val orphanedFileDao: OrphanedFileDao,
+    private val emulatorConfigDao: EmulatorConfigDao,
     private val imageCacheManager: ImageCacheManager,
     private val saveSyncRepository: dagger.Lazy<com.nendo.argosy.data.repository.SaveSyncRepository>,
     private val gameRepository: dagger.Lazy<com.nendo.argosy.data.repository.GameRepository>
@@ -423,9 +425,10 @@ class RomMRepository @Inject constructor(
                 platformDao.insert(entity)
             }
             existingBySlug != null && existingBySlug.id != platformId -> {
-                gameDao.migratePlatform(existingBySlug.id, platformId)
-                platformDao.deleteById(existingBySlug.id)
                 platformDao.insert(entity)
+                gameDao.migratePlatform(existingBySlug.id, platformId)
+                emulatorConfigDao.migratePlatform(existingBySlug.id, platformId)
+                platformDao.deleteById(existingBySlug.id)
                 Logger.info(TAG, "Migrated platform ${existingBySlug.id} -> $platformId")
             }
             else -> {
