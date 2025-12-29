@@ -185,6 +185,7 @@ data class StorageState(
     val downloadedGamesSize: Long = 0,
     val downloadedGamesCount: Int = 0,
     val maxConcurrentDownloads: Int = 1,
+    val instantDownloadThresholdMb: Int = 50,
     val availableSpace: Long = 0,
     val hasAllFilesAccess: Boolean = false,
     val platformConfigs: List<PlatformStorageConfig> = emptyList(),

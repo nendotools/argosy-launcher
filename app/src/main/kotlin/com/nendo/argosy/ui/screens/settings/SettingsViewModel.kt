@@ -396,6 +396,7 @@ class SettingsViewModel @Inject constructor(
                 downloadedGamesSize = downloadedSize,
                 downloadedGamesCount = downloadedCount,
                 maxConcurrentDownloads = prefs.maxConcurrentDownloads,
+                instantDownloadThresholdMb = prefs.instantDownloadThresholdMb,
                 availableSpace = availableSpace
             ))
             storageDelegate.checkAllFilesAccess()
@@ -1146,6 +1147,10 @@ class SettingsViewModel @Inject constructor(
 
     fun adjustMaxConcurrentDownloads(delta: Int) {
         storageDelegate.adjustMaxConcurrentDownloads(viewModelScope, delta)
+    }
+
+    fun cycleInstantDownloadThreshold() {
+        storageDelegate.cycleInstantDownloadThreshold(viewModelScope)
     }
 
     fun openFolderPicker() {

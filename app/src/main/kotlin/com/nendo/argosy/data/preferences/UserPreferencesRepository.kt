@@ -56,6 +56,7 @@ class UserPreferencesRepository @Inject constructor(
         val VISIBLE_SYSTEM_APPS = stringPreferencesKey("visible_system_apps")
         val APP_ORDER = stringPreferencesKey("app_order")
         val MAX_CONCURRENT_DOWNLOADS = intPreferencesKey("max_concurrent_downloads")
+        val INSTANT_DOWNLOAD_THRESHOLD_MB = intPreferencesKey("instant_download_threshold_mb")
         val UI_DENSITY = stringPreferencesKey("ui_density")
         val SOUND_CONFIGS = stringPreferencesKey("sound_configs")
         val BETA_UPDATES_ENABLED = booleanPreferencesKey("beta_updates_enabled")
@@ -154,6 +155,7 @@ class UserPreferencesRepository @Inject constructor(
                 ?.filter { it.isNotBlank() }
                 ?: emptyList(),
             maxConcurrentDownloads = prefs[Keys.MAX_CONCURRENT_DOWNLOADS] ?: 1,
+            instantDownloadThresholdMb = prefs[Keys.INSTANT_DOWNLOAD_THRESHOLD_MB] ?: 50,
             gridDensity = GridDensity.fromString(prefs[Keys.UI_DENSITY]),
             soundConfigs = parseSoundConfigs(prefs[Keys.SOUND_CONFIGS]),
             betaUpdatesEnabled = prefs[Keys.BETA_UPDATES_ENABLED] ?: false,
@@ -434,6 +436,12 @@ class UserPreferencesRepository @Inject constructor(
         }
     }
 
+    suspend fun setInstantDownloadThresholdMb(value: Int) {
+        dataStore.edit { prefs ->
+            prefs[Keys.INSTANT_DOWNLOAD_THRESHOLD_MB] = value
+        }
+    }
+
     suspend fun setGridDensity(density: GridDensity) {
         dataStore.edit { prefs ->
             prefs[Keys.UI_DENSITY] = density.name
@@ -690,6 +698,7 @@ data class UserPreferences(
     val visibleSystemApps: Set<String> = emptySet(),
     val appOrder: List<String> = emptyList(),
     val maxConcurrentDownloads: Int = 1,
+    val instantDownloadThresholdMb: Int = 50,
     val gridDensity: GridDensity = GridDensity.NORMAL,
     val soundConfigs: Map<SoundType, SoundConfig> = emptyMap(),
     val betaUpdatesEnabled: Boolean = false,

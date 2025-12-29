@@ -202,6 +202,78 @@ class DownloadManager @Inject constructor(
         _state.value = _state.value.copy(availableStorageBytes = available)
     }
 
+    private suspend fun isInstantDownload(expectedSizeBytes: Long): Boolean {
+        if (expectedSizeBytes <= 0) return false
+        val thresholdMb = preferencesRepository.userPreferences.first().instantDownloadThresholdMb
+        val thresholdBytes = thresholdMb * 1024L * 1024L
+        return expectedSizeBytes <= thresholdBytes
+    }
+
+    private suspend fun startDownloadJob(progress: DownloadProgress) {
+        val availableStorage = getAvailableStorageBytes(progress.platformSlug)
+        val requiredBytes = progress.totalBytes - progress.bytesDownloaded
+
+        if (!hasEnoughStorage(requiredBytes, availableStorage)) {
+            downloadQueueDao.updateState(progress.id, DownloadState.WAITING_FOR_STORAGE.name)
+            _state.value = _state.value.copy(
+                activeDownloads = _state.value.activeDownloads.filter { it.id != progress.id },
+                queue = _state.value.queue.map {
+                    if (it.id == progress.id) it.copy(state = DownloadState.WAITING_FOR_STORAGE) else it
+                } + if (_state.value.queue.none { it.id == progress.id }) {
+                    listOf(progress.copy(state = DownloadState.WAITING_FOR_STORAGE))
+                } else emptyList(),
+                availableStorageBytes = availableStorage
+            )
+            return
+        }
+
+        soundManager.play(SoundType.DOWNLOAD_START)
+
+        _state.value = _state.value.copy(
+            activeDownloads = _state.value.activeDownloads + progress.copy(state = DownloadState.DOWNLOADING),
+            queue = _state.value.queue.filter { it.id != progress.id },
+            availableStorageBytes = availableStorage
+        )
+
+        downloadQueueDao.updateState(progress.id, DownloadState.DOWNLOADING.name)
+
+        downloadJobs[progress.id] = scope.launch {
+            val result = downloadRom(progress)
+
+            val finalProgress = when (result) {
+                is DownloadResult.Success -> {
+                    downloadQueueDao.updateState(progress.id, DownloadState.COMPLETED.name)
+                    soundManager.play(SoundType.DOWNLOAD_COMPLETE)
+                    progress.copy(
+                        state = DownloadState.COMPLETED,
+                        bytesDownloaded = result.bytesWritten
+                    )
+                }
+                is DownloadResult.Failure -> {
+                    downloadQueueDao.updateState(progress.id, DownloadState.FAILED.name, result.reason)
+                    soundManager.play(SoundType.ERROR)
+                    progress.copy(
+                        state = DownloadState.FAILED,
+                        errorReason = result.reason
+                    )
+                }
+                is DownloadResult.Cancelled -> {
+                    progress.copy(state = DownloadState.PAUSED)
+                }
+            }
+
+            downloadJobs.remove(progress.id)
+
+            if (result !is DownloadResult.Cancelled) {
+                _state.value = _state.value.copy(
+                    activeDownloads = _state.value.activeDownloads.filter { it.id != progress.id },
+                    completed = _state.value.completed + finalProgress
+                )
+                processQueue()
+            }
+        }
+    }
+
     suspend fun enqueueDownload(
         gameId: Long,
         rommId: Long,
@@ -251,11 +323,14 @@ class DownloadManager @Inject constructor(
             state = DownloadState.QUEUED
         )
 
-        _state.value = _state.value.copy(
-            queue = _state.value.queue + progress
-        )
-
-        processQueue()
+        if (isInstantDownload(expectedSizeBytes)) {
+            startDownloadJob(progress)
+        } else {
+            _state.value = _state.value.copy(
+                queue = _state.value.queue + progress
+            )
+            processQueue()
+        }
     }
 
     suspend fun enqueueDiscDownload(
@@ -310,11 +385,14 @@ class DownloadManager @Inject constructor(
             state = DownloadState.QUEUED
         )
 
-        _state.value = _state.value.copy(
-            queue = _state.value.queue + progress
-        )
-
-        processQueue()
+        if (isInstantDownload(expectedSizeBytes)) {
+            startDownloadJob(progress)
+        } else {
+            _state.value = _state.value.copy(
+                queue = _state.value.queue + progress
+            )
+            processQueue()
+        }
     }
 
     private suspend fun processQueue() {

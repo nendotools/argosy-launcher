@@ -92,6 +92,17 @@ class StorageSettingsDelegate @Inject constructor(
         }
     }
 
+    fun cycleInstantDownloadThreshold(scope: CoroutineScope) {
+        scope.launch {
+            val thresholds = listOf(50, 100, 250, 500)
+            val current = _state.value.instantDownloadThresholdMb
+            val currentIndex = thresholds.indexOf(current).coerceAtLeast(0)
+            val next = thresholds[(currentIndex + 1) % thresholds.size]
+            preferencesRepository.setInstantDownloadThresholdMb(next)
+            _state.update { it.copy(instantDownloadThresholdMb = next) }
+        }
+    }
+
     fun openFolderPicker() {
         _launchFolderPicker.value = true
     }

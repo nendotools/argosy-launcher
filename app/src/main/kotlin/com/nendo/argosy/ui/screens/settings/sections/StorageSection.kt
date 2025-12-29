@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import com.nendo.argosy.ui.components.ActionPreference
+import com.nendo.argosy.ui.components.CyclePreference
 import com.nendo.argosy.ui.components.InfoPreference
 import com.nendo.argosy.ui.components.SliderPreference
 import com.nendo.argosy.ui.screens.settings.PlatformStorageConfig
@@ -40,7 +41,7 @@ import com.nendo.argosy.ui.theme.Motion
 fun StorageSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
     val listState = rememberLazyListState()
     val showPermissionRow = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
-    val baseItemCount = if (showPermissionRow) 4 else 3
+    val baseItemCount = if (showPermissionRow) 5 else 4
 
     val downloadedText = if (uiState.storage.downloadedGamesCount > 0) {
         val sizeText = formatFileSize(uiState.storage.downloadedGamesSize)
@@ -108,6 +109,15 @@ fun StorageSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
         }
         item {
             val focusOffset = if (showPermissionRow) 3 else 2
+            CyclePreference(
+                title = "Instant Download Threshold",
+                value = "${uiState.storage.instantDownloadThresholdMb} MB",
+                isFocused = uiState.focusedIndex == focusOffset,
+                onClick = { viewModel.cycleInstantDownloadThreshold() }
+            )
+        }
+        item {
+            val focusOffset = if (showPermissionRow) 4 else 3
             InfoPreference(
                 title = "Downloaded",
                 value = downloadedText,
