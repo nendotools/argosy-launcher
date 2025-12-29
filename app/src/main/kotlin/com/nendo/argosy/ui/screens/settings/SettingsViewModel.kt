@@ -744,7 +744,7 @@ class SettingsViewModel @Inject constructor(
                 SettingsSection.SYNC_FILTERS -> 6
                 SettingsSection.STEAM_SETTINGS -> 2 + state.steam.installedLaunchers.size
                 SettingsSection.STORAGE -> {
-                    val baseItemCount = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) 4 else 3
+                    val baseItemCount = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) 5 else 4
                     val platformCount = state.storage.platformConfigs.size
                     (baseItemCount + platformCount - 1).coerceAtLeast(baseItemCount - 1)
                 }
@@ -1557,13 +1557,15 @@ class SettingsViewModel @Inject constructor(
             }
             SettingsSection.STORAGE -> {
                 val hasPermissionRow = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
-                val baseItemCount = if (hasPermissionRow) 4 else 3
+                val baseItemCount = if (hasPermissionRow) 5 else 4
                 val folderPickerIndex = if (hasPermissionRow) 1 else 0
                 val sliderIndex = if (hasPermissionRow) 2 else 1
+                val thresholdIndex = if (hasPermissionRow) 3 else 2
                 when {
                     state.focusedIndex == 0 && hasPermissionRow && !state.storage.hasAllFilesAccess -> requestStoragePermission()
                     state.focusedIndex == folderPickerIndex -> openFolderPicker()
                     state.focusedIndex == sliderIndex -> cycleMaxConcurrentDownloads()
+                    state.focusedIndex == thresholdIndex -> cycleInstantDownloadThreshold()
                     state.focusedIndex >= baseItemCount -> {
                         val platformIndex = state.focusedIndex - baseItemCount
                         val config = state.storage.platformConfigs.getOrNull(platformIndex)
