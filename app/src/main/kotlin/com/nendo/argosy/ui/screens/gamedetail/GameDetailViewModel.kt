@@ -36,6 +36,7 @@ import com.nendo.argosy.domain.usecase.save.CheckSaveSyncPermissionUseCase
 import com.nendo.argosy.ui.screens.gamedetail.components.SaveStatusEvent
 import com.nendo.argosy.ui.screens.gamedetail.components.SaveStatusInfo
 import com.nendo.argosy.ui.screens.gamedetail.components.SaveSyncStatus
+import com.nendo.argosy.domain.usecase.cache.RepairImageCacheUseCase
 import com.nendo.argosy.domain.usecase.game.ConfigureEmulatorUseCase
 import com.nendo.argosy.domain.usecase.game.LaunchGameUseCase
 import com.nendo.argosy.domain.usecase.game.LaunchWithSyncUseCase
@@ -94,7 +95,8 @@ class GameDetailViewModel @Inject constructor(
     private val achievementUpdateBus: AchievementUpdateBus,
     private val gameUpdateBus: GameUpdateBus,
     private val playStoreService: PlayStoreService,
-    private val apkInstallManager: ApkInstallManager
+    private val apkInstallManager: ApkInstallManager,
+    private val repairImageCacheUseCase: RepairImageCacheUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GameDetailUiState())
@@ -108,6 +110,21 @@ class GameDetailViewModel @Inject constructor(
     private val actionDebounceMs = 300L
     private var pageLoadTime: Long = 0
     private val pageLoadDebounceMs = 500L
+
+    private var backgroundRepairPending = false
+
+    fun repairBackgroundImage(gameId: Long, failedPath: String) {
+        if (backgroundRepairPending) return
+        backgroundRepairPending = true
+
+        viewModelScope.launch {
+            val repairedUrl = repairImageCacheUseCase.repairBackground(gameId, failedPath)
+            if (repairedUrl != null) {
+                _uiState.update { it.copy(repairedBackgroundPath = repairedUrl) }
+            }
+            backgroundRepairPending = false
+        }
+    }
 
     init {
         viewModelScope.launch {

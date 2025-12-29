@@ -20,6 +20,7 @@ import com.nendo.argosy.domain.model.ChangelogEntry
 import com.nendo.argosy.domain.model.CompletionStatus
 import com.nendo.argosy.domain.model.RequiredAction
 import com.nendo.argosy.domain.usecase.achievement.FetchAchievementsUseCase
+import com.nendo.argosy.domain.usecase.cache.RepairImageCacheUseCase
 import com.nendo.argosy.domain.usecase.download.DownloadResult
 import com.nendo.argosy.domain.usecase.recommendation.GenerateRecommendationsUseCase
 import com.nendo.argosy.domain.usecase.sync.SyncLibraryResult
@@ -163,6 +164,7 @@ data class HomeUiState(
     val showGameMenu: Boolean = false,
     val gameMenuFocusIndex: Int = 0,
     val downloadIndicators: Map<Long, GameDownloadIndicator> = emptyMap(),
+    val repairedCoverPaths: Map<Long, String> = emptyMap(),
     val backgroundBlur: Int = 0,
     val backgroundSaturation: Int = 100,
     val backgroundOpacity: Int = 100,
@@ -273,7 +275,8 @@ class HomeViewModel @Inject constructor(
     private val fetchAchievementsUseCase: FetchAchievementsUseCase,
     private val achievementUpdateBus: AchievementUpdateBus,
     private val generateRecommendationsUseCase: GenerateRecommendationsUseCase,
-    private val apkInstallManager: ApkInstallManager
+    private val apkInstallManager: ApkInstallManager,
+    private val repairImageCacheUseCase: RepairImageCacheUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(restoreInitialState())
@@ -1293,6 +1296,25 @@ class HomeViewModel @Inject constructor(
 
     fun showLaunchError(message: String) {
         notificationManager.showError(message)
+    }
+
+    private val pendingCoverRepairs = mutableSetOf<Long>()
+
+    fun repairCoverImage(gameId: Long, failedPath: String) {
+        if (pendingCoverRepairs.contains(gameId)) return
+        pendingCoverRepairs.add(gameId)
+
+        viewModelScope.launch {
+            val repairedUrl = repairImageCacheUseCase.repairCover(gameId, failedPath)
+            if (repairedUrl != null) {
+                _uiState.update { state ->
+                    state.copy(
+                        repairedCoverPaths = state.repairedCoverPaths + (gameId to repairedUrl)
+                    )
+                }
+            }
+            pendingCoverRepairs.remove(gameId)
+        }
     }
 
     private fun PlatformEntity.toUi() = HomePlatformUi(

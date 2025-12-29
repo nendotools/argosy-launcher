@@ -39,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -338,12 +339,15 @@ fun ScreenshotsSection(
             }
         }
 
+        val failedCachePaths = remember { mutableStateMapOf<Int, Boolean>() }
+
         LazyRow(
             state = listState,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             itemsIndexed(screenshots) { index, screenshot ->
                 val isFocused = showFocus && index == focusedIndex
+                val useRemote = failedCachePaths[index] == true || screenshot.cachedPath == null
                 Box(
                     modifier = Modifier
                         .width(240.dp)
@@ -357,20 +361,22 @@ fun ScreenshotsSection(
                         .clickable { onScreenshotTap(index) }
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                 ) {
-                    screenshot.cachedPath?.let { path ->
+                    if (useRemote) {
                         AsyncImage(
-                            model = java.io.File(path),
+                            model = screenshot.remoteUrl,
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()
                         )
+                    } else {
+                        AsyncImage(
+                            model = java.io.File(screenshot.cachedPath!!),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                            onError = { failedCachePaths[index] = true }
+                        )
                     }
-                    AsyncImage(
-                        model = screenshot.remoteUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
                 }
             }
         }

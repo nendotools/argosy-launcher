@@ -12,7 +12,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,30 +36,34 @@ fun ScreenshotViewerOverlay(
     if (screenshots.isEmpty()) return
 
     val screenshot = screenshots[currentIndex.coerceIn(0, screenshots.size - 1)]
+    var cacheLoadFailed by remember(currentIndex) { mutableStateOf(false) }
+    val useRemote = cacheLoadFailed || screenshot.cachedPath == null
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.95f))
     ) {
-        screenshot.cachedPath?.let { path ->
+        if (useRemote) {
             AsyncImage(
-                model = java.io.File(path),
+                model = screenshot.remoteUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(bottom = 56.dp)
             )
+        } else {
+            AsyncImage(
+                model = java.io.File(screenshot.cachedPath!!),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 56.dp),
+                onError = { cacheLoadFailed = true }
+            )
         }
-        AsyncImage(
-            model = screenshot.remoteUrl,
-            contentDescription = null,
-            contentScale = ContentScale.Fit,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = 56.dp)
-        )
 
         Row(modifier = Modifier.fillMaxSize().padding(bottom = 56.dp)) {
             Box(

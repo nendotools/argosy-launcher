@@ -332,6 +332,8 @@ fun LibraryScreen(
                                             showFocus = !uiState.isTouchMode || uiState.hasSelectedGame,
                                             cardHeight = cardHeight,
                                             showPlatformBadge = uiState.currentPlatformIndex < 0,
+                                            coverPathOverride = uiState.repairedCoverPaths[game.id],
+                                            onCoverLoadFailed = viewModel::repairCoverImage,
                                             onClick = { viewModel.handleItemTap(index, onGameSelect) },
                                             onLongClick = { viewModel.handleItemLongPress(index) },
                                             modifier = Modifier.zIndex(if (isFocused) 1f else 0f)
@@ -517,6 +519,8 @@ private fun LibraryGameCard(
     showFocus: Boolean,
     cardHeight: Dp,
     showPlatformBadge: Boolean = true,
+    coverPathOverride: String? = null,
+    onCoverLoadFailed: ((Long, String) -> Unit)? = null,
     onClick: () -> Unit = {},
     onLongClick: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -538,6 +542,8 @@ private fun LibraryGameCard(
         ),
         isFocused = effectiveFocused,
         showPlatformBadge = showPlatformBadge,
+        coverPathOverride = coverPathOverride,
+        onCoverLoadFailed = onCoverLoadFailed,
         modifier = modifier
             .fillMaxWidth()
             .height(cardHeight)

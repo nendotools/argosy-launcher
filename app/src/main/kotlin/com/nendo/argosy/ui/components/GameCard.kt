@@ -70,10 +70,13 @@ fun GameCard(
     focusScale: Float = Motion.scaleFocused,
     scaleFromBottom: Boolean = false,
     downloadIndicator: GameDownloadIndicator = GameDownloadIndicator.NONE,
-    showPlatformBadge: Boolean = true
+    showPlatformBadge: Boolean = true,
+    coverPathOverride: String? = null,
+    onCoverLoadFailed: ((gameId: Long, failedPath: String) -> Unit)? = null
 ) {
     val themeConfig = LocalLauncherTheme.current
     val boxArtStyle = LocalBoxArtStyle.current
+    val effectiveCoverPath = coverPathOverride ?: game.coverPath
 
     val scale by animateFloatAsState(
         targetValue = if (isFocused) focusScale else Motion.scaleDefault,
@@ -154,13 +157,18 @@ fun GameCard(
             .clip(shape)
             .background(MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        if (game.coverPath != null) {
+        if (effectiveCoverPath != null) {
             AsyncImage(
-                model = game.coverPath,
+                model = effectiveCoverPath,
                 contentDescription = game.title,
                 contentScale = ContentScale.Crop,
                 colorFilter = ColorFilter.colorMatrix(saturationMatrix),
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                onError = {
+                    if (onCoverLoadFailed != null && effectiveCoverPath.startsWith("/")) {
+                        onCoverLoadFailed(game.id, effectiveCoverPath)
+                    }
+                }
             )
         } else {
             Box(

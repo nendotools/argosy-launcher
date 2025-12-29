@@ -388,6 +388,8 @@ fun HomeScreen(
                                 rowKey = uiState.currentRow.toString(),
                                 downloadIndicatorFor = uiState::downloadIndicatorFor,
                                 showPlatformBadge = uiState.currentRow !is HomeRow.Platform && uiState.currentRow != HomeRow.Steam && uiState.currentRow != HomeRow.Android,
+                                repairedCoverPaths = uiState.repairedCoverPaths,
+                                onCoverLoadFailed = viewModel::repairCoverImage,
                                 onItemTap = { index -> viewModel.handleItemTap(index, onGameSelect) },
                                 onItemLongPress = viewModel::handleItemLongPress,
                                 modifier = Modifier.align(Alignment.BottomStart)
@@ -690,6 +692,8 @@ private fun GameRail(
     rowKey: String,
     downloadIndicatorFor: (Long) -> GameDownloadIndicator,
     showPlatformBadge: Boolean,
+    repairedCoverPaths: Map<Long, String> = emptyMap(),
+    onCoverLoadFailed: ((Long, String) -> Unit)? = null,
     onItemTap: (Int) -> Unit = {},
     onItemLongPress: (Int) -> Unit = {},
     modifier: Modifier = Modifier
@@ -745,6 +749,8 @@ private fun GameRail(
                         scaleFromBottom = true,
                         downloadIndicator = downloadIndicatorFor(item.game.id),
                         showPlatformBadge = showPlatformBadge,
+                        coverPathOverride = repairedCoverPaths[item.game.id],
+                        onCoverLoadFailed = onCoverLoadFailed,
                         modifier = Modifier
                             .graphicsLayer { this.translationX = translationX }
                             .width(cardWidth)

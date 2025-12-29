@@ -148,6 +148,10 @@ fun SettingsScreen(
         }
     }
 
+    LaunchedEffect(uiState.currentSection) {
+        inputDispatcher.blockInputFor(Motion.transitionDebounceMs)
+    }
+
     LaunchedEffect(uiState.launchFolderPicker) {
         if (uiState.launchFolderPicker) {
             fileBrowserCallback = { path -> viewModel.setStoragePath(path) }

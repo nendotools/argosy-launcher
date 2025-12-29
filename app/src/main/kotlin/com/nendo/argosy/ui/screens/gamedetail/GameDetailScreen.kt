@@ -278,11 +278,12 @@ private fun GameDetailContent(
     Box(modifier = Modifier.fillMaxSize()) {
         // Background layer - extends behind footer
         Box(modifier = Modifier.fillMaxSize().blur(modalBlur)) {
-            if (game.backgroundPath != null) {
-                val imageData = if (game.backgroundPath.startsWith("/")) {
-                    java.io.File(game.backgroundPath)
+            val effectiveBackgroundPath = uiState.repairedBackgroundPath ?: game.backgroundPath
+            if (effectiveBackgroundPath != null) {
+                val imageData = if (effectiveBackgroundPath.startsWith("/")) {
+                    java.io.File(effectiveBackgroundPath)
                 } else {
-                    game.backgroundPath
+                    effectiveBackgroundPath
                 }
                 AsyncImage(
                     model = imageData,
@@ -290,7 +291,12 @@ private fun GameDetailContent(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxSize()
-                        .blur(24.dp)
+                        .blur(24.dp),
+                    onError = {
+                        if (uiState.repairedBackgroundPath == null && game.backgroundPath?.startsWith("/") == true) {
+                            viewModel.repairBackgroundImage(game.id, game.backgroundPath)
+                        }
+                    }
                 )
             }
 

@@ -502,6 +502,8 @@ class RomMRepository @Inject constructor(
         return if (path.startsWith("http")) path else "$baseUrl$path"
     }
 
+    fun buildMediaUrlPublic(path: String): String = buildMediaUrl(path)
+
     private data class PlatformSyncResult(
         val added: Int,
         val updated: Int,

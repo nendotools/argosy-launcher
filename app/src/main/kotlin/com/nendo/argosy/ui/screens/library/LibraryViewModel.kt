@@ -22,6 +22,7 @@ import com.nendo.argosy.data.preferences.GridDensity
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.remote.romm.RomMRepository
 import com.nendo.argosy.data.remote.romm.RomMResult
+import com.nendo.argosy.domain.usecase.cache.RepairImageCacheUseCase
 import com.nendo.argosy.domain.usecase.download.DownloadResult
 import com.nendo.argosy.domain.usecase.sync.SyncPlatformUseCase
 import com.nendo.argosy.ui.input.InputHandler
@@ -151,7 +152,8 @@ data class LibraryUiState(
     val isTouchMode: Boolean = false,
     val hasSelectedGame: Boolean = false,
     val screenWidthDp: Int = 0,
-    val recentSearches: List<String> = emptyList()
+    val recentSearches: List<String> = emptyList(),
+    val repairedCoverPaths: Map<Long, String> = emptyMap()
 ) {
     val columnsCount: Int
         get() {
@@ -251,7 +253,8 @@ class LibraryViewModel @Inject constructor(
     private val playStoreService: PlayStoreService,
     private val imageCacheManager: ImageCacheManager,
     private val apkInstallManager: ApkInstallManager,
-    private val syncPlatformUseCase: SyncPlatformUseCase
+    private val syncPlatformUseCase: SyncPlatformUseCase,
+    private val repairImageCacheUseCase: RepairImageCacheUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LibraryUiState())
@@ -263,6 +266,25 @@ class LibraryViewModel @Inject constructor(
     private var gamesJob: Job? = null
     private var pendingInitialPlatformId: Long? = null
     private var pendingInitialSourceFilter: SourceFilter? = null
+
+    private val pendingCoverRepairs = mutableSetOf<Long>()
+
+    fun repairCoverImage(gameId: Long, failedPath: String) {
+        if (pendingCoverRepairs.contains(gameId)) return
+        pendingCoverRepairs.add(gameId)
+
+        viewModelScope.launch {
+            val repairedUrl = repairImageCacheUseCase.repairCover(gameId, failedPath)
+            if (repairedUrl != null) {
+                _uiState.update { state ->
+                    state.copy(
+                        repairedCoverPaths = state.repairedCoverPaths + (gameId to repairedUrl)
+                    )
+                }
+            }
+            pendingCoverRepairs.remove(gameId)
+        }
+    }
 
     init {
         loadPlatforms()

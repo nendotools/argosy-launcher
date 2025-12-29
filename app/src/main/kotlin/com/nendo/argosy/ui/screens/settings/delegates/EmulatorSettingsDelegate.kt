@@ -127,31 +127,28 @@ class EmulatorSettingsDelegate @Inject constructor(
         scope.launch {
             val state = _state.value
             val info = state.emulatorPickerInfo ?: return@launch
-            val index = state.emulatorPickerFocusIndex
-            val hasInstalled = info.installedEmulators.isNotEmpty()
+            val focusIndex = state.emulatorPickerFocusIndex
+            val installedCount = info.installedEmulators.size
+            val hasInstalled = installedCount > 0
+            val downloadBaseIndex = if (hasInstalled) 1 + installedCount else 0
 
-            if (hasInstalled) {
-                when {
-                    index == 0 -> {
-                        onSetEmulator(info.platformId, info.platformSlug, null)
-                        dismissEmulatorPicker()
-                        onLoadSettings()
-                    }
-                    index <= info.installedEmulators.size -> {
-                        val emulator = info.installedEmulators[index - 1]
-                        onSetEmulator(info.platformId, info.platformSlug, emulator)
-                        dismissEmulatorPicker()
-                        onLoadSettings()
-                    }
-                    else -> {
-                        val downloadIndex = index - 1 - info.installedEmulators.size
-                        val emulator = info.downloadableEmulators.getOrNull(downloadIndex)
-                        emulator?.downloadUrl?.let { _openUrlEvent.emit(it) }
-                    }
+            when {
+                hasInstalled && focusIndex == 0 -> {
+                    onSetEmulator(info.platformId, info.platformSlug, null)
+                    dismissEmulatorPicker()
+                    onLoadSettings()
                 }
-            } else {
-                val emulator = info.downloadableEmulators.getOrNull(index)
-                emulator?.downloadUrl?.let { _openUrlEvent.emit(it) }
+                hasInstalled && focusIndex in 1..installedCount -> {
+                    val emulator = info.installedEmulators[focusIndex - 1]
+                    onSetEmulator(info.platformId, info.platformSlug, emulator)
+                    dismissEmulatorPicker()
+                    onLoadSettings()
+                }
+                focusIndex >= downloadBaseIndex -> {
+                    val downloadIndex = focusIndex - downloadBaseIndex
+                    val emulator = info.downloadableEmulators.getOrNull(downloadIndex)
+                    emulator?.downloadUrl?.let { _openUrlEvent.emit(it) }
+                }
             }
         }
     }
