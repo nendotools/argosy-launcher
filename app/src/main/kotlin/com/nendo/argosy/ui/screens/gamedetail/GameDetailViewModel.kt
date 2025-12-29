@@ -305,8 +305,19 @@ class GameDetailViewModel @Inject constructor(
                 loadSaveStatusInfo(gameId, emulatorId!!, game.activeSaveChannel, game.activeSaveTimestamp)
             } else null
 
-            val updateFilesUi = if (ZipExtractor.isNswPlatform(game.platformSlug) && game.localPath != null) {
-                ZipExtractor.listUpdateFiles(game.localPath).map { file ->
+            val updateFilesUi = if (ZipExtractor.hasUpdateSupport(game.platformSlug) && game.localPath != null) {
+                ZipExtractor.listUpdateFiles(game.localPath, game.platformSlug).map { file ->
+                    UpdateFileUi(
+                        fileName = file.name,
+                        sizeBytes = file.length()
+                    )
+                }
+            } else {
+                emptyList()
+            }
+
+            val dlcFilesUi = if (ZipExtractor.hasUpdateSupport(game.platformSlug) && game.localPath != null) {
+                ZipExtractor.listDlcFiles(game.localPath, game.platformSlug).map { file ->
                     UpdateFileUi(
                         fileName = file.name,
                         sizeBytes = file.length()
@@ -338,7 +349,8 @@ class GameDetailViewModel @Inject constructor(
                     selectedCoreId = selectedCoreId,
                     saveChannel = state.saveChannel.copy(activeChannel = game.activeSaveChannel),
                     saveStatusInfo = saveStatusInfo,
-                    updateFiles = updateFilesUi
+                    updateFiles = updateFilesUi,
+                    dlcFiles = dlcFilesUi
                 )
             }
 

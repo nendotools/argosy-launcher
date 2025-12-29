@@ -625,25 +625,48 @@ class DownloadManager @Inject constructor(
         platformSlug: String,
         gameTitle: String
     ): String {
-        if (!ZipExtractor.isNswPlatform(platformSlug)) {
-            return targetFile.absolutePath
-        }
+        val isZip = ZipExtractor.isZipFile(targetFile)
 
-        return if (ZipExtractor.isZipFile(targetFile)) {
-            val extracted = ZipExtractor.extractForNsw(
-                zipFile = targetFile,
-                gameTitle = gameTitle,
-                platformDir = platformDir
-            )
-            targetFile.delete()
-            extracted.gameFile?.absolutePath ?: extracted.gameFolder.absolutePath
-        } else {
-            val organizedFile = ZipExtractor.organizeNswSingleFile(
-                romFile = targetFile,
-                gameTitle = gameTitle,
-                platformDir = platformDir
-            )
-            organizedFile.absolutePath
+        return when {
+            ZipExtractor.isNswPlatform(platformSlug) && isZip -> {
+                val extracted = ZipExtractor.extractForNsw(
+                    zipFile = targetFile,
+                    gameTitle = gameTitle,
+                    platformDir = platformDir
+                )
+                val resultPath = extracted.gameFile?.absolutePath ?: extracted.gameFolder.absolutePath
+                if (File(resultPath).exists()) {
+                    targetFile.delete()
+                    resultPath
+                } else {
+                    throw java.io.IOException("Extraction failed: $resultPath does not exist")
+                }
+            }
+            ZipExtractor.isMultiDiscPlatform(platformSlug) && isZip -> {
+                val extracted = ZipExtractor.extractMultiDisc(
+                    zipFile = targetFile,
+                    gameTitle = gameTitle,
+                    platformDir = platformDir
+                )
+                val resultPath = extracted.m3uFile?.absolutePath
+                    ?: extracted.discFiles.firstOrNull()?.absolutePath
+                    ?: extracted.gameFolder.absolutePath
+                if (File(resultPath).exists()) {
+                    targetFile.delete()
+                    resultPath
+                } else {
+                    throw java.io.IOException("Extraction failed: $resultPath does not exist")
+                }
+            }
+            ZipExtractor.isNswPlatform(platformSlug) -> {
+                val organizedFile = ZipExtractor.organizeNswSingleFile(
+                    romFile = targetFile,
+                    gameTitle = gameTitle,
+                    platformDir = platformDir
+                )
+                organizedFile.absolutePath
+            }
+            else -> targetFile.absolutePath
         }
     }
 

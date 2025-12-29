@@ -123,6 +123,7 @@ data class GameDetailUiState(
     val showMissingDiscPrompt: Boolean = false,
     val missingDiscNumbers: List<Int> = emptyList(),
     val updateFiles: List<UpdateFileUi> = emptyList(),
+    val dlcFiles: List<UpdateFileUi> = emptyList(),
     val showUpdatesPicker: Boolean = false,
     val updatesPickerFocusIndex: Int = 0,
     val syncProgress: SyncProgress = SyncProgress.Idle,
