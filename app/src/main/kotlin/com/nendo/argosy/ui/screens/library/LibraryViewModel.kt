@@ -110,7 +110,7 @@ enum class FocusMove {
 data class LibraryGameUi(
     val id: Long,
     val title: String,
-    val platformId: String,
+    val platformId: Long,
     val platformSlug: String,
     val coverPath: String?,
     val source: GameSource,
@@ -261,7 +261,7 @@ class LibraryViewModel @Inject constructor(
     val events: SharedFlow<LibraryEvent> = _events.asSharedFlow()
 
     private var gamesJob: Job? = null
-    private var pendingInitialPlatformId: String? = null
+    private var pendingInitialPlatformId: Long? = null
     private var pendingInitialSourceFilter: SourceFilter? = null
 
     init {
@@ -466,7 +466,7 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    fun setInitialPlatform(platformId: String) {
+    fun setInitialPlatform(platformId: Long) {
         val state = _uiState.value
         if (state.platforms.isEmpty()) {
             Log.d(TAG, "setInitialPlatform: platforms not loaded yet, storing pending platformId=$platformId")

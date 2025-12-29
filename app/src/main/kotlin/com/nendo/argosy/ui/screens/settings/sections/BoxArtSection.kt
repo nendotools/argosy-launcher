@@ -139,7 +139,7 @@ fun BoxArtSection(
             val dummyGame = HomeGameUi(
                 id = 0,
                 title = "GAME",
-                platformId = "snes",
+                platformId = 0L,
                 platformSlug = "snes",
                 coverPath = null,
                 backgroundPath = null,

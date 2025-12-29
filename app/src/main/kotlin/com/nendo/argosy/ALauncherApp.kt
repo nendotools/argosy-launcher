@@ -47,7 +47,9 @@ class ArgosyApp : Application(), Configuration.Provider, ImageLoaderFactory {
     private fun syncPlatformSortOrders() {
         appScope.launch {
             PlatformDefinitions.getAll().forEach { def ->
-                platformDao.updateSortOrder(def.id, def.sortOrder)
+                platformDao.getBySlug(def.slug)?.let { platform ->
+                    platformDao.updateSortOrder(platform.id, def.sortOrder)
+                }
             }
         }
     }

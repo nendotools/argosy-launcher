@@ -125,7 +125,7 @@ class FirstRunViewModel @Inject constructor(
         }
     }
 
-    fun togglePlatform(platformId: String) {
+    fun togglePlatform(platformId: Long) {
         viewModelScope.launch {
             val platform = _uiState.value.platforms.find { it.id == platformId } ?: return@launch
             platformDao.updateSyncEnabled(platformId, !platform.syncEnabled)

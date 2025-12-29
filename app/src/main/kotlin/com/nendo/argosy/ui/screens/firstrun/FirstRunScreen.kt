@@ -819,7 +819,7 @@ private fun PlatformSelectStep(
     platforms: List<PlatformEntity>,
     focusedIndex: Int,
     buttonFocusIndex: Int,
-    onToggle: (String) -> Unit,
+    onToggle: (Long) -> Unit,
     onToggleAll: () -> Unit,
     onContinue: () -> Unit
 ) {

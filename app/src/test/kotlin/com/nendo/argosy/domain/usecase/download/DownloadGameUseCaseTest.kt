@@ -162,7 +162,7 @@ class DownloadGameUseCaseTest {
         platformSlug: String = "nes"
     ) = GameEntity(
         id = id,
-        platformId = "nes",
+        platformId = 1L,
         platformSlug = platformSlug,
         title = title,
         sortTitle = title.lowercase(),

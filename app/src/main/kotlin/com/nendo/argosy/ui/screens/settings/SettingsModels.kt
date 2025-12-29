@@ -71,7 +71,7 @@ data class PlatformEmulatorConfig(
 }
 
 data class EmulatorPickerInfo(
-    val platformId: String,
+    val platformId: Long,
     val platformSlug: String,
     val platformName: String,
     val installedEmulators: List<InstalledEmulator>,
@@ -80,7 +80,7 @@ data class EmulatorPickerInfo(
 )
 
 data class CorePickerInfo(
-    val platformId: String,
+    val platformId: Long,
     val platformSlug: String,
     val platformName: String,
     val availableCores: List<RetroArchCore>,
@@ -170,7 +170,7 @@ data class SavePathModalInfo(
 )
 
 data class PlatformStorageConfig(
-    val platformId: String,
+    val platformId: Long,
     val platformName: String,
     val gameCount: Int,
     val downloadedCount: Int = 0,
@@ -188,14 +188,14 @@ data class StorageState(
     val availableSpace: Long = 0,
     val hasAllFilesAccess: Boolean = false,
     val platformConfigs: List<PlatformStorageConfig> = emptyList(),
-    val showPurgePlatformConfirm: String? = null,
+    val showPurgePlatformConfirm: Long? = null,
     val showMigratePlatformConfirm: PlatformMigrationInfo? = null,
-    val platformSettingsModalId: String? = null,
+    val platformSettingsModalId: Long? = null,
     val platformSettingsFocusIndex: Int = 0
 )
 
 data class PlatformMigrationInfo(
-    val platformId: String,
+    val platformId: Long,
     val platformName: String,
     val oldPath: String,
     val newPath: String,

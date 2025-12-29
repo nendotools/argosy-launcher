@@ -18,7 +18,7 @@ interface PlatformDao {
     fun observeAllPlatforms(): Flow<List<PlatformEntity>>
 
     @Query("SELECT * FROM platforms WHERE id = :id")
-    suspend fun getById(id: String): PlatformEntity?
+    suspend fun getById(id: Long): PlatformEntity?
 
     @Query("SELECT * FROM platforms WHERE slug = :slug LIMIT 1")
     suspend fun getBySlug(slug: String): PlatformEntity?
@@ -39,25 +39,25 @@ interface PlatformDao {
     suspend fun update(platform: PlatformEntity)
 
     @Query("UPDATE platforms SET gameCount = :count WHERE id = :platformId")
-    suspend fun updateGameCount(platformId: String, count: Int)
+    suspend fun updateGameCount(platformId: Long, count: Int)
 
     @Query("UPDATE platforms SET sortOrder = :order WHERE id = :platformId")
-    suspend fun updateSortOrder(platformId: String, order: Int)
+    suspend fun updateSortOrder(platformId: Long, order: Int)
 
     @Query("UPDATE platforms SET isVisible = :visible WHERE id = :platformId")
-    suspend fun updateVisibility(platformId: String, visible: Boolean)
+    suspend fun updateVisibility(platformId: Long, visible: Boolean)
 
     @Query("UPDATE platforms SET logoPath = :path WHERE id = :platformId")
-    suspend fun updateLogoPath(platformId: String, path: String)
+    suspend fun updateLogoPath(platformId: Long, path: String)
 
     @Query("SELECT * FROM platforms WHERE logoPath LIKE 'http%'")
     suspend fun getPlatformsWithRemoteLogos(): List<PlatformEntity>
 
     @Query("UPDATE platforms SET syncEnabled = :enabled WHERE id = :platformId")
-    suspend fun updateSyncEnabled(platformId: String, enabled: Boolean)
+    suspend fun updateSyncEnabled(platformId: Long, enabled: Boolean)
 
     @Query("UPDATE platforms SET customRomPath = :path WHERE id = :platformId")
-    suspend fun updateCustomRomPath(platformId: String, path: String?)
+    suspend fun updateCustomRomPath(platformId: Long, path: String?)
 
     @Query("SELECT * FROM platforms WHERE syncEnabled = 1")
     suspend fun getSyncEnabledPlatforms(): List<PlatformEntity>
@@ -66,7 +66,7 @@ interface PlatformDao {
     fun observeConfigurablePlatforms(): Flow<List<PlatformEntity>>
 
     @Query("DELETE FROM platforms WHERE id = :id")
-    suspend fun deleteById(id: String)
+    suspend fun deleteById(id: Long)
 
     @Query("SELECT * FROM platforms")
     suspend fun getAllPlatforms(): List<PlatformEntity>

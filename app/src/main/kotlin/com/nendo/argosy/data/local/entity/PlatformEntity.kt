@@ -7,8 +7,8 @@ import java.time.Instant
 @Entity(tableName = "platforms")
 data class PlatformEntity(
     @PrimaryKey
-    val id: String,
-    val slug: String = "",
+    val id: Long,
+    val slug: String,
     val name: String,
     val shortName: String,
     val sortOrder: Int = 0,

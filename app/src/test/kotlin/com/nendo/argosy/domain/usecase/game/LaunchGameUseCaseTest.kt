@@ -75,7 +75,7 @@ class LaunchGameUseCaseTest {
         val result = useCase(123L)
 
         assertTrue(result is LaunchResult.NoEmulator)
-        assertEquals("nes", (result as LaunchResult.NoEmulator).platformId)
+        assertEquals("nes", (result as LaunchResult.NoEmulator).platformSlug)
     }
 
     @Test

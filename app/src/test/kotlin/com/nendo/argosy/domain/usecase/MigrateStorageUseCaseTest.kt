@@ -47,7 +47,7 @@ class MigrateStorageUseCaseTest {
             parentFile?.mkdirs()
             writeText("rom data")
         }
-        val game = createGameEntity(localPath = oldFile.absolutePath, platformId = "nes")
+        val game = createGameEntity(localPath = oldFile.absolutePath)
         coEvery { gameRepository.getGamesWithLocalPaths() } returns listOf(game)
 
         val result = useCase(oldDir.absolutePath, newDir.absolutePath)
@@ -65,7 +65,7 @@ class MigrateStorageUseCaseTest {
     @Test
     fun `invoke skips missing files and clears their paths`() = runTest {
         val missingPath = File(oldDir, "nes/missing.nes").absolutePath
-        val game = createGameEntity(localPath = missingPath, platformId = "nes")
+        val game = createGameEntity(localPath = missingPath)
         coEvery { gameRepository.getGamesWithLocalPaths() } returns listOf(game)
 
         val result = useCase(oldDir.absolutePath, newDir.absolutePath)
@@ -125,7 +125,7 @@ class MigrateStorageUseCaseTest {
         }
         oldFile.setReadable(false)
 
-        val game = createGameEntity(localPath = oldFile.absolutePath, platformId = "nes")
+        val game = createGameEntity(localPath = oldFile.absolutePath)
         coEvery { gameRepository.getGamesWithLocalPaths() } returns listOf(game)
 
         val result = useCase(oldDir.absolutePath, newDir.absolutePath)
@@ -155,8 +155,8 @@ class MigrateStorageUseCaseTest {
             writeText("data2")
         }
         val games = listOf(
-            createGameEntity(id = 1, localPath = file1.absolutePath, platformId = "nes", title = "Game 1"),
-            createGameEntity(id = 2, localPath = file2.absolutePath, platformId = "snes", title = "Game 2")
+            createGameEntity(id = 1, localPath = file1.absolutePath, title = "Game 1"),
+            createGameEntity(id = 2, localPath = file2.absolutePath, platformId = 2L, title = "Game 2")
         )
         coEvery { gameRepository.getGamesWithLocalPaths() } returns games
 
@@ -176,7 +176,7 @@ class MigrateStorageUseCaseTest {
             parentFile?.mkdirs()
             writeText("rom data")
         }
-        val game = createGameEntity(id = 123, localPath = oldFile.absolutePath, platformId = "nes")
+        val game = createGameEntity(id = 123, localPath = oldFile.absolutePath)
         coEvery { gameRepository.getGamesWithLocalPaths() } returns listOf(game)
 
         useCase(oldDir.absolutePath, newDir.absolutePath)
@@ -200,7 +200,7 @@ class MigrateStorageUseCaseTest {
     private fun createGameEntity(
         id: Long = 1L,
         localPath: String? = null,
-        platformId: String = "nes",
+        platformId: Long = 1L,
         title: String = "Test Game"
     ) = GameEntity(
         id = id,

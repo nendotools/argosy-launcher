@@ -13,6 +13,7 @@ import com.nendo.argosy.data.download.DownloadCompletionEvent
 import com.nendo.argosy.data.download.DownloadManager
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.model.GameSource
+import com.nendo.argosy.data.platform.LocalPlatformIds
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,7 +27,6 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val TAG = "ApkInstallManager"
-private const val ANDROID_PLATFORM_ID = "android"
 
 data class PendingApkInstall(
     val gameId: Long,
@@ -83,7 +83,7 @@ class ApkInstallManager @Inject constructor(
     private suspend fun handleDownloadCompletion(event: DownloadCompletionEvent) {
         val game = gameDao.getById(event.gameId) ?: return
 
-        if (game.platformId != ANDROID_PLATFORM_ID) return
+        if (game.platformId != LocalPlatformIds.ANDROID) return
         if (!event.localPath.endsWith(".apk", ignoreCase = true)) return
 
         Log.d(TAG, "APK download complete: ${event.localPath}")

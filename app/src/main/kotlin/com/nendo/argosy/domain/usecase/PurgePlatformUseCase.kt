@@ -28,12 +28,12 @@ class PurgePlatformUseCase @Inject constructor(
     private val notificationManager: NotificationManager
 ) {
     suspend operator fun invoke(
-        platformId: String,
+        platformId: Long,
         deleteLocalFiles: Boolean = true,
         onProgress: ((current: Int, total: Int, title: String) -> Unit)? = null
     ): PurgeResult = withContext(Dispatchers.IO) {
         val platform = platformDao.getById(platformId)
-        val platformName = platform?.name ?: platformId
+        val platformName = platform?.name ?: "Platform $platformId"
         val gamesWithPaths = gameRepository.getGamesWithLocalPathsForPlatform(platformId)
         val totalFiles = gamesWithPaths.size
 

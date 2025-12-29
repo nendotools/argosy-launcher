@@ -556,7 +556,7 @@ class GameDetailViewModel @Inject constructor(
                         notificationManager.showError("Steam launcher not installed")
                     }
                     is LaunchResult.NoCore -> {
-                        notificationManager.showError("No compatible RetroArch core installed for ${result.platformId}")
+                        notificationManager.showError("No compatible RetroArch core installed for ${result.platformSlug}")
                     }
                     is LaunchResult.MissingDiscs -> {
                         _uiState.update {
@@ -633,7 +633,7 @@ class GameDetailViewModel @Inject constructor(
                     notificationManager.showError("Steam launcher not installed")
                 }
                 is LaunchResult.NoCore -> {
-                    notificationManager.showError("No compatible RetroArch core installed for ${result.platformId}")
+                    notificationManager.showError("No compatible RetroArch core installed for ${result.platformSlug}")
                 }
                 is LaunchResult.MissingDiscs -> {
                     _uiState.update {

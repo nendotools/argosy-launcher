@@ -24,7 +24,7 @@ import javax.inject.Singleton
 private const val TAG = "GameRepository"
 
 data class PlatformStats(
-    val platformId: String,
+    val platformId: Long,
     val platformName: String,
     val totalGames: Int,
     val downloadedGames: Int,
@@ -209,7 +209,7 @@ class GameRepository @Inject constructor(
         gameDao.getGamesWithLocalPath()
     }
 
-    suspend fun getGamesWithLocalPathsForPlatform(platformId: String) = withContext(Dispatchers.IO) {
+    suspend fun getGamesWithLocalPathsForPlatform(platformId: Long) = withContext(Dispatchers.IO) {
         gameDao.getGamesWithLocalPath().filter { it.platformId == platformId }
     }
 

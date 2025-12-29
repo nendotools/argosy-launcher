@@ -60,7 +60,7 @@ data class ScreenshotCacheRequest(
 )
 
 data class PlatformLogoCacheRequest(
-    val platformId: String,
+    val platformId: Long,
     val logoUrl: String
 )
 
@@ -555,7 +555,7 @@ class ImageCacheManager @Inject constructor(
         }
     }
 
-    fun queuePlatformLogoCache(platformId: String, logoUrl: String) {
+    fun queuePlatformLogoCache(platformId: Long, logoUrl: String) {
         scope.launch {
             logoQueue.send(PlatformLogoCacheRequest(platformId, logoUrl))
             startLogoProcessingIfNeeded()

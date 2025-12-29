@@ -15,7 +15,7 @@ class EmulatorResolver @Inject constructor(
         return emulatorDetector.getByPackage(packageName)?.id
     }
 
-    suspend fun getEmulatorPackageForGame(gameId: Long, platformId: String, platformSlug: String): String? {
+    suspend fun getEmulatorPackageForGame(gameId: Long, platformId: Long, platformSlug: String): String? {
         val config = emulatorConfigDao.getByGameId(gameId)
             ?: emulatorConfigDao.getDefaultForPlatform(platformId)
         if (config?.packageName != null) return config.packageName
@@ -25,7 +25,7 @@ class EmulatorResolver @Inject constructor(
         return emulatorDetector.getPreferredEmulator(platformSlug)?.def?.packageName
     }
 
-    suspend fun getEmulatorIdForGame(gameId: Long, platformId: String, platformSlug: String): String? {
+    suspend fun getEmulatorIdForGame(gameId: Long, platformId: Long, platformSlug: String): String? {
         return getEmulatorPackageForGame(gameId, platformId, platformSlug)?.let { resolveEmulatorId(it) }
     }
 }

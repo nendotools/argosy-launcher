@@ -49,6 +49,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.nendo.argosy.data.platform.LocalPlatformIds
 import java.io.File
 import java.time.DayOfWeek
 import java.time.Instant
@@ -83,9 +84,6 @@ private const val ROW_TYPE_RECOMMENDATIONS = "recommendations"
 private const val ROW_TYPE_STEAM = "steam"
 private const val ROW_TYPE_ANDROID = "android"
 
-private const val STEAM_PLATFORM_ID = "steam"
-private const val ANDROID_PLATFORM_ID = "android"
-
 data class GameDownloadIndicator(
     val isDownloading: Boolean = false,
     val isPaused: Boolean = false,
@@ -102,7 +100,7 @@ data class GameDownloadIndicator(
 data class HomeGameUi(
     val id: Long,
     val title: String,
-    val platformId: String,
+    val platformId: Long,
     val platformSlug: String,
     val coverPath: String?,
     val backgroundPath: String?,
@@ -126,7 +124,7 @@ data class HomeGameUi(
 sealed class HomeRowItem {
     data class Game(val game: HomeGameUi) : HomeRowItem()
     data class ViewAll(
-        val platformId: String? = null,
+        val platformId: Long? = null,
         val platformName: String? = null,
         val logoPath: String? = null,
         val sourceFilter: String? = null,
@@ -135,7 +133,7 @@ sealed class HomeRowItem {
 }
 
 data class HomePlatformUi(
-    val id: String,
+    val id: Long,
     val name: String,
     val shortName: String,
     val logoPath: String?
@@ -210,7 +208,7 @@ data class HomeUiState(
             HomeRow.Android -> {
                 if (androidGames.isEmpty()) emptyList()
                 else androidGames.map { HomeRowItem.Game(it) } + HomeRowItem.ViewAll(
-                    platformId = ANDROID_PLATFORM_ID,
+                    platformId = LocalPlatformIds.ANDROID,
                     platformName = "Android",
                     logoPath = null
                 )
@@ -218,7 +216,7 @@ data class HomeUiState(
             HomeRow.Steam -> {
                 if (steamGames.isEmpty()) emptyList()
                 else steamGames.map { HomeRowItem.Game(it) } + HomeRowItem.ViewAll(
-                    platformId = "steam",
+                    platformId = LocalPlatformIds.STEAM,
                     platformName = "Steam",
                     logoPath = null
                 )
@@ -248,7 +246,7 @@ data class HomeUiState(
 sealed class HomeEvent {
     data class LaunchGame(val intent: Intent) : HomeEvent()
     data class NavigateToLibrary(
-        val platformId: String? = null,
+        val platformId: Long? = null,
         val sourceFilter: String? = null
     ) : HomeEvent()
 }
@@ -462,10 +460,10 @@ class HomeViewModel @Inject constructor(
     private fun loadData() {
         viewModelScope.launch {
             val allPlatforms = platformDao.getPlatformsWithGames()
-            val platforms = allPlatforms.filter { it.id != STEAM_PLATFORM_ID && it.id != ANDROID_PLATFORM_ID }
+            val platforms = allPlatforms.filter { it.id != LocalPlatformIds.STEAM && it.id != LocalPlatformIds.ANDROID }
             val favorites = gameDao.getFavorites()
-            val androidGames = gameDao.getByPlatformSorted(ANDROID_PLATFORM_ID, limit = PLATFORM_GAMES_LIMIT)
-            val steamGames = gameDao.getByPlatformSorted(STEAM_PLATFORM_ID, limit = PLATFORM_GAMES_LIMIT)
+            val androidGames = gameDao.getByPlatformSorted(LocalPlatformIds.ANDROID, limit = PLATFORM_GAMES_LIMIT)
+            val steamGames = gameDao.getByPlatformSorted(LocalPlatformIds.STEAM, limit = PLATFORM_GAMES_LIMIT)
 
             val candidatePool = gameDao.getRecentlyPlayed(RECENT_GAMES_CANDIDATE_POOL)
             val validatedRecent = mutableListOf<HomeGameUi>()
@@ -695,11 +693,11 @@ class HomeViewModel @Inject constructor(
 
     private suspend fun loadPlatforms() {
         val allPlatforms = platformDao.getPlatformsWithGames()
-        val platforms = allPlatforms.filter { it.id != STEAM_PLATFORM_ID && it.id != ANDROID_PLATFORM_ID }
+        val platforms = allPlatforms.filter { it.id != LocalPlatformIds.STEAM && it.id != LocalPlatformIds.ANDROID }
         val platformUis = platforms.map { it.toUi() }
-        val androidGames = gameDao.getByPlatformSorted(ANDROID_PLATFORM_ID, limit = PLATFORM_GAMES_LIMIT)
+        val androidGames = gameDao.getByPlatformSorted(LocalPlatformIds.ANDROID, limit = PLATFORM_GAMES_LIMIT)
         val androidGameUis = androidGames.map { it.toUi() }
-        val steamGames = gameDao.getByPlatformSorted(STEAM_PLATFORM_ID, limit = PLATFORM_GAMES_LIMIT)
+        val steamGames = gameDao.getByPlatformSorted(LocalPlatformIds.STEAM, limit = PLATFORM_GAMES_LIMIT)
         val steamGameUis = steamGames.map { it.toUi() }
         _uiState.update { state ->
             val shouldSwitchRow = platforms.isNotEmpty() &&
@@ -810,13 +808,13 @@ class HomeViewModel @Inject constructor(
         recentGamesCache.updateAndGet { RecentGamesCache(null, it.version + 1) }
     }
 
-    private fun loadGamesForPlatform(platformId: String, platformIndex: Int) {
+    private fun loadGamesForPlatform(platformId: Long, platformIndex: Int) {
         viewModelScope.launch {
             loadGamesForPlatformInternal(platformId, platformIndex)
         }
     }
 
-    private suspend fun loadGamesForPlatformInternal(platformId: String, platformIndex: Int) {
+    private suspend fun loadGamesForPlatformInternal(platformId: Long, platformIndex: Int) {
         val games = gameDao.getByPlatformSorted(platformId, limit = PLATFORM_GAMES_LIMIT)
         val platform = _uiState.value.platforms.getOrNull(platformIndex)
         val gameItems: List<HomeRowItem> = games.map { HomeRowItem.Game(it.toUi()) }
@@ -1205,7 +1203,7 @@ class HomeViewModel @Inject constructor(
                 loadRecommendations()
             }
             HomeRow.Android -> {
-                val games = gameDao.getByPlatformSorted(ANDROID_PLATFORM_ID, limit = PLATFORM_GAMES_LIMIT)
+                val games = gameDao.getByPlatformSorted(LocalPlatformIds.ANDROID, limit = PLATFORM_GAMES_LIMIT)
                 val gameUis = games.map { it.toUi() }
                 val newIndex = if (focusedGameId != null) {
                     gameUis.indexOfFirst { it.id == focusedGameId }
@@ -1221,7 +1219,7 @@ class HomeViewModel @Inject constructor(
                 }
             }
             HomeRow.Steam -> {
-                val games = gameDao.getByPlatformSorted(STEAM_PLATFORM_ID, limit = PLATFORM_GAMES_LIMIT)
+                val games = gameDao.getByPlatformSorted(LocalPlatformIds.STEAM, limit = PLATFORM_GAMES_LIMIT)
                 val gameUis = games.map { it.toUi() }
                 val newIndex = if (focusedGameId != null) {
                     gameUis.indexOfFirst { it.id == focusedGameId }
@@ -1278,7 +1276,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun navigateToLibrary(platformId: String? = null, sourceFilter: String? = null) {
+    private fun navigateToLibrary(platformId: Long? = null, sourceFilter: String? = null) {
         viewModelScope.launch {
             _events.emit(HomeEvent.NavigateToLibrary(platformId, sourceFilter))
         }

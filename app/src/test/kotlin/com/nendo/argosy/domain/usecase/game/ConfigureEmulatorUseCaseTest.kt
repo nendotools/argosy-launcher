@@ -29,7 +29,7 @@ class ConfigureEmulatorUseCaseTest {
 
     @Test
     fun `setForGame deletes existing override`() = runTest {
-        useCase.setForGame(123L, "1", "nes", null)
+        useCase.setForGame(123L, 1L, "nes", null)
 
         coVerify { emulatorConfigDao.deleteGameOverride(123L) }
     }
@@ -40,11 +40,11 @@ class ConfigureEmulatorUseCaseTest {
         val configSlot = slot<EmulatorConfigEntity>()
         coEvery { emulatorConfigDao.insert(capture(configSlot)) } returns 1L
 
-        useCase.setForGame(123L, "1", "nes", emulator)
+        useCase.setForGame(123L, 1L, "nes", emulator)
 
         assertTrue(configSlot.isCaptured)
         val config = configSlot.captured
-        assertEquals("1", config.platformId)
+        assertEquals(1L, config.platformId)
         assertEquals(123L, config.gameId)
         assertEquals("com.retroarch", config.packageName)
         assertEquals("RetroArch", config.displayName)
@@ -53,7 +53,7 @@ class ConfigureEmulatorUseCaseTest {
 
     @Test
     fun `setForGame with null emulator only deletes override`() = runTest {
-        useCase.setForGame(123L, "1", "nes", null)
+        useCase.setForGame(123L, 1L, "nes", null)
 
         coVerify { emulatorConfigDao.deleteGameOverride(123L) }
         coVerify(exactly = 0) { emulatorConfigDao.insert(any()) }
@@ -61,9 +61,9 @@ class ConfigureEmulatorUseCaseTest {
 
     @Test
     fun `setForPlatform clears platform defaults`() = runTest {
-        useCase.setForPlatform("1", "nes", null)
+        useCase.setForPlatform(1L, "nes", null)
 
-        coVerify { emulatorConfigDao.clearPlatformDefaults("1") }
+        coVerify { emulatorConfigDao.clearPlatformDefaults(1L) }
     }
 
     @Test
@@ -72,11 +72,11 @@ class ConfigureEmulatorUseCaseTest {
         val configSlot = slot<EmulatorConfigEntity>()
         coEvery { emulatorConfigDao.insert(capture(configSlot)) } returns 1L
 
-        useCase.setForPlatform("2", "snes", emulator)
+        useCase.setForPlatform(2L, "snes", emulator)
 
         assertTrue(configSlot.isCaptured)
         val config = configSlot.captured
-        assertEquals("2", config.platformId)
+        assertEquals(2L, config.platformId)
         assertNull(config.gameId)
         assertEquals("com.snes9x", config.packageName)
         assertEquals("Snes9x", config.displayName)
@@ -85,9 +85,9 @@ class ConfigureEmulatorUseCaseTest {
 
     @Test
     fun `setForPlatform with null emulator only clears defaults`() = runTest {
-        useCase.setForPlatform("1", "nes", null)
+        useCase.setForPlatform(1L, "nes", null)
 
-        coVerify { emulatorConfigDao.clearPlatformDefaults("1") }
+        coVerify { emulatorConfigDao.clearPlatformDefaults(1L) }
         coVerify(exactly = 0) { emulatorConfigDao.insert(any()) }
     }
 
@@ -100,9 +100,9 @@ class ConfigureEmulatorUseCaseTest {
 
     @Test
     fun `clearForPlatform clears platform defaults`() = runTest {
-        useCase.clearForPlatform("gba")
+        useCase.clearForPlatform(3L)
 
-        coVerify { emulatorConfigDao.clearPlatformDefaults("gba") }
+        coVerify { emulatorConfigDao.clearPlatformDefaults(3L) }
     }
 
     private fun createEmulator(packageName: String, displayName: String): InstalledEmulator {

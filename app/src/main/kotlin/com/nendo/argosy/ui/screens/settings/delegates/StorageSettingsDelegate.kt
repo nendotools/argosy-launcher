@@ -176,10 +176,10 @@ class StorageSettingsDelegate @Inject constructor(
         }
     }
 
-    private val _launchPlatformFolderPicker = MutableSharedFlow<String>()
-    val launchPlatformFolderPicker: SharedFlow<String> = _launchPlatformFolderPicker.asSharedFlow()
+    private val _launchPlatformFolderPicker = MutableSharedFlow<Long>()
+    val launchPlatformFolderPicker: SharedFlow<Long> = _launchPlatformFolderPicker.asSharedFlow()
 
-    private var pendingPlatformId: String? = null
+    private var pendingPlatformId: Long? = null
 
     fun loadPlatformConfigs(scope: CoroutineScope) {
         scope.launch {
@@ -204,7 +204,7 @@ class StorageSettingsDelegate @Inject constructor(
         }
     }
 
-    fun togglePlatformSync(scope: CoroutineScope, platformId: String, enabled: Boolean) {
+    fun togglePlatformSync(scope: CoroutineScope, platformId: Long, enabled: Boolean) {
         scope.launch {
             platformDao.updateSyncEnabled(platformId, enabled)
             updatePlatformConfigInState(platformId) { it.copy(syncEnabled = enabled) }
@@ -212,7 +212,7 @@ class StorageSettingsDelegate @Inject constructor(
     }
 
     private fun updatePlatformConfigInState(
-        platformId: String,
+        platformId: Long,
         update: (PlatformStorageConfig) -> PlatformStorageConfig
     ) {
         _state.update { current ->
@@ -224,14 +224,14 @@ class StorageSettingsDelegate @Inject constructor(
         }
     }
 
-    fun openPlatformFolderPicker(scope: CoroutineScope, platformId: String) {
+    fun openPlatformFolderPicker(scope: CoroutineScope, platformId: Long) {
         pendingPlatformId = platformId
         scope.launch {
             _launchPlatformFolderPicker.emit(platformId)
         }
     }
 
-    fun setPlatformPath(scope: CoroutineScope, platformId: String, newPath: String) {
+    fun setPlatformPath(scope: CoroutineScope, platformId: Long, newPath: String) {
         scope.launch {
             val platform = platformDao.getById(platformId) ?: return@launch
             val globalPath = _state.value.romStoragePath
@@ -260,7 +260,7 @@ class StorageSettingsDelegate @Inject constructor(
         pendingPlatformId = null
     }
 
-    fun resetPlatformToGlobal(scope: CoroutineScope, platformId: String) {
+    fun resetPlatformToGlobal(scope: CoroutineScope, platformId: Long) {
         scope.launch {
             val platform = platformDao.getById(platformId) ?: return@launch
             val customPath = platform.customRomPath ?: return@launch
@@ -328,7 +328,7 @@ class StorageSettingsDelegate @Inject constructor(
         }
     }
 
-    fun requestPurgePlatform(platformId: String) {
+    fun requestPurgePlatform(platformId: Long) {
         _state.update { it.copy(showPurgePlatformConfirm = platformId) }
     }
 
@@ -347,7 +347,7 @@ class StorageSettingsDelegate @Inject constructor(
         _state.update { it.copy(showPurgePlatformConfirm = null) }
     }
 
-    fun openPlatformSettingsModal(platformId: String) {
+    fun openPlatformSettingsModal(platformId: Long) {
         _state.update {
             it.copy(
                 platformSettingsModalId = platformId,
@@ -415,7 +415,7 @@ class StorageSettingsDelegate @Inject constructor(
         return _state.value.platformConfigs.find { it.platformId == platformId }
     }
 
-    fun syncPlatform(scope: CoroutineScope, platformId: String, platformName: String) {
+    fun syncPlatform(scope: CoroutineScope, platformId: Long, platformName: String) {
         scope.launch {
             syncPlatformUseCase(platformId, platformName)
             loadPlatformConfigs(scope)

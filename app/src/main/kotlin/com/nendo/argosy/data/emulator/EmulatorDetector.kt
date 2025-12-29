@@ -99,12 +99,12 @@ class EmulatorDetector @Inject constructor(
     }
 
     fun getInstalledForPlatform(platformId: String): List<InstalledEmulator> {
-        val canonical = PlatformDefinitions.getCanonicalId(platformId)
+        val canonical = PlatformDefinitions.getCanonicalSlug(platformId)
         return _installedEmulators.value.filter { canonical in it.def.supportedPlatforms }
     }
 
     fun getPreferredEmulator(platformId: String): InstalledEmulator? {
-        val canonical = PlatformDefinitions.getCanonicalId(platformId)
+        val canonical = PlatformDefinitions.getCanonicalSlug(platformId)
         val installed = getInstalledForPlatform(canonical)
         if (installed.isEmpty()) return null
 
@@ -122,7 +122,7 @@ class EmulatorDetector @Inject constructor(
     }
 
     fun hasAnyEmulator(platformId: String): Boolean {
-        val canonical = PlatformDefinitions.getCanonicalId(platformId)
+        val canonical = PlatformDefinitions.getCanonicalSlug(platformId)
         return _installedEmulators.value.any { canonical in it.def.supportedPlatforms }
     }
 

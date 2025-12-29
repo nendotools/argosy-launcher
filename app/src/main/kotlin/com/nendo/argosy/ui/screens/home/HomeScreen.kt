@@ -111,7 +111,7 @@ private const val SCROLL_OFFSET = -25
 fun HomeScreen(
     isDefaultView: Boolean,
     onGameSelect: (Long) -> Unit,
-    onNavigateToLibrary: (platformId: String?, sourceFilter: String?) -> Unit = { _, _ -> },
+    onNavigateToLibrary: (platformId: Long?, sourceFilter: String?) -> Unit = { _, _ -> },
     onNavigateToDefault: () -> Unit,
     onDrawerToggle: () -> Unit,
     onChangelogAction: (RequiredAction) -> Unit = {},

@@ -24,7 +24,7 @@ object RomMSyncFilter {
         val extension = fileName.substringAfterLast('.', "").lowercase()
         if (extension.isEmpty()) return true
 
-        val platformDef = PlatformDefinitions.getById(rom.platformSlug) ?: return true
+        val platformDef = PlatformDefinitions.getBySlug(rom.platformSlug) ?: return true
         if (platformDef.extensions.isEmpty()) return true
 
         return extension in platformDef.extensions

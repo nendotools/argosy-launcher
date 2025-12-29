@@ -33,7 +33,7 @@ class GetUnifiedSavesUseCaseTest {
 
     private val testGame = GameEntity(
         id = gameId,
-        platformId = "snes",
+        platformId = 1L,
         title = "Super Mario World",
         sortTitle = "super mario world",
         localPath = localPath,

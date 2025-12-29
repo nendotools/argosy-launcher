@@ -140,8 +140,8 @@ class GenerateRecommendationsUseCase @Inject constructor(
         return weights
     }
 
-    private fun calculatePlatformWeights(playedGames: List<GameEntity>): Map<String, Double> {
-        val weights = mutableMapOf<String, Double>()
+    private fun calculatePlatformWeights(playedGames: List<GameEntity>): Map<Long, Double> {
+        val weights = mutableMapOf<Long, Double>()
         for (game in playedGames) {
             val playCount = game.playCount.coerceAtLeast(1)
             val playTimeHours = game.playTimeMinutes / 60.0
@@ -164,7 +164,7 @@ class GenerateRecommendationsUseCase @Inject constructor(
     private fun calculatePreferenceScore(
         game: GameEntity,
         genreWeights: Map<String, Double>,
-        platformWeights: Map<String, Double>,
+        platformWeights: Map<Long, Double>,
         penalties: Map<Long, Float>,
         playTimeBoost: Double
     ): Double {
@@ -186,7 +186,7 @@ class GenerateRecommendationsUseCase @Inject constructor(
         games: List<GameEntity>,
         count: Int,
         genreWeights: Map<String, Double>,
-        platformWeights: Map<String, Double>,
+        platformWeights: Map<Long, Double>,
         penalties: Map<Long, Float>,
         playTimeBoost: Double
     ): List<Long> {

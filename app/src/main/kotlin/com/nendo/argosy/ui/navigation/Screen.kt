@@ -4,7 +4,7 @@ sealed class Screen(val route: String) {
     data object FirstRun : Screen("first_run")
     data object Showcase : Screen("showcase")
     data object Library : Screen("library?platformId={platformId}&source={source}") {
-        fun createRoute(platformId: String? = null, source: String? = null): String {
+        fun createRoute(platformId: Long? = null, source: String? = null): String {
             val params = mutableListOf<String>()
             if (platformId != null) params.add("platformId=$platformId")
             if (source != null) params.add("source=$source")

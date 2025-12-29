@@ -19,8 +19,7 @@ class CheckNewSavesUseCase @Inject constructor(
         var totalNew = 0
 
         for (platform in platforms) {
-            val platformId = platform.id.toLongOrNull() ?: continue
-            val newSaves = saveSyncRepository.checkForServerUpdates(platformId)
+            val newSaves = saveSyncRepository.checkForServerUpdates(platform.id)
             totalNew += newSaves.size
         }
 

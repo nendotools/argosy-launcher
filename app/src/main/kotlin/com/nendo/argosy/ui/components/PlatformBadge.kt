@@ -99,7 +99,7 @@ fun PlatformBadge(
     modifier: Modifier = Modifier
 ) {
     val boxArtStyle = LocalBoxArtStyle.current
-    val platform = PlatformDefinitions.getById(platformSlug)
+    val platform = PlatformDefinitions.getBySlug(platformSlug)
     val shortName = platform?.shortName ?: platformSlug.uppercase().take(6)
 
     val scale = (cardWidthDp / BASE_WIDTH_DP).coerceIn(0.5f, 2f)

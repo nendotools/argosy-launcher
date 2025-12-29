@@ -30,7 +30,7 @@ data class EmulatorConfigEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
 
-    val platformId: String?,
+    val platformId: Long?,
     val gameId: Long?,
 
     val packageName: String?,

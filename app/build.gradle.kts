@@ -93,6 +93,16 @@ android {
     }
 }
 
+val runIntegrationTests = project.hasProperty("runIntegrationTests")
+
+tasks.withType<Test> {
+    if (name == "testDebugUnitTest" || name == "testReleaseUnitTest") {
+        if (!runIntegrationTests) {
+            exclude("**/integration/**")
+        }
+    }
+}
+
 dependencies {
     // Core
     implementation(libs.androidx.core.ktx)

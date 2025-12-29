@@ -92,7 +92,7 @@ fun NavGraph(
                 }
             )
         ) { backStackEntry ->
-            val platformId = backStackEntry.arguments?.getString("platformId")
+            val platformId = backStackEntry.arguments?.getString("platformId")?.toLongOrNull()
             val source = backStackEntry.arguments?.getString("source")
             LibraryScreen(
                 isDefaultView = defaultView == DefaultView.LIBRARY,

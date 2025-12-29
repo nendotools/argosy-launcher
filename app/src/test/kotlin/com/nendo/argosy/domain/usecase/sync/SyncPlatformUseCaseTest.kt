@@ -32,7 +32,7 @@ class SyncPlatformUseCaseTest {
     fun `invoke returns error when not connected`() = runTest {
         every { romMRepository.isConnected() } returns false
 
-        val result = useCase("123", "Game Boy")
+        val result = useCase(123L, "Game Boy")
 
         assertTrue(result is SyncPlatformResult.Error)
         assertEquals("RomM not connected", (result as SyncPlatformResult.Error).message)
@@ -43,7 +43,7 @@ class SyncPlatformUseCaseTest {
         every { romMRepository.isConnected() } returns true
         coEvery { romMRepository.syncPlatform(any()) } returns SyncResult(1, 5, 2, 0, emptyList())
 
-        useCase("123", "Game Boy")
+        useCase(123L, "Game Boy")
 
         verify {
             notificationManager.showPersistent(
@@ -57,22 +57,22 @@ class SyncPlatformUseCaseTest {
     @Test
     fun `invoke calls syncPlatform with numeric platformId`() = runTest {
         every { romMRepository.isConnected() } returns true
-        coEvery { romMRepository.syncPlatform("123") } returns SyncResult(1, 5, 2, 0, emptyList())
+        coEvery { romMRepository.syncPlatform(123L) } returns SyncResult(1, 5, 2, 0, emptyList())
 
-        val result = useCase("123", "Game Boy")
+        val result = useCase(123L, "Game Boy")
 
-        coVerify { romMRepository.syncPlatform("123") }
+        coVerify { romMRepository.syncPlatform(123L) }
         assertTrue(result is SyncPlatformResult.Success)
     }
 
     @Test
-    fun `invoke calls syncPlatform with slug-based platformId`() = runTest {
+    fun `invoke calls syncPlatform with local platform ID`() = runTest {
         every { romMRepository.isConnected() } returns true
-        coEvery { romMRepository.syncPlatform("gb") } returns SyncResult(1, 5, 2, 0, emptyList())
+        coEvery { romMRepository.syncPlatform(-1L) } returns SyncResult(1, 5, 2, 0, emptyList())
 
-        val result = useCase("gb", "Game Boy")
+        val result = useCase(-1L, "Android")
 
-        coVerify { romMRepository.syncPlatform("gb") }
+        coVerify { romMRepository.syncPlatform(-1L) }
         assertTrue(result is SyncPlatformResult.Success)
     }
 
@@ -88,7 +88,7 @@ class SyncPlatformUseCaseTest {
         every { romMRepository.isConnected() } returns true
         coEvery { romMRepository.syncPlatform(any()) } returns syncResult
 
-        val result = useCase("123", "SNES")
+        val result = useCase(123L, "SNES")
 
         assertTrue(result is SyncPlatformResult.Success)
         assertEquals(syncResult, (result as SyncPlatformResult.Success).result)
@@ -99,7 +99,7 @@ class SyncPlatformUseCaseTest {
         every { romMRepository.isConnected() } returns true
         coEvery { romMRepository.syncPlatform(any()) } returns SyncResult(1, 5, 3, 1, emptyList())
 
-        useCase("123", "SNES")
+        useCase(123L, "SNES")
 
         verify {
             notificationManager.completePersistent(
@@ -116,7 +116,7 @@ class SyncPlatformUseCaseTest {
         every { romMRepository.isConnected() } returns true
         coEvery { romMRepository.syncPlatform(any()) } returns SyncResult(1, 5, 3, 0, emptyList())
 
-        useCase("123", "SNES")
+        useCase(123L, "SNES")
 
         verify {
             notificationManager.completePersistent(
@@ -133,7 +133,7 @@ class SyncPlatformUseCaseTest {
         every { romMRepository.isConnected() } returns true
         coEvery { romMRepository.syncPlatform(any()) } returns SyncResult(0, 0, 0, 0, listOf("Platform not found"))
 
-        useCase("123", "SNES")
+        useCase(123L, "SNES")
 
         verify {
             notificationManager.completePersistent(
@@ -150,7 +150,7 @@ class SyncPlatformUseCaseTest {
         every { romMRepository.isConnected() } returns true
         coEvery { romMRepository.syncPlatform(any()) } returns SyncResult(0, 0, 0, 0, listOf("Sync already in progress"))
 
-        val result = useCase("123", "SNES")
+        val result = useCase(123L, "SNES")
 
         assertTrue(result is SyncPlatformResult.Error)
         assertEquals("Sync already in progress", (result as SyncPlatformResult.Error).message)
@@ -162,7 +162,7 @@ class SyncPlatformUseCaseTest {
         every { romMRepository.isConnected() } returns true
         coEvery { romMRepository.syncPlatform(any()) } throws RuntimeException("Network error")
 
-        val result = useCase("123", "SNES")
+        val result = useCase(123L, "SNES")
 
         assertTrue(result is SyncPlatformResult.Error)
         assertEquals("Network error", (result as SyncPlatformResult.Error).message)

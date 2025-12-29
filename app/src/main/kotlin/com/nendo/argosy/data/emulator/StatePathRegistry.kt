@@ -242,7 +242,7 @@ object StatePathRegistry {
     fun getAllConfigs(): Map<String, StatePathConfig> = configs.filterValues { it.supported }
 
     fun getRetroArchCore(platformId: String): String? {
-        val canonical = PlatformDefinitions.getCanonicalId(platformId)
+        val canonical = PlatformDefinitions.getCanonicalSlug(platformId)
         return EmulatorRegistry.getRetroArchCorePatterns()[canonical]?.firstOrNull()
     }
 
@@ -252,7 +252,7 @@ object StatePathRegistry {
     ): List<String> {
         if (!config.usesCore) return config.defaultPaths
 
-        val canonical = PlatformDefinitions.getCanonicalId(platformId)
+        val canonical = PlatformDefinitions.getCanonicalSlug(platformId)
         val core = getRetroArchCore(canonical) ?: return config.defaultPaths
         val withCore = config.defaultPaths.map { path ->
             path.replace("{core}", core)

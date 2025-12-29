@@ -21,8 +21,10 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
+import com.nendo.argosy.data.platform.LocalPlatformIds
+
 private const val TAG = "AndroidGameScanner"
-private const val ANDROID_PLATFORM_ID = "android"
+private const val ANDROID_PLATFORM_SLUG = "android"
 
 data class AndroidScanProgress(
     val isScanning: Boolean = false,
@@ -187,8 +189,8 @@ class AndroidGameScanner @Inject constructor(
 
         val sortTitle = createSortTitle(app.label)
         val game = GameEntity(
-            platformId = ANDROID_PLATFORM_ID,
-            platformSlug = ANDROID_PLATFORM_ID,
+            platformId = LocalPlatformIds.ANDROID,
+            platformSlug = ANDROID_PLATFORM_SLUG,
             title = app.label,
             sortTitle = sortTitle,
             localPath = null,
@@ -308,18 +310,21 @@ class AndroidGameScanner @Inject constructor(
     }
 
     private suspend fun ensureAndroidPlatformExists() {
-        val existing = platformDao.getById(ANDROID_PLATFORM_ID)
+        val existing = platformDao.getById(LocalPlatformIds.ANDROID)
         if (existing == null) {
-            val def = com.nendo.argosy.data.platform.PlatformDefinitions.getById(ANDROID_PLATFORM_ID)
+            val def = com.nendo.argosy.data.platform.PlatformDefinitions.getBySlug(ANDROID_PLATFORM_SLUG)
             if (def != null) {
-                platformDao.insert(com.nendo.argosy.data.platform.PlatformDefinitions.toEntity(def))
+                val entity = com.nendo.argosy.data.platform.PlatformDefinitions.toLocalPlatformEntity(def)
+                if (entity != null) {
+                    platformDao.insert(entity)
+                }
             }
         }
     }
 
     private suspend fun updatePlatformGameCount() {
-        val count = gameDao.countByPlatform(ANDROID_PLATFORM_ID)
-        platformDao.updateGameCount(ANDROID_PLATFORM_ID, count)
+        val count = gameDao.countByPlatform(LocalPlatformIds.ANDROID)
+        platformDao.updateGameCount(LocalPlatformIds.ANDROID, count)
     }
 
     private fun createSortTitle(title: String): String {

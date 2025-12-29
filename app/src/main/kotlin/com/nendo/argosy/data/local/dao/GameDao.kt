@@ -15,7 +15,7 @@ import java.time.Instant
 interface GameDao {
 
     @Query("SELECT * FROM games WHERE platformId = :platformId AND isHidden = 0 ORDER BY sortTitle ASC")
-    fun observeByPlatform(platformId: String): Flow<List<GameEntity>>
+    fun observeByPlatform(platformId: Long): Flow<List<GameEntity>>
 
     @Query("""
         SELECT * FROM games
@@ -34,7 +34,7 @@ interface GameDao {
             sortTitle ASC
         LIMIT :limit
     """)
-    fun observeByPlatformSorted(platformId: String, limit: Int = 20): Flow<List<GameEntity>>
+    fun observeByPlatformSorted(platformId: Long, limit: Int = 20): Flow<List<GameEntity>>
 
     @Query("""
         SELECT * FROM games
@@ -53,7 +53,7 @@ interface GameDao {
             sortTitle ASC
         LIMIT :limit
     """)
-    suspend fun getByPlatformSorted(platformId: String, limit: Int = 20): List<GameEntity>
+    suspend fun getByPlatformSorted(platformId: Long, limit: Int = 20): List<GameEntity>
 
     @Query("SELECT * FROM games WHERE isHidden = 0 ORDER BY sortTitle ASC")
     fun observeAll(): Flow<List<GameEntity>>
@@ -106,7 +106,7 @@ interface GameDao {
     suspend fun getByIgdbId(igdbId: Long): GameEntity?
 
     @Query("SELECT * FROM games WHERE igdbId = :igdbId AND platformId = :platformId")
-    suspend fun getByIgdbIdAndPlatform(igdbId: Long, platformId: String): GameEntity?
+    suspend fun getByIgdbIdAndPlatform(igdbId: Long, platformId: Long): GameEntity?
 
     @Query("SELECT * FROM games WHERE steamAppId = :steamAppId")
     suspend fun getBySteamAppId(steamAppId: Long): GameEntity?
@@ -115,7 +115,7 @@ interface GameDao {
     suspend fun getByPath(path: String): GameEntity?
 
     @Query("SELECT * FROM games WHERE sortTitle = :sortTitle AND platformId = :platformId LIMIT 1")
-    suspend fun getBySortTitleAndPlatform(sortTitle: String, platformId: String): GameEntity?
+    suspend fun getBySortTitleAndPlatform(sortTitle: String, platformId: Long): GameEntity?
 
     @Query("SELECT * FROM games WHERE title LIKE '%' || :query || '%' AND isHidden = 0 ORDER BY sortTitle ASC")
     fun search(query: String): Flow<List<GameEntity>>
@@ -148,16 +148,16 @@ interface GameDao {
     suspend fun delete(gameId: Long)
 
     @Query("DELETE FROM games WHERE platformId = :platformId")
-    suspend fun deleteByPlatform(platformId: String)
+    suspend fun deleteByPlatform(platformId: Long)
 
     @Query("SELECT COUNT(*) FROM games WHERE platformId = :platformId AND isHidden = 0")
-    suspend fun countByPlatform(platformId: String): Int
+    suspend fun countByPlatform(platformId: Long): Int
 
     @Query("SELECT COUNT(*) FROM games WHERE platformId = :platformId AND localPath IS NOT NULL")
-    suspend fun countDownloadedByPlatform(platformId: String): Int
+    suspend fun countDownloadedByPlatform(platformId: Long): Int
 
     @Query("SELECT * FROM games WHERE platformId = :platformId AND isHidden = 0 ORDER BY sortTitle ASC")
-    suspend fun getByPlatform(platformId: String): List<GameEntity>
+    suspend fun getByPlatform(platformId: Long): List<GameEntity>
 
     @Query("SELECT COUNT(*) FROM games")
     suspend fun countAll(): Int
@@ -303,7 +303,7 @@ interface GameDao {
     suspend fun updateTitleId(gameId: Long, titleId: String?)
 
     @Query("SELECT * FROM games WHERE titleId = :titleId AND platformId = :platformId LIMIT 1")
-    suspend fun getByTitleIdAndPlatform(titleId: String, platformId: String): GameEntity?
+    suspend fun getByTitleIdAndPlatform(titleId: String, platformId: Long): GameEntity?
 
     @Query("SELECT titleId FROM games WHERE id = :gameId")
     suspend fun getTitleId(gameId: Long): String?
@@ -333,7 +333,7 @@ interface GameDao {
     suspend fun getByIds(ids: List<Long>): List<GameEntity>
 
     @Query("UPDATE games SET platformId = :newPlatformId WHERE platformId = :oldPlatformId")
-    suspend fun migratePlatform(oldPlatformId: String, newPlatformId: String)
+    suspend fun migratePlatform(oldPlatformId: Long, newPlatformId: Long)
 
     @Query("UPDATE games SET steamLauncher = :launcher, launcherSetManually = :setManually WHERE id = :gameId")
     suspend fun updateSteamLauncher(gameId: Long, launcher: String?, setManually: Boolean)

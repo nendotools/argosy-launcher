@@ -3,6 +3,14 @@ package com.nendo.argosy.domain.model
 object Changelog {
     private val entries = listOf(
         ChangelogEntry(
+            version = "0.9.24",
+            highlights = listOf(
+                "Internal database migration for platform IDs",
+                "Improved type safety and performance"
+            ),
+            requiredActions = listOf(RequiredAction.ResyncLibrary)
+        ),
+        ChangelogEntry(
             version = "0.9.16",
             highlights = listOf(
                 "Fixed crash for users with platform versions"

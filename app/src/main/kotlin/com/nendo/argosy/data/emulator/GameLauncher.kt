@@ -25,11 +25,11 @@ private const val TAG = "GameLauncher"
 
 sealed class LaunchResult {
     data class Success(val intent: Intent, val discId: Long? = null) : LaunchResult()
-    data class NoEmulator(val platformId: String) : LaunchResult()
+    data class NoEmulator(val platformSlug: String) : LaunchResult()
     data class NoRomFile(val gamePath: String?) : LaunchResult()
     data class NoSteamLauncher(val launcherPackage: String) : LaunchResult()
     data class NoAndroidApp(val packageName: String) : LaunchResult()
-    data class NoCore(val platformId: String) : LaunchResult()
+    data class NoCore(val platformSlug: String) : LaunchResult()
     data class MissingDiscs(val missingDiscNumbers: List<Int>) : LaunchResult()
     data class Error(val message: String) : LaunchResult()
 }
@@ -78,16 +78,16 @@ class GameLauncher @Inject constructor(
         }
 
         val emulator = resolveEmulator(game)
-            ?: return LaunchResult.NoEmulator(game.platformId).also {
-                Logger.warn(TAG, "launch() failed: no emulator found for platform=${game.platformId}")
+            ?: return LaunchResult.NoEmulator(game.platformSlug).also {
+                Logger.warn(TAG, "launch() failed: no emulator found for platform=${game.platformSlug}")
             }
 
         Logger.debug(TAG, "Emulator resolved: ${emulator.displayName} (${emulator.packageName})")
 
         val intent = buildIntent(emulator, romFile, game, forResume)
             ?: return if (emulator.launchConfig is LaunchConfig.RetroArch) {
-                LaunchResult.NoCore(game.platformId).also {
-                    Logger.warn(TAG, "launch() failed: no RetroArch core for platform=${game.platformId}")
+                LaunchResult.NoCore(game.platformSlug).also {
+                    Logger.warn(TAG, "launch() failed: no RetroArch core for platform=${game.platformSlug}")
                 }
             } else {
                 LaunchResult.Error("Failed to build launch intent").also {
@@ -132,8 +132,8 @@ class GameLauncher @Inject constructor(
         }
 
         val emulator = resolveEmulator(game)
-            ?: return LaunchResult.NoEmulator(game.platformId).also {
-                Logger.warn(TAG, "launchMultiDiscGame() failed: no emulator for platform=${game.platformId}")
+            ?: return LaunchResult.NoEmulator(game.platformSlug).also {
+                Logger.warn(TAG, "launchMultiDiscGame() failed: no emulator for platform=${game.platformSlug}")
             }
 
         Logger.debug(TAG, "Emulator resolved: ${emulator.displayName}")
@@ -172,8 +172,8 @@ class GameLauncher @Inject constructor(
 
         val intent = buildIntent(emulator, launchFile, game, forResume)
             ?: return if (emulator.launchConfig is LaunchConfig.RetroArch) {
-                LaunchResult.NoCore(game.platformId).also {
-                    Logger.warn(TAG, "launchMultiDiscGame() failed: no core for platform=${game.platformId}")
+                LaunchResult.NoCore(game.platformSlug).also {
+                    Logger.warn(TAG, "launchMultiDiscGame() failed: no core for platform=${game.platformSlug}")
                 }
             } else {
                 LaunchResult.Error("Failed to build launch intent").also {

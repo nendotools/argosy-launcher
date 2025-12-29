@@ -370,7 +370,7 @@ object SavePathRegistry {
     }
 
     fun getRetroArchCore(platformId: String): String? {
-        val canonical = PlatformDefinitions.getCanonicalId(platformId)
+        val canonical = PlatformDefinitions.getCanonicalSlug(platformId)
         return EmulatorRegistry.getRetroArchCorePatterns()[canonical]?.firstOrNull()
     }
 
@@ -380,7 +380,7 @@ object SavePathRegistry {
     ): List<String> {
         if (!config.usesCore) return config.defaultPaths
 
-        val canonical = PlatformDefinitions.getCanonicalId(platformId)
+        val canonical = PlatformDefinitions.getCanonicalSlug(platformId)
         val core = getRetroArchCore(canonical) ?: return config.defaultPaths
         val withCore = config.defaultPaths.map { path ->
             path.replace("{core}", core)

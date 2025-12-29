@@ -35,7 +35,7 @@ data class AchievementUi(
 data class GameDetailUi(
     val id: Long,
     val title: String,
-    val platformId: String,
+    val platformId: Long,
     val platformSlug: String,
     val platformName: String,
     val coverPath: String?,

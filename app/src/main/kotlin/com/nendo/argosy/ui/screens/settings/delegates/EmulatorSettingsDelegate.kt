@@ -101,7 +101,7 @@ class EmulatorSettingsDelegate @Inject constructor(
     fun handleEmulatorPickerItemTap(
         index: Int,
         scope: CoroutineScope,
-        onSetEmulator: suspend (String, String, InstalledEmulator?) -> Unit,
+        onSetEmulator: suspend (Long, String, InstalledEmulator?) -> Unit,
         onLoadSettings: suspend () -> Unit
     ) {
         val state = _state.value
@@ -121,7 +121,7 @@ class EmulatorSettingsDelegate @Inject constructor(
 
     fun confirmEmulatorPickerSelection(
         scope: CoroutineScope,
-        onSetEmulator: suspend (String, String, InstalledEmulator?) -> Unit,
+        onSetEmulator: suspend (Long, String, InstalledEmulator?) -> Unit,
         onLoadSettings: suspend () -> Unit
     ) {
         scope.launch {
@@ -176,7 +176,7 @@ class EmulatorSettingsDelegate @Inject constructor(
 
     fun setPlatformEmulator(
         scope: CoroutineScope,
-        platformId: String,
+        platformId: Long,
         platformSlug: String,
         emulator: InstalledEmulator?,
         onLoadSettings: suspend () -> Unit

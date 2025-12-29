@@ -108,7 +108,7 @@ fun LibraryScreen(
     onGameSelect: (Long) -> Unit,
     onNavigateToDefault: () -> Unit,
     onDrawerToggle: () -> Unit,
-    initialPlatformId: String? = null,
+    initialPlatformId: Long? = null,
     initialSource: String? = null,
     viewModel: LibraryViewModel = hiltViewModel()
 ) {

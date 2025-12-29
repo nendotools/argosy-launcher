@@ -34,7 +34,7 @@ data class GameEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
 
-    val platformId: String,
+    val platformId: Long,
     val platformSlug: String = "",
     val title: String,
     val sortTitle: String,

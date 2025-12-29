@@ -117,7 +117,7 @@ class SettingsViewModel @Inject constructor(
     val openCustomSoundPickerEvent: SharedFlow<SoundType> = soundsDelegate.openCustomSoundPickerEvent
     val openAudioFilePickerEvent: SharedFlow<Unit> = ambientAudioDelegate.openAudioFilePickerEvent
     val openAudioFileBrowserEvent: SharedFlow<Unit> = ambientAudioDelegate.openAudioFileBrowserEvent
-    val launchPlatformFolderPicker: SharedFlow<String> = storageDelegate.launchPlatformFolderPicker
+    val launchPlatformFolderPicker: SharedFlow<Long> = storageDelegate.launchPlatformFolderPicker
     val launchSavePathPicker: SharedFlow<Unit> = emulatorDelegate.launchSavePathPicker
     val openImageCachePickerEvent: SharedFlow<Unit> = syncDelegate.openImageCachePickerEvent
 
@@ -264,7 +264,7 @@ class SettingsViewModel @Inject constructor(
                         val packageName = effectiveEmulatorDef.packageName
                         retroArchConfigParser.resolveSavePaths(
                             packageName = packageName,
-                            systemName = platform.id,
+                            systemName = platform.slug,
                             coreName = selectedCore
                         ).firstOrNull()
                     }
@@ -278,7 +278,7 @@ class SettingsViewModel @Inject constructor(
                     isRetroArch && effectiveEmulatorDef != null -> {
                         retroArchConfigParser.resolveSavePaths(
                             packageName = effectiveEmulatorDef.packageName,
-                            systemName = platform.id,
+                            systemName = platform.slug,
                             coreName = selectedCore,
                             basePathOverride = userSaveConfig?.savePathPattern
                         ).firstOrNull()
@@ -1172,27 +1172,27 @@ class SettingsViewModel @Inject constructor(
         storageDelegate.skipMigration()
     }
 
-    fun togglePlatformSync(platformId: String, enabled: Boolean) {
+    fun togglePlatformSync(platformId: Long, enabled: Boolean) {
         storageDelegate.togglePlatformSync(viewModelScope, platformId, enabled)
     }
 
-    fun openPlatformFolderPicker(platformId: String) {
+    fun openPlatformFolderPicker(platformId: Long) {
         storageDelegate.openPlatformFolderPicker(viewModelScope, platformId)
     }
 
-    fun setPlatformPath(platformId: String, path: String) {
+    fun setPlatformPath(platformId: Long, path: String) {
         storageDelegate.setPlatformPath(viewModelScope, platformId, path)
     }
 
-    fun resetPlatformToGlobal(platformId: String) {
+    fun resetPlatformToGlobal(platformId: Long) {
         storageDelegate.resetPlatformToGlobal(viewModelScope, platformId)
     }
 
-    fun syncPlatform(platformId: String, platformName: String) {
+    fun syncPlatform(platformId: Long, platformName: String) {
         storageDelegate.syncPlatform(viewModelScope, platformId, platformName)
     }
 
-    fun requestPurgePlatform(platformId: String) {
+    fun requestPurgePlatform(platformId: Long) {
         storageDelegate.requestPurgePlatform(platformId)
     }
 
@@ -1216,7 +1216,7 @@ class SettingsViewModel @Inject constructor(
         storageDelegate.skipPlatformMigration(viewModelScope)
     }
 
-    fun openPlatformSettingsModal(platformId: String) {
+    fun openPlatformSettingsModal(platformId: Long) {
         storageDelegate.openPlatformSettingsModal(platformId)
     }
 
@@ -1269,7 +1269,7 @@ class SettingsViewModel @Inject constructor(
         setFileLogLevel(currentLevel.next())
     }
 
-    fun setPlatformEmulator(platformId: String, platformSlug: String, emulator: InstalledEmulator?) {
+    fun setPlatformEmulator(platformId: Long, platformSlug: String, emulator: InstalledEmulator?) {
         viewModelScope.launch {
             configureEmulatorUseCase.setForPlatform(platformId, platformSlug, emulator)
             loadSettings()

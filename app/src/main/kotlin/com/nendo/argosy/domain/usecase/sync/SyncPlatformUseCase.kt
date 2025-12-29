@@ -21,7 +21,7 @@ class SyncPlatformUseCase @Inject constructor(
     private val romMRepository: RomMRepository,
     private val notificationManager: NotificationManager
 ) {
-    suspend operator fun invoke(platformId: String, platformName: String): SyncPlatformResult {
+    suspend operator fun invoke(platformId: Long, platformName: String): SyncPlatformResult {
         Logger.info(TAG, "invoke: starting sync for platform $platformId ($platformName)")
 
         if (!romMRepository.isConnected()) {

@@ -9,7 +9,7 @@ import javax.inject.Inject
 class ConfigureEmulatorUseCase @Inject constructor(
     private val emulatorConfigDao: EmulatorConfigDao
 ) {
-    suspend fun setForGame(gameId: Long, platformId: String, platformSlug: String, emulator: InstalledEmulator?) {
+    suspend fun setForGame(gameId: Long, platformId: Long, platformSlug: String, emulator: InstalledEmulator?) {
         emulatorConfigDao.deleteGameOverride(gameId)
 
         if (emulator != null) {
@@ -25,7 +25,7 @@ class ConfigureEmulatorUseCase @Inject constructor(
         }
     }
 
-    suspend fun setForPlatform(platformId: String, platformSlug: String, emulator: InstalledEmulator?) {
+    suspend fun setForPlatform(platformId: Long, platformSlug: String, emulator: InstalledEmulator?) {
         emulatorConfigDao.clearPlatformDefaults(platformId)
 
         if (emulator != null) {
@@ -45,11 +45,11 @@ class ConfigureEmulatorUseCase @Inject constructor(
         emulatorConfigDao.deleteGameOverride(gameId)
     }
 
-    suspend fun clearForPlatform(platformId: String) {
+    suspend fun clearForPlatform(platformId: Long) {
         emulatorConfigDao.clearPlatformDefaults(platformId)
     }
 
-    suspend fun setCoreForPlatform(platformId: String, coreId: String?) {
+    suspend fun setCoreForPlatform(platformId: Long, coreId: String?) {
         val existing = emulatorConfigDao.getDefaultForPlatform(platformId)
         if (existing != null) {
             emulatorConfigDao.updateCoreNameForPlatform(platformId, coreId)
@@ -70,7 +70,7 @@ class ConfigureEmulatorUseCase @Inject constructor(
         emulatorConfigDao.updateCoreNameForGame(gameId, coreId)
     }
 
-    suspend fun getConfigForPlatform(platformId: String): EmulatorConfigEntity? {
+    suspend fun getConfigForPlatform(platformId: Long): EmulatorConfigEntity? {
         return emulatorConfigDao.getDefaultForPlatform(platformId)
     }
 

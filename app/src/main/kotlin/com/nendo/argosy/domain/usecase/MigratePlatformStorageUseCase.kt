@@ -20,14 +20,14 @@ class MigratePlatformStorageUseCase @Inject constructor(
     private val notificationManager: NotificationManager
 ) {
     suspend operator fun invoke(
-        platformId: String,
+        platformId: Long,
         oldPath: String,
         newPath: String,
         isResetToGlobal: Boolean = false,
         onProgress: ((current: Int, total: Int, title: String) -> Unit)? = null
     ): MigrationResult = withContext(Dispatchers.IO) {
         val platform = platformDao.getById(platformId)
-        val platformName = platform?.name ?: platformId
+        val platformName = platform?.name ?: "Platform $platformId"
         val gamesWithPaths = gameRepository.getGamesWithLocalPathsForPlatform(platformId)
         val totalGames = gamesWithPaths.size
 

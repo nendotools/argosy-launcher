@@ -2,8 +2,14 @@ package com.nendo.argosy.data.platform
 
 import com.nendo.argosy.data.local.entity.PlatformEntity
 
+object LocalPlatformIds {
+    const val ANDROID = -1L
+    const val STEAM = -2L
+    const val IOS = -3L
+}
+
 data class PlatformDef(
-    val id: String,
+    val slug: String,
     val name: String,
     val shortName: String,
     val extensions: Set<String>,
@@ -306,6 +312,16 @@ object PlatformDefinitions {
         "nec-pc-9801" to "pc9800"
     )
 
+    private val localPlatformIdMap = mapOf(
+        "android" to LocalPlatformIds.ANDROID,
+        "steam" to LocalPlatformIds.STEAM,
+        "ios" to LocalPlatformIds.IOS
+    )
+
+    fun getLocalPlatformId(slug: String): Long? = localPlatformIdMap[slug.lowercase()]
+
+    fun isLocalPlatform(slug: String): Boolean = localPlatformIdMap.containsKey(slug.lowercase())
+
     private val platforms = listOf(
         // =====================================================================
         // NINTENDO CONSOLES (100-149) - Chronological order
@@ -505,10 +521,10 @@ object PlatformDefinitions {
     private val extensionMap: Map<String, List<PlatformDef>>
 
     init {
-        // Build platform map with both canonical IDs and aliases
+        // Build platform map with both canonical slugs and aliases
         val pMap = mutableMapOf<String, PlatformDef>()
         platforms.forEach { platform ->
-            pMap[platform.id] = platform
+            pMap[platform.slug] = platform
         }
         // Add aliases pointing to canonical platforms
         slugAliases.forEach { (alias, canonical) ->
@@ -528,11 +544,11 @@ object PlatformDefinitions {
 
     fun getAll(): List<PlatformDef> = platforms
 
-    fun getById(id: String): PlatformDef? = platformMap[id.lowercase()]
+    fun getBySlug(slug: String): PlatformDef? = platformMap[slug.lowercase()]
 
     fun isAlias(slug: String): Boolean = slugAliases.containsKey(slug.lowercase())
 
-    fun getCanonicalId(slug: String): String {
+    fun getCanonicalSlug(slug: String): String {
         val lower = slug.lowercase()
         return slugAliases[lower] ?: lower
     }
@@ -561,8 +577,22 @@ object PlatformDefinitions {
             .trim()
     }
 
-    fun toEntity(def: PlatformDef) = PlatformEntity(
-        id = def.id,
+    fun toLocalPlatformEntity(def: PlatformDef): PlatformEntity? {
+        val localId = getLocalPlatformId(def.slug) ?: return null
+        return PlatformEntity(
+            id = localId,
+            slug = def.slug,
+            name = def.name,
+            shortName = def.shortName,
+            sortOrder = def.sortOrder,
+            romExtensions = def.extensions.joinToString(","),
+            isVisible = true
+        )
+    }
+
+    fun toEntity(platformId: Long, def: PlatformDef) = PlatformEntity(
+        id = platformId,
+        slug = def.slug,
         name = def.name,
         shortName = def.shortName,
         sortOrder = def.sortOrder,
@@ -570,5 +600,8 @@ object PlatformDefinitions {
         isVisible = true
     )
 
-    fun toEntities(): List<PlatformEntity> = platforms.map { toEntity(it) }
+    fun getLocalPlatformEntities(): List<PlatformEntity> =
+        localPlatformIdMap.mapNotNull { (slug, _) ->
+            getBySlug(slug)?.let { toLocalPlatformEntity(it) }
+        }
 }

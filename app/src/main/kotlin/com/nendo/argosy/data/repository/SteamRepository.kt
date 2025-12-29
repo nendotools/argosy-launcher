@@ -24,9 +24,10 @@ import java.time.Instant
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.nendo.argosy.data.platform.LocalPlatformIds
 
 private const val TAG = "SteamRepository"
-private const val STEAM_PLATFORM_ID = "steam"
+private const val STEAM_PLATFORM_SLUG = "steam"
 
 sealed class SteamResult<out T> {
     data class Success<T>(val data: T) : SteamResult<T>()
@@ -113,8 +114,8 @@ class SteamRepository @Inject constructor(
                 ?: appData.backgroundRaw
 
             val game = GameEntity(
-                platformId = STEAM_PLATFORM_ID,
-                platformSlug = STEAM_PLATFORM_ID,
+                platformId = LocalPlatformIds.STEAM,
+                platformSlug = STEAM_PLATFORM_SLUG,
                 title = appData.name,
                 sortTitle = createSortTitle(appData.name),
                 localPath = null,
@@ -277,8 +278,8 @@ class SteamRepository @Inject constructor(
     }
 
     private suspend fun updatePlatformGameCount() {
-        val count = gameDao.countByPlatform(STEAM_PLATFORM_ID)
-        platformDao.updateGameCount(STEAM_PLATFORM_ID, count)
+        val count = gameDao.countByPlatform(LocalPlatformIds.STEAM)
+        platformDao.updateGameCount(LocalPlatformIds.STEAM, count)
     }
 
     private fun createSortTitle(title: String): String {
@@ -298,12 +299,13 @@ class SteamRepository @Inject constructor(
     }
 
     private suspend fun ensureSteamPlatformExists() {
-        val existing = platformDao.getById(STEAM_PLATFORM_ID)
+        val existing = platformDao.getById(LocalPlatformIds.STEAM)
         if (existing == null) {
             Log.d(TAG, "Creating Steam platform")
             platformDao.insert(
                 PlatformEntity(
-                    id = STEAM_PLATFORM_ID,
+                    id = LocalPlatformIds.STEAM,
+                    slug = STEAM_PLATFORM_SLUG,
                     name = "Steam",
                     shortName = "Steam",
                     sortOrder = 10,

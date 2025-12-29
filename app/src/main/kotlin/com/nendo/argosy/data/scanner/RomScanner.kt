@@ -45,14 +45,7 @@ class RomScanner @Inject constructor(
 
     suspend fun initializePlatforms() {
         withContext(Dispatchers.IO) {
-            platformDao.insertAll(PlatformDefinitions.toEntities())
-            syncPlatformSortOrders()
-        }
-    }
-
-    private suspend fun syncPlatformSortOrders() {
-        PlatformDefinitions.getAll().forEach { def ->
-            platformDao.updateSortOrder(def.id, def.sortOrder)
+            platformDao.insertAll(PlatformDefinitions.getLocalPlatformEntities())
         }
     }
 
@@ -72,13 +65,18 @@ class RomScanner @Inject constructor(
         val platformsWithGames = mutableSetOf<String>()
 
         try {
-            scanRecursive(directory, errors) { sortTitle, platformId, localPath ->
-                val existing = gameDao.getBySortTitleAndPlatform(sortTitle, platformId)
+            scanRecursive(directory, errors) { sortTitle, platformSlug, localPath ->
+                val platform = platformDao.getBySlug(platformSlug)
+                if (platform == null) {
+                    gamesSkipped++
+                    return@scanRecursive
+                }
+                val existing = gameDao.getBySortTitleAndPlatform(sortTitle, platform.id)
                 if (existing != null) {
                     if (existing.localPath == null) {
                         gameDao.updateLocalPath(existing.id, localPath, GameSource.ROMM_SYNCED)
                         gamesUpdated++
-                        platformsWithGames.add(platformId)
+                        platformsWithGames.add(platformSlug)
                         Log.d(TAG, "Marked as installed: ${existing.title}")
                     } else {
                         gamesUpdated++
@@ -93,9 +91,10 @@ class RomScanner @Inject constructor(
                 )
             }
 
-            platformsWithGames.forEach { platformId ->
-                val count = gameDao.countByPlatform(platformId)
-                platformDao.updateGameCount(platformId, count)
+            platformsWithGames.forEach { platformSlug ->
+                val platform = platformDao.getBySlug(platformSlug) ?: return@forEach
+                val count = gameDao.countByPlatform(platform.id)
+                platformDao.updateGameCount(platform.id, count)
             }
 
             Log.d(TAG, "Scan complete: updated=$gamesUpdated, skipped=$gamesSkipped")
@@ -115,7 +114,7 @@ class RomScanner @Inject constructor(
     private suspend fun scanRecursive(
         directory: File,
         errors: MutableList<String>,
-        onRomFound: suspend (sortTitle: String, platformId: String, localPath: String) -> Unit
+        onRomFound: suspend (sortTitle: String, platformSlug: String, localPath: String) -> Unit
     ) {
         val files = directory.listFiles() ?: return
 
@@ -149,7 +148,7 @@ class RomScanner @Inject constructor(
         val title = cleanRomTitle(file.nameWithoutExtension)
         val sortTitle = createSortTitle(title)
 
-        return Triple(sortTitle, platform.id, file.absolutePath)
+        return Triple(sortTitle, platform.slug, file.absolutePath)
     }
 
     private fun resolvePlatform(
@@ -163,13 +162,13 @@ class RomScanner @Inject constructor(
         val pathLower = file.absolutePath.lowercase()
 
         for (candidate in candidates) {
-            val idLower = candidate.id.lowercase()
+            val slugLower = candidate.slug.lowercase()
             val nameLower = candidate.name.lowercase()
             val shortLower = candidate.shortName.lowercase()
 
-            if (dirName.contains(idLower) ||
+            if (dirName.contains(slugLower) ||
                 dirName.contains(shortLower) ||
-                pathLower.contains("/$idLower/") ||
+                pathLower.contains("/$slugLower/") ||
                 pathLower.contains("/${shortLower.lowercase()}/")
             ) {
                 return candidate

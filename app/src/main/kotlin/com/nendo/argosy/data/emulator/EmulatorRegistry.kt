@@ -447,7 +447,7 @@ object EmulatorRegistry {
     fun getByPackage(packageName: String): EmulatorDef? = packageMap[packageName]
 
     fun getForPlatform(platformId: String): List<EmulatorDef> {
-        val canonical = PlatformDefinitions.getCanonicalId(platformId)
+        val canonical = PlatformDefinitions.getCanonicalSlug(platformId)
         return emulators.filter { canonical in it.supportedPlatforms }
     }
 
@@ -493,7 +493,7 @@ object EmulatorRegistry {
     )
 
     fun getPreferredCore(platformId: String): String? {
-        val canonical = PlatformDefinitions.getCanonicalId(platformId)
+        val canonical = PlatformDefinitions.getCanonicalSlug(platformId)
         return preferredCores[canonical]
     }
 
@@ -713,12 +713,12 @@ object EmulatorRegistry {
     )
 
     fun getCoresForPlatform(platformId: String): List<RetroArchCore> {
-        val canonical = PlatformDefinitions.getCanonicalId(platformId)
+        val canonical = PlatformDefinitions.getCanonicalSlug(platformId)
         return platformCores[canonical] ?: emptyList()
     }
 
     fun getDefaultCore(platformId: String): RetroArchCore? {
-        val canonical = PlatformDefinitions.getCanonicalId(platformId)
+        val canonical = PlatformDefinitions.getCanonicalSlug(platformId)
         return platformCores[canonical]?.firstOrNull()
     }
 

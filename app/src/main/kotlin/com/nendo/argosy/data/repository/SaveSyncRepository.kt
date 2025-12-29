@@ -334,13 +334,13 @@ class SaveSyncRepository @Inject constructor(
     suspend fun constructSavePath(
         emulatorId: String,
         gameTitle: String,
-        platformId: String,
+        platformSlug: String,
         romPath: String?
     ): String? {
         val config = SavePathRegistry.getConfig(emulatorId) ?: return null
 
         if (emulatorId == "retroarch" || emulatorId == "retroarch_64") {
-            return constructRetroArchSavePath(emulatorId, gameTitle, platformId, romPath)
+            return constructRetroArchSavePath(emulatorId, gameTitle, platformSlug, romPath)
         }
 
         val userConfig = emulatorSaveConfigDao.getByEmulator(emulatorId)
@@ -351,7 +351,7 @@ class SaveSyncRepository @Inject constructor(
         } else {
             null
         } ?: run {
-            val resolvedPaths = SavePathRegistry.resolvePath(config, platformId)
+            val resolvedPaths = SavePathRegistry.resolvePath(config, platformSlug)
             resolvedPaths.firstOrNull { File(it).exists() }
                 ?: resolvedPaths.firstOrNull()
         } ?: return null
@@ -366,7 +366,7 @@ class SaveSyncRepository @Inject constructor(
     private fun constructRetroArchSavePath(
         emulatorId: String,
         gameTitle: String,
-        platformId: String,
+        platformSlug: String,
         romPath: String?
     ): String? {
         val packageName = when (emulatorId) {
@@ -375,7 +375,7 @@ class SaveSyncRepository @Inject constructor(
         }
 
         val raConfig = retroArchConfigParser.parse(packageName)
-        val coreName = SavePathRegistry.getRetroArchCore(platformId) ?: return null
+        val coreName = SavePathRegistry.getRetroArchCore(platformSlug) ?: return null
         val saveConfig = SavePathRegistry.getConfig(emulatorId) ?: return null
         val extension = saveConfig.saveExtensions.firstOrNull() ?: "srm"
 
@@ -391,7 +391,7 @@ class SaveSyncRepository @Inject constructor(
                 }
             }
             else -> {
-                val defaultPaths = SavePathRegistry.resolvePath(saveConfig, platformId)
+                val defaultPaths = SavePathRegistry.resolvePath(saveConfig, platformSlug)
                 defaultPaths.firstOrNull { File(it).exists() }
                     ?: defaultPaths.firstOrNull()
             }
@@ -510,7 +510,7 @@ class SaveSyncRepository @Inject constructor(
     suspend fun checkForAllServerUpdates(): List<SaveSyncEntity> = withContext(Dispatchers.IO) {
         val api = this@SaveSyncRepository.api ?: return@withContext emptyList()
         val downloadedGames = gameDao.getGamesWithLocalPath().filter { it.rommId != null }
-        val platformIds = downloadedGames.mapNotNull { it.platformId.toLongOrNull() }.distinct()
+        val platformIds = downloadedGames.map { it.platformId }.distinct()
 
         val allUpdates = mutableListOf<SaveSyncEntity>()
         for (platformId in platformIds) {
