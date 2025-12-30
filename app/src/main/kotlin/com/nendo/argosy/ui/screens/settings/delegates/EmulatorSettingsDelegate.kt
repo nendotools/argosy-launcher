@@ -2,7 +2,9 @@ package com.nendo.argosy.ui.screens.settings.delegates
 
 import com.nendo.argosy.data.emulator.EmulatorDetector
 import com.nendo.argosy.data.emulator.InstalledEmulator
+import com.nendo.argosy.data.local.dao.EmulatorConfigDao
 import com.nendo.argosy.data.local.dao.EmulatorSaveConfigDao
+import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.entity.EmulatorSaveConfigEntity
 import com.nendo.argosy.domain.usecase.game.ConfigureEmulatorUseCase
 import com.nendo.argosy.ui.input.SoundFeedbackManager
@@ -20,6 +22,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
 import java.time.Instant
 import javax.inject.Inject
 
@@ -27,7 +30,9 @@ class EmulatorSettingsDelegate @Inject constructor(
     private val emulatorDetector: EmulatorDetector,
     private val configureEmulatorUseCase: ConfigureEmulatorUseCase,
     private val soundManager: SoundFeedbackManager,
-    private val emulatorSaveConfigDao: EmulatorSaveConfigDao
+    private val emulatorSaveConfigDao: EmulatorSaveConfigDao,
+    private val emulatorConfigDao: EmulatorConfigDao,
+    private val gameDao: GameDao
 ) {
     private val _state = MutableStateFlow(EmulatorState())
     val state: StateFlow<EmulatorState> = _state.asStateFlow()
@@ -310,5 +315,53 @@ class EmulatorSettingsDelegate @Inject constructor(
                 onResetSavePath()
             }
         }
+    }
+
+    @Suppress("LoopWithTooManyJumpStatements")
+    fun changeExtensionForPlatform(
+        scope: CoroutineScope,
+        platformId: Long,
+        newExtension: String,
+        onLoadSettings: suspend () -> Unit
+    ) {
+        scope.launch {
+            val extensionToStore = newExtension.ifEmpty { null }
+
+            if (extensionToStore != null) {
+                val games = gameDao.getDownloadedByPlatform(platformId)
+                val validExtensions = setOf("3ds", "cci")
+
+                for (game in games) {
+                    val oldPath = game.localPath ?: continue
+                    val currentExt = oldPath.substringAfterLast('.', "").lowercase()
+                    if (currentExt !in validExtensions) continue
+                    if (currentExt == extensionToStore.lowercase()) continue
+
+                    val oldFile = File(oldPath)
+                    if (!oldFile.exists()) continue
+
+                    val newPath = oldPath.replaceAfterLast('.', extensionToStore)
+                    val newFile = File(newPath)
+                    if (newFile.exists()) continue
+
+                    val copied = oldFile.copyTo(newFile, overwrite = false).exists() && oldFile.delete()
+                    val renamed = oldFile.renameTo(newFile) || copied
+
+                    if (renamed) {
+                        gameDao.updateLocalPath(game.id, newPath, game.source)
+                    }
+                }
+
+                emulatorConfigDao.updatePreferredExtension(platformId, extensionToStore)
+            } else {
+                emulatorConfigDao.updatePreferredExtension(platformId, "")
+            }
+
+            onLoadSettings()
+        }
+    }
+
+    suspend fun getPreferredExtension(platformId: Long): String? {
+        return emulatorConfigDao.getPreferredExtension(platformId)?.ifEmpty { null }
     }
 }

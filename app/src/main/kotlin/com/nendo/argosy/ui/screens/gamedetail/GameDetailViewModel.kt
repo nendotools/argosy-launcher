@@ -517,6 +517,64 @@ class GameDetailViewModel @Inject constructor(
                     notificationManager.showSuccess("Downloading ${result.discCount} discs")
                 }
                 is DownloadResult.Error -> notificationManager.showError(result.message)
+                is DownloadResult.ExtractionFailed -> {
+                    _uiState.update {
+                        it.copy(
+                            showExtractionFailedPrompt = true,
+                            extractionFailedInfo = ExtractionFailedInfo(
+                                gameId = result.gameId,
+                                fileName = result.fileName,
+                                errorReason = result.errorReason
+                            ),
+                            extractionPromptFocusIndex = 0
+                        )
+                    }
+                    soundManager.play(SoundType.OPEN_MODAL)
+                }
+            }
+        }
+    }
+
+    fun dismissExtractionPrompt() {
+        _uiState.update {
+            it.copy(
+                showExtractionFailedPrompt = false,
+                extractionFailedInfo = null,
+                extractionPromptFocusIndex = 0
+            )
+        }
+        soundManager.play(SoundType.CLOSE_MODAL)
+    }
+
+    fun moveExtractionPromptFocus(delta: Int) {
+        _uiState.update { state ->
+            val newIndex = (state.extractionPromptFocusIndex + delta).coerceIn(0, 1)
+            state.copy(extractionPromptFocusIndex = newIndex)
+        }
+    }
+
+    fun confirmExtractionPromptSelection() {
+        val info = _uiState.value.extractionFailedInfo ?: return
+        val focusIndex = _uiState.value.extractionPromptFocusIndex
+
+        dismissExtractionPrompt()
+
+        viewModelScope.launch {
+            when (focusIndex) {
+                0 -> {
+                    when (val result = gameActions.retryExtraction(info.gameId)) {
+                        is DownloadResult.Queued -> notificationManager.showSuccess("Extraction succeeded")
+                        is DownloadResult.Error -> notificationManager.showError(result.message)
+                        else -> { }
+                    }
+                }
+                1 -> {
+                    when (val result = gameActions.redownload(info.gameId)) {
+                        is DownloadResult.Queued -> notificationManager.showSuccess("Redownload started")
+                        is DownloadResult.Error -> notificationManager.showError(result.message)
+                        else -> { }
+                    }
+                }
             }
         }
     }
@@ -1051,6 +1109,7 @@ class GameDetailViewModel @Inject constructor(
                 }
                 is DownloadResult.Queued -> { }
                 is DownloadResult.Error -> notificationManager.showError(result.message)
+                is DownloadResult.ExtractionFailed -> { }
             }
         }
     }
@@ -1602,6 +1661,10 @@ class GameDetailViewModel @Inject constructor(
                     changeRatingValue(-1)
                     return InputResult.HANDLED
                 }
+                state.showExtractionFailedPrompt -> {
+                    moveExtractionPromptFocus(-1)
+                    return InputResult.HANDLED
+                }
                 state.showMoreOptions || state.showEmulatorPicker || state.showCorePicker || state.showDiscPicker || state.showMissingDiscPrompt -> {
                     return InputResult.UNHANDLED
                 }
@@ -1641,6 +1704,10 @@ class GameDetailViewModel @Inject constructor(
                     changeRatingValue(1)
                     return InputResult.HANDLED
                 }
+                state.showExtractionFailedPrompt -> {
+                    moveExtractionPromptFocus(1)
+                    return InputResult.HANDLED
+                }
                 state.showMoreOptions || state.showEmulatorPicker || state.showCorePicker || state.showDiscPicker || state.showMissingDiscPrompt -> {
                     return InputResult.UNHANDLED
                 }
@@ -1657,7 +1724,8 @@ class GameDetailViewModel @Inject constructor(
             if (saveState.isVisible || saveState.showRestoreConfirmation ||
                 state.showScreenshotViewer || state.showRatingPicker || state.showStatusPicker ||
                 state.showMoreOptions || state.showEmulatorPicker ||
-                state.showCorePicker || state.showDiscPicker || state.showMissingDiscPrompt) {
+                state.showCorePicker || state.showDiscPicker || state.showMissingDiscPrompt ||
+                state.showExtractionFailedPrompt) {
                 return InputResult.UNHANDLED
             }
             onPrevGame()
@@ -1670,7 +1738,8 @@ class GameDetailViewModel @Inject constructor(
             if (saveState.isVisible || saveState.showRestoreConfirmation ||
                 state.showScreenshotViewer || state.showRatingPicker || state.showStatusPicker ||
                 state.showMoreOptions || state.showEmulatorPicker ||
-                state.showCorePicker || state.showDiscPicker || state.showMissingDiscPrompt) {
+                state.showCorePicker || state.showDiscPicker || state.showMissingDiscPrompt ||
+                state.showExtractionFailedPrompt) {
                 return InputResult.UNHANDLED
             }
             onNextGame()
@@ -1691,6 +1760,7 @@ class GameDetailViewModel @Inject constructor(
                 state.showRatingPicker -> confirmRating()
                 state.showStatusPicker -> confirmStatus()
                 state.showMissingDiscPrompt -> repairAndPlay()
+                state.showExtractionFailedPrompt -> confirmExtractionPromptSelection()
                 state.showCorePicker -> confirmCoreSelection()
                 state.showDiscPicker -> confirmDiscSelection()
                 state.showEmulatorPicker -> confirmEmulatorSelection()
@@ -1714,6 +1784,7 @@ class GameDetailViewModel @Inject constructor(
                 state.showRatingPicker -> dismissRatingPicker()
                 state.showStatusPicker -> dismissStatusPicker()
                 state.showMissingDiscPrompt -> dismissMissingDiscPrompt()
+                state.showExtractionFailedPrompt -> dismissExtractionPrompt()
                 state.showCorePicker -> dismissCorePicker()
                 state.showDiscPicker -> dismissDiscPicker()
                 state.showUpdatesPicker -> dismissUpdatesPicker()

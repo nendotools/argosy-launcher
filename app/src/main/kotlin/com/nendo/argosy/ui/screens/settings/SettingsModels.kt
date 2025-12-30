@@ -1,6 +1,7 @@
 package com.nendo.argosy.ui.screens.settings
 
 import com.nendo.argosy.data.emulator.EmulatorDef
+import com.nendo.argosy.data.emulator.ExtensionOption
 import com.nendo.argosy.data.emulator.InstalledEmulator
 import com.nendo.argosy.data.emulator.RetroArchCore
 import com.nendo.argosy.data.local.entity.PlatformEntity
@@ -63,11 +64,14 @@ data class PlatformEmulatorConfig(
     val effectiveEmulatorName: String? = null,
     val effectiveSavePath: String? = null,
     val isUserSavePathOverride: Boolean = false,
-    val showSavePath: Boolean = false
+    val showSavePath: Boolean = false,
+    val extensionOptions: List<ExtensionOption> = emptyList(),
+    val selectedExtension: String? = null
 ) {
     val hasInstalledEmulators: Boolean get() = availableEmulators.isNotEmpty()
     val isRetroArchSelected: Boolean get() = selectedEmulatorPackage?.startsWith("com.retroarch") == true
     val showCoreSelection: Boolean get() = effectiveEmulatorIsRetroArch && availableCores.isNotEmpty()
+    val showExtensionSelection: Boolean get() = extensionOptions.isNotEmpty()
 }
 
 data class EmulatorPickerInfo(

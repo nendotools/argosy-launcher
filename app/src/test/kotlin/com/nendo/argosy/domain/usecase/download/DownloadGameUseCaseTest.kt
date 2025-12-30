@@ -1,6 +1,8 @@
 package com.nendo.argosy.domain.usecase.download
 
 import com.nendo.argosy.data.download.DownloadManager
+import com.nendo.argosy.data.local.dao.DownloadQueueDao
+import com.nendo.argosy.data.local.dao.EmulatorConfigDao
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.dao.GameDiscDao
 import com.nendo.argosy.data.local.entity.GameEntity
@@ -23,6 +25,8 @@ class DownloadGameUseCaseTest {
     private lateinit var gameDiscDao: GameDiscDao
     private lateinit var romMRepository: RomMRepository
     private lateinit var downloadManager: DownloadManager
+    private lateinit var emulatorConfigDao: EmulatorConfigDao
+    private lateinit var downloadQueueDao: DownloadQueueDao
     private lateinit var useCase: DownloadGameUseCase
 
     @Before
@@ -31,7 +35,9 @@ class DownloadGameUseCaseTest {
         gameDiscDao = mockk(relaxed = true)
         romMRepository = mockk(relaxed = true)
         downloadManager = mockk(relaxed = true)
-        useCase = DownloadGameUseCase(gameDao, gameDiscDao, romMRepository, downloadManager)
+        emulatorConfigDao = mockk(relaxed = true)
+        downloadQueueDao = mockk(relaxed = true)
+        useCase = DownloadGameUseCase(gameDao, gameDiscDao, romMRepository, downloadManager, emulatorConfigDao, downloadQueueDao)
     }
 
     @Test

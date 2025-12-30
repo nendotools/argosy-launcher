@@ -45,4 +45,10 @@ interface EmulatorConfigDao {
 
     @Query("UPDATE emulator_configs SET platformId = :newPlatformId WHERE platformId = :oldPlatformId")
     suspend fun migratePlatform(oldPlatformId: Long, newPlatformId: Long)
+
+    @Query("SELECT preferredExtension FROM emulator_configs WHERE platformId = :platformId AND gameId IS NULL AND isDefault = 1")
+    suspend fun getPreferredExtension(platformId: Long): String?
+
+    @Query("UPDATE emulator_configs SET preferredExtension = :extension WHERE platformId = :platformId AND gameId IS NULL AND isDefault = 1")
+    suspend fun updatePreferredExtension(platformId: Long, extension: String)
 }

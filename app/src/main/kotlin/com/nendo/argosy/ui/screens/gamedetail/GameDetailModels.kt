@@ -92,6 +92,12 @@ enum class GameDownloadStatus {
 
 enum class RatingType { OPINION, DIFFICULTY }
 
+data class ExtractionFailedInfo(
+    val gameId: Long,
+    val fileName: String,
+    val errorReason: String
+)
+
 data class GameDetailUiState(
     val game: GameDetailUi? = null,
     val showMoreOptions: Boolean = false,
@@ -136,7 +142,10 @@ data class GameDetailUiState(
     val focusedScreenshotIndex: Int = 0,
     val showScreenshotViewer: Boolean = false,
     val viewerScreenshotIndex: Int = 0,
-    val repairedBackgroundPath: String? = null
+    val repairedBackgroundPath: String? = null,
+    val showExtractionFailedPrompt: Boolean = false,
+    val extractionFailedInfo: ExtractionFailedInfo? = null,
+    val extractionPromptFocusIndex: Int = 0
 ) {
     val hasPreviousGame: Boolean get() = currentGameIndex > 0
     val hasNextGame: Boolean get() = currentGameIndex >= 0 && currentGameIndex < siblingGameIds.size - 1

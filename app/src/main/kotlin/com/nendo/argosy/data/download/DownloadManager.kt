@@ -815,6 +815,68 @@ class DownloadManager @Inject constructor(
         return File(platformDir, fileName)
     }
 
+    sealed class ExtractionResult {
+        data class Success(val localPath: String) : ExtractionResult()
+        data class Failure(val reason: String) : ExtractionResult()
+    }
+
+    suspend fun retryExtraction(gameId: Long): ExtractionResult {
+        val queueEntry = downloadQueueDao.getByGameId(gameId)
+            ?: return ExtractionResult.Failure("No download entry found")
+
+        val platformDir = getDownloadDir(queueEntry.platformSlug)
+        val targetFile = File(platformDir, queueEntry.fileName)
+
+        if (!targetFile.exists()) {
+            return ExtractionResult.Failure("Downloaded file no longer exists")
+        }
+
+        return try {
+            val finalPath = processDownloadedFile(
+                targetFile = targetFile,
+                platformDir = platformDir,
+                platformSlug = queueEntry.platformSlug,
+                gameTitle = queueEntry.gameTitle
+            )
+
+            gameDao.updateLocalPath(gameId, finalPath, GameSource.ROMM_SYNCED)
+            downloadQueueDao.deleteByGameId(gameId)
+
+            _completionEvents.emit(
+                DownloadCompletionEvent(
+                    gameId = gameId,
+                    rommId = queueEntry.rommId,
+                    localPath = finalPath,
+                    isDiscDownload = false
+                )
+            )
+
+            soundManager.play(SoundType.DOWNLOAD_COMPLETE)
+            ExtractionResult.Success(finalPath)
+        } catch (e: Exception) {
+            downloadQueueDao.updateState(
+                queueEntry.id,
+                DownloadState.FAILED.name,
+                e.message ?: "Extraction failed"
+            )
+            ExtractionResult.Failure(e.message ?: "Extraction failed")
+        }
+    }
+
+    suspend fun deleteFileAndRedownload(gameId: Long) {
+        val queueEntry = downloadQueueDao.getByGameId(gameId)
+        if (queueEntry != null) {
+            val platformDir = getDownloadDir(queueEntry.platformSlug)
+            val targetFile = File(platformDir, queueEntry.fileName)
+            val tempFile = File(platformDir, "${queueEntry.fileName}.tmp")
+
+            if (targetFile.exists()) targetFile.delete()
+            if (tempFile.exists()) tempFile.delete()
+
+            downloadQueueDao.deleteByGameId(gameId)
+        }
+    }
+
     private fun DownloadQueueEntity.toDownloadProgress(): DownloadProgress {
         return DownloadProgress(
             id = id,

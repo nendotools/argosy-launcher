@@ -50,6 +50,14 @@ class GameActionsDelegate @Inject constructor(
         return downloadGameUseCase.repairMissingDiscs(gameId)
     }
 
+    suspend fun retryExtraction(gameId: Long): DownloadResult {
+        return downloadGameUseCase.retryExtraction(gameId)
+    }
+
+    suspend fun redownload(gameId: Long): DownloadResult {
+        return downloadGameUseCase.redownload(gameId)
+    }
+
     suspend fun refreshGameData(gameId: Long): RomMResult<Unit> {
         return romMRepository.refreshGameData(gameId)
     }

@@ -54,6 +54,7 @@ import com.nendo.argosy.ui.screens.gamedetail.components.SnapState
 import com.nendo.argosy.ui.screens.gamedetail.modals.CorePickerModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.DiscPickerModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.EmulatorPickerModal
+import com.nendo.argosy.ui.screens.gamedetail.modals.ExtractionFailedModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.MissingDiscModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.StatusPickerModal
 import com.nendo.argosy.ui.screens.gamedetail.modals.SteamLauncherPickerModal
@@ -269,7 +270,8 @@ private fun GameDetailContent(
 ) {
     val showAnyOverlay = uiState.showMoreOptions || uiState.showEmulatorPicker || uiState.showCorePicker ||
         uiState.showRatingPicker || uiState.showDiscPicker || uiState.showMissingDiscPrompt || uiState.isSyncing ||
-        uiState.showSaveCacheDialog || uiState.showRenameDialog || uiState.showScreenshotViewer
+        uiState.showSaveCacheDialog || uiState.showRenameDialog || uiState.showScreenshotViewer ||
+        uiState.showExtractionFailedPrompt
     val modalBlur by animateDpAsState(
         targetValue = if (showAnyOverlay) Motion.blurRadiusModal else 0.dp,
         animationSpec = Motion.focusSpringDp,
@@ -536,6 +538,25 @@ private fun GameDetailModals(
             missingDiscNumbers = uiState.missingDiscNumbers,
             onDismiss = viewModel::dismissMissingDiscPrompt
         )
+    }
+
+    AnimatedVisibility(
+        visible = uiState.showExtractionFailedPrompt && uiState.extractionFailedInfo != null,
+        enter = fadeIn(),
+        exit = fadeOut()
+    ) {
+        uiState.extractionFailedInfo?.let { info ->
+            ExtractionFailedModal(
+                info = info,
+                focusIndex = uiState.extractionPromptFocusIndex,
+                onRetry = viewModel::confirmExtractionPromptSelection,
+                onRedownload = {
+                    viewModel.moveExtractionPromptFocus(1)
+                    viewModel.confirmExtractionPromptSelection()
+                },
+                onDismiss = viewModel::dismissExtractionPrompt
+            )
+        }
     }
 
     SaveChannelModal(

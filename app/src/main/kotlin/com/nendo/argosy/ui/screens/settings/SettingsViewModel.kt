@@ -304,6 +304,9 @@ class SettingsViewModel @Inject constructor(
                     else -> userSaveConfig?.savePathPattern
                 }
 
+                val extensionOptions = EmulatorRegistry.getExtensionOptionsForPlatform(platform.slug)
+                val selectedExtension = emulatorDelegate.getPreferredExtension(platform.id)
+
                 PlatformEmulatorConfig(
                     platform = platform,
                     selectedEmulator = defaultConfig?.displayName,
@@ -317,7 +320,9 @@ class SettingsViewModel @Inject constructor(
                     effectiveEmulatorName = effectiveEmulatorDef?.displayName,
                     effectiveSavePath = effectiveSavePath,
                     isUserSavePathOverride = isUserSavePathOverride,
-                    showSavePath = showSavePath
+                    showSavePath = showSavePath,
+                    extensionOptions = extensionOptions,
+                    selectedExtension = selectedExtension
                 )
             }
 
@@ -483,6 +488,10 @@ class SettingsViewModel @Inject constructor(
 
     fun cycleCoreForPlatform(config: PlatformEmulatorConfig, direction: Int) {
         emulatorDelegate.cycleCoreForPlatform(viewModelScope, config, direction) { loadSettings() }
+    }
+
+    fun changeExtensionForPlatform(config: PlatformEmulatorConfig, extension: String) {
+        emulatorDelegate.changeExtensionForPlatform(viewModelScope, config.platform.id, extension) { loadSettings() }
     }
 
     fun moveEmulatorPickerFocus(delta: Int) {

@@ -36,5 +36,6 @@ data class EmulatorConfigEntity(
     val packageName: String?,
     val displayName: String?,
     val coreName: String?,
-    val isDefault: Boolean = false
+    val isDefault: Boolean = false,
+    val preferredExtension: String? = null
 )

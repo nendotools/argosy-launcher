@@ -156,6 +156,9 @@ interface GameDao {
     @Query("SELECT COUNT(*) FROM games WHERE platformId = :platformId AND localPath IS NOT NULL")
     suspend fun countDownloadedByPlatform(platformId: Long): Int
 
+    @Query("SELECT * FROM games WHERE platformId = :platformId AND localPath IS NOT NULL")
+    suspend fun getDownloadedByPlatform(platformId: Long): List<GameEntity>
+
     @Query("SELECT * FROM games WHERE platformId = :platformId AND isHidden = 0 ORDER BY sortTitle ASC")
     suspend fun getByPlatform(platformId: Long): List<GameEntity>
 

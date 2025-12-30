@@ -65,6 +65,11 @@ data class RetroArchCore(
     val displayName: String
 )
 
+data class ExtensionOption(
+    val extension: String,
+    val label: String
+)
+
 @Deprecated("Use LaunchConfig instead", ReplaceWith("LaunchConfig"))
 enum class LaunchType {
     FILE_URI,
@@ -186,6 +191,18 @@ object EmulatorRegistry {
                 intentExtras = mapOf("SelectedGame" to ExtraValue.FilePath)
             ),
             downloadUrl = "https://github.com/azahar-emu/azahar/releases"
+        ),
+        // NOTE: AzaharPlus is a fork of Azahar that restores .3ds file support
+        EmulatorDef(
+            id = "azahar_plus",
+            packageName = "io.github.azaharplus.android",
+            displayName = "AzaharPlus",
+            supportedPlatforms = setOf("3ds"),
+            launchConfig = LaunchConfig.Custom(
+                activityClass = "org.citra.citra_emu.activities.EmulationActivity",
+                intentExtras = mapOf("SelectedGame" to ExtraValue.FilePath)
+            ),
+            downloadUrl = "https://github.com/AzaharPlus/AzaharPlus/releases"
         ),
         EmulatorDef(
             id = "borked3ds",
@@ -459,7 +476,7 @@ object EmulatorRegistry {
         "psvita" to listOf("vita3k-zx", "vita3k"),
         "n64" to listOf("mupen64plus_fz", "retroarch", "retroarch_64"),
         "nds" to listOf("drastic", "melonds", "retroarch", "retroarch_64"),
-        "3ds" to listOf("citra_mmj", "azahar", "borked3ds", "citra"),
+        "3ds" to listOf("azahar_plus", "azahar", "citra_mmj", "borked3ds", "citra"),
         "gc" to listOf("dolphin", "dolphin_handheld", "retroarch", "retroarch_64"),
         "ngc" to listOf("dolphin", "dolphin_handheld", "retroarch", "retroarch_64"),
         "wii" to listOf("dolphin", "dolphin_handheld"),
@@ -763,6 +780,17 @@ object EmulatorRegistry {
             downloadUrl = "https://github.com/azahar-emu/azahar/releases"
         ),
         EmulatorFamily(
+            baseId = "azahar_plus",
+            displayNamePrefix = "AzaharPlus",
+            packagePatterns = listOf("io.github.azaharplus.*"),
+            supportedPlatforms = setOf("3ds"),
+            launchConfig = LaunchConfig.Custom(
+                activityClass = "org.citra.citra_emu.activities.EmulationActivity",
+                intentExtras = mapOf("SelectedGame" to ExtraValue.FilePath)
+            ),
+            downloadUrl = "https://github.com/AzaharPlus/AzaharPlus/releases"
+        ),
+        EmulatorFamily(
             baseId = "borked3ds",
             displayNamePrefix = "Borked3DS",
             packagePatterns = listOf("io.github.borked3ds.*"),
@@ -883,6 +911,22 @@ object EmulatorRegistry {
     )
 
     fun getEmulatorFamilies(): List<EmulatorFamily> = emulatorFamilies
+
+    private val platformExtensionOptions: Map<String, List<ExtensionOption>> = mapOf(
+        "3ds" to listOf(
+            ExtensionOption("", "Unchanged"),
+            ExtensionOption("3ds", ".3ds"),
+            ExtensionOption("cci", ".cci")
+        )
+    )
+
+    fun getExtensionOptionsForPlatform(platformSlug: String): List<ExtensionOption> {
+        return platformExtensionOptions[platformSlug.lowercase()] ?: emptyList()
+    }
+
+    fun hasExtensionOptions(platformSlug: String): Boolean {
+        return platformExtensionOptions.containsKey(platformSlug.lowercase())
+    }
 
     fun matchesFamily(packageName: String, family: EmulatorFamily): Boolean {
         return family.packagePatterns.any { pattern ->

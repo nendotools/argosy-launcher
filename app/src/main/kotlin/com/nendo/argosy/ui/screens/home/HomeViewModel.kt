@@ -1267,6 +1267,9 @@ class HomeViewModel @Inject constructor(
                     notificationManager.showSuccess("Downloading ${result.discCount} discs")
                 }
                 is DownloadResult.Error -> notificationManager.showError(result.message)
+                is DownloadResult.ExtractionFailed -> {
+                    notificationManager.showError("Extraction failed. Open game details to retry.")
+                }
             }
         }
     }

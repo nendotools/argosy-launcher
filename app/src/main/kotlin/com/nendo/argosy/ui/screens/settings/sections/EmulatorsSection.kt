@@ -91,6 +91,7 @@ fun EmulatorsSection(
                     subFocusIndex = if (itemFocused) uiState.emulators.platformSubFocusIndex else 0,
                     onEmulatorClick = { viewModel.handlePlatformItemTap(index) },
                     onCycleCore = { direction -> viewModel.cycleCoreForPlatform(config, direction) },
+                    onExtensionChange = { extension -> viewModel.changeExtensionForPlatform(config, extension) },
                     onSavePathClick = { viewModel.showSavePathModal(config) }
                 )
             }
@@ -129,6 +130,7 @@ private fun PlatformEmulatorItem(
     subFocusIndex: Int,
     onEmulatorClick: () -> Unit,
     onCycleCore: (Int) -> Unit,
+    onExtensionChange: (String) -> Unit,
     onSavePathClick: () -> Unit
 ) {
     val disabledAlpha = 0.45f
@@ -280,6 +282,61 @@ private fun PlatformEmulatorItem(
                 } else {
                     Text(
                         text = selectedCoreName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+
+        if (config.showExtensionSelection) {
+            Spacer(modifier = Modifier.height(Dimens.spacingXs))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
+            ) {
+                Text(
+                    text = "File Extension",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = secondaryColor
+                )
+                if (isFocused) {
+                    config.extensionOptions.forEach { option ->
+                        val isSelected = option.extension == config.selectedExtension.orEmpty()
+                        if (isSelected) {
+                            OutlinedButton(
+                                onClick = { },
+                                modifier = Modifier.height(28.dp),
+                                contentPadding = PaddingValues(horizontal = Dimens.spacingSm, vertical = 0.dp),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.onPrimaryContainer)
+                            ) {
+                                Text(
+                                    text = option.label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        } else {
+                            TextButton(
+                                onClick = { onExtensionChange(option.extension) },
+                                modifier = Modifier.height(28.dp),
+                                contentPadding = PaddingValues(horizontal = Dimens.spacingSm, vertical = 0.dp)
+                            ) {
+                                Text(
+                                    text = option.label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    val displayLabel = config.extensionOptions.find {
+                        it.extension == config.selectedExtension.orEmpty()
+                    }?.label ?: "Unchanged"
+                    Text(
+                        text = displayLabel,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
