@@ -14,14 +14,6 @@ data class ScreenshotPair(
     val cachedPath: String?
 )
 
-data class DiscUi(
-    val id: Long,
-    val discNumber: Int,
-    val fileName: String,
-    val isDownloaded: Boolean,
-    val isLastPlayed: Boolean
-)
-
 data class UpdateFileUi(
     val fileName: String,
     val filePath: String,
@@ -130,9 +122,6 @@ data class GameDetailUiState(
     val ratingPickerValue: Int = 0,
     val showStatusPicker: Boolean = false,
     val statusPickerValue: String? = null,
-    val discs: List<DiscUi> = emptyList(),
-    val showDiscPicker: Boolean = false,
-    val discPickerFocusIndex: Int = 0,
     val showMissingDiscPrompt: Boolean = false,
     val missingDiscNumbers: List<Int> = emptyList(),
     val updateFiles: List<UpdateFileUi> = emptyList(),

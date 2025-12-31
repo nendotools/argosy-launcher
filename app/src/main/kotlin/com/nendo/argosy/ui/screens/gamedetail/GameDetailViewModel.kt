@@ -275,20 +275,6 @@ class GameDetailViewModel @Inject constructor(
                 else -> GameDownloadStatus.NOT_DOWNLOADED
             }
 
-            val discsUi = if (game.isMultiDisc) {
-                gameDiscDao.getDiscsForGame(gameId).map { disc ->
-                    DiscUi(
-                        id = disc.id,
-                        discNumber = disc.discNumber,
-                        fileName = disc.fileName,
-                        isDownloaded = disc.localPath != null,
-                        isLastPlayed = disc.id == game.lastPlayedDiscId
-                    )
-                }
-            } else {
-                emptyList()
-            }
-
             var siblingIds = gameNavigationContext.getGameIds()
             if (siblingIds.isEmpty() || !siblingIds.contains(gameId)) {
                 val platformGames = gameDao.getByPlatform(game.platformId)
@@ -356,7 +342,6 @@ class GameDetailViewModel @Inject constructor(
                     downloadProgress = if (downloadStatus == GameDownloadStatus.DOWNLOADED) 1f else 0f,
                     siblingGameIds = siblingIds,
                     currentGameIndex = currentIndex,
-                    discs = discsUi,
                     availableCores = if (isRetroArch) EmulatorRegistry.getCoresForPlatform(game.platformSlug) else emptyList(),
                     selectedCoreId = selectedCoreId,
                     saveChannel = state.saveChannel.copy(activeChannel = game.activeSaveChannel),
@@ -856,7 +841,6 @@ class GameDetailViewModel @Inject constructor(
         val completionIdx = if (canTrackProgress) currentIdx++ else -1
         val emulatorOrLauncherIdx = if (isSteamGame || isEmulatedGame) currentIdx++ else -1
         val coreIdx = if (isRetroArch && isEmulatedGame) currentIdx++ else -1
-        val discIdx = if (isMultiDisc) currentIdx++ else -1
         val updatesIdx = if (hasUpdates) currentIdx++ else -1
         val refreshIdx = if (canTrackProgress) currentIdx++ else -1
         val deleteIdx = if (isDownloaded || isAndroidApp) currentIdx++ else -1
@@ -869,7 +853,6 @@ class GameDetailViewModel @Inject constructor(
             completionIdx -> showStatusPicker()
             emulatorOrLauncherIdx -> if (isSteamGame) showSteamLauncherPicker() else showEmulatorPicker()
             coreIdx -> showCorePicker()
-            discIdx -> showDiscPicker()
             updatesIdx -> showUpdatesPicker()
             refreshIdx -> refreshAndroidOrRommData()
             deleteIdx -> {
@@ -1037,49 +1020,6 @@ class GameDetailViewModel @Inject constructor(
             val core = state.availableCores.getOrNull(index - 1)
             selectCore(core?.id)
         }
-    }
-
-    fun showDiscPicker() {
-        val game = _uiState.value.game ?: return
-        if (!game.isMultiDisc) return
-
-        val discs = _uiState.value.discs
-        val lastPlayedIndex = discs.indexOfFirst { it.isLastPlayed }.takeIf { it >= 0 } ?: 0
-
-        _uiState.update {
-            it.copy(
-                showMoreOptions = false,
-                showDiscPicker = true,
-                discPickerFocusIndex = lastPlayedIndex
-            )
-        }
-        soundManager.play(SoundType.OPEN_MODAL)
-    }
-
-    fun dismissDiscPicker() {
-        _uiState.update { it.copy(showDiscPicker = false) }
-        soundManager.play(SoundType.CLOSE_MODAL)
-    }
-
-    fun moveDiscPickerFocus(delta: Int) {
-        _uiState.update { state ->
-            val maxIndex = state.discs.size - 1
-            val newIndex = (state.discPickerFocusIndex + delta).coerceIn(0, maxIndex)
-            state.copy(discPickerFocusIndex = newIndex)
-        }
-    }
-
-    fun confirmDiscSelection() {
-        val state = _uiState.value
-        val disc = state.discs.getOrNull(state.discPickerFocusIndex) ?: return
-        _uiState.update { it.copy(showDiscPicker = false) }
-        playGame(disc.id)
-    }
-
-    fun selectDiscAtIndex(index: Int) {
-        val disc = _uiState.value.discs.getOrNull(index) ?: return
-        _uiState.update { it.copy(showDiscPicker = false) }
-        playGame(disc.id)
     }
 
     fun showUpdatesPicker() {
@@ -1581,10 +1521,6 @@ class GameDetailViewModel @Inject constructor(
                     moveCorePickerFocus(-1)
                     InputResult.HANDLED
                 }
-                state.showDiscPicker -> {
-                    moveDiscPickerFocus(-1)
-                    InputResult.HANDLED
-                }
                 state.showUpdatesPicker -> {
                     moveUpdatesPickerFocus(-1)
                     InputResult.HANDLED
@@ -1628,10 +1564,6 @@ class GameDetailViewModel @Inject constructor(
                 state.showMissingDiscPrompt -> InputResult.UNHANDLED
                 state.showCorePicker -> {
                     moveCorePickerFocus(1)
-                    InputResult.HANDLED
-                }
-                state.showDiscPicker -> {
-                    moveDiscPickerFocus(1)
                     InputResult.HANDLED
                 }
                 state.showUpdatesPicker -> {
@@ -1689,7 +1621,7 @@ class GameDetailViewModel @Inject constructor(
                     moveExtractionPromptFocus(-1)
                     return InputResult.HANDLED
                 }
-                state.showMoreOptions || state.showEmulatorPicker || state.showCorePicker || state.showDiscPicker || state.showMissingDiscPrompt -> {
+                state.showMoreOptions || state.showEmulatorPicker || state.showCorePicker || state.showMissingDiscPrompt -> {
                     return InputResult.UNHANDLED
                 }
                 else -> {
@@ -1732,7 +1664,7 @@ class GameDetailViewModel @Inject constructor(
                     moveExtractionPromptFocus(1)
                     return InputResult.HANDLED
                 }
-                state.showMoreOptions || state.showEmulatorPicker || state.showCorePicker || state.showDiscPicker || state.showMissingDiscPrompt -> {
+                state.showMoreOptions || state.showEmulatorPicker || state.showCorePicker || state.showMissingDiscPrompt -> {
                     return InputResult.UNHANDLED
                 }
                 else -> {
@@ -1748,7 +1680,7 @@ class GameDetailViewModel @Inject constructor(
             if (saveState.isVisible || saveState.showRestoreConfirmation ||
                 state.showScreenshotViewer || state.showRatingPicker || state.showStatusPicker ||
                 state.showMoreOptions || state.showEmulatorPicker ||
-                state.showCorePicker || state.showDiscPicker || state.showMissingDiscPrompt ||
+                state.showCorePicker || state.showMissingDiscPrompt ||
                 state.showExtractionFailedPrompt) {
                 return InputResult.UNHANDLED
             }
@@ -1762,7 +1694,7 @@ class GameDetailViewModel @Inject constructor(
             if (saveState.isVisible || saveState.showRestoreConfirmation ||
                 state.showScreenshotViewer || state.showRatingPicker || state.showStatusPicker ||
                 state.showMoreOptions || state.showEmulatorPicker ||
-                state.showCorePicker || state.showDiscPicker || state.showMissingDiscPrompt ||
+                state.showCorePicker || state.showMissingDiscPrompt ||
                 state.showUpdatesPicker || state.showExtractionFailedPrompt) {
                 return InputResult.UNHANDLED
             }
@@ -1786,7 +1718,6 @@ class GameDetailViewModel @Inject constructor(
                 state.showMissingDiscPrompt -> repairAndPlay()
                 state.showExtractionFailedPrompt -> confirmExtractionPromptSelection()
                 state.showCorePicker -> confirmCoreSelection()
-                state.showDiscPicker -> confirmDiscSelection()
                 state.showUpdatesPicker -> { /* Informational only */ }
                 state.showEmulatorPicker -> confirmEmulatorSelection()
                 state.showSteamLauncherPicker -> confirmSteamLauncherSelection()
@@ -1811,7 +1742,6 @@ class GameDetailViewModel @Inject constructor(
                 state.showMissingDiscPrompt -> dismissMissingDiscPrompt()
                 state.showExtractionFailedPrompt -> dismissExtractionPrompt()
                 state.showCorePicker -> dismissCorePicker()
-                state.showDiscPicker -> dismissDiscPicker()
                 state.showUpdatesPicker -> dismissUpdatesPicker()
                 state.showEmulatorPicker -> dismissEmulatorPicker()
                 state.showSteamLauncherPicker -> dismissSteamLauncherPicker()
@@ -1858,10 +1788,6 @@ class GameDetailViewModel @Inject constructor(
             }
             if (state.showCorePicker) {
                 dismissCorePicker()
-                return InputResult.UNHANDLED
-            }
-            if (state.showDiscPicker) {
-                dismissDiscPicker()
                 return InputResult.UNHANDLED
             }
             if (state.showUpdatesPicker) {
@@ -1914,7 +1840,7 @@ class GameDetailViewModel @Inject constructor(
 
             val anyModalOpen = state.showMoreOptions || state.showEmulatorPicker ||
                 state.showSteamLauncherPicker || state.showCorePicker || state.showRatingPicker ||
-                state.showStatusPicker || state.showDiscPicker || state.showUpdatesPicker ||
+                state.showStatusPicker || state.showUpdatesPicker ||
                 state.showMissingDiscPrompt || state.showScreenshotViewer || saveState.isVisible
 
             if (anyModalOpen) {
@@ -1941,7 +1867,6 @@ class GameDetailViewModel @Inject constructor(
                 showCorePicker = false,
                 showRatingPicker = false,
                 showStatusPicker = false,
-                showDiscPicker = false,
                 showUpdatesPicker = false,
                 showMissingDiscPrompt = false,
                 showScreenshotViewer = false,
