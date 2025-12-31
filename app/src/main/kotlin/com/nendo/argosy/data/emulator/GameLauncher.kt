@@ -70,12 +70,15 @@ class GameLauncher @Inject constructor(
                 Logger.warn(TAG, "launch() failed: no local path for game")
             }
 
-        val romFile = File(romPath)
+        var romFile = File(romPath)
         if (!romFile.exists()) {
             return LaunchResult.NoRomFile(romPath).also {
                 Logger.warn(TAG, "launch() failed: ROM file missing: ${romFile.name}")
             }
         }
+
+        // Apply extension preference if needed (lazy rename on launch)
+        romFile = applyExtensionPreferenceIfNeeded(game, romFile)
 
         val emulator = resolveEmulator(game)
             ?: return LaunchResult.NoEmulator(game.platformSlug).also {
@@ -623,5 +626,36 @@ class GameLauncher @Inject constructor(
         } catch (e: Exception) {
             Logger.warn(TAG, "Failed to kill RetroArch process", e)
         }
+    }
+
+    private suspend fun applyExtensionPreferenceIfNeeded(game: GameEntity, romFile: File): File {
+        val validExtensions = setOf("3ds", "cci")
+        val currentExt = romFile.extension.lowercase()
+        if (currentExt !in validExtensions) return romFile
+
+        val preferredExt = emulatorConfigDao.getPreferredExtension(game.platformId)
+            ?.takeIf { it.isNotEmpty() && it.lowercase() in validExtensions }
+            ?: return romFile
+
+        if (currentExt == preferredExt.lowercase()) return romFile
+
+        val newPath = romFile.absolutePath.replaceAfterLast('.', preferredExt)
+        val newFile = File(newPath)
+
+        if (newFile.exists()) {
+            Logger.debug(TAG, "Target file already exists, updating DB path only: ${newFile.name}")
+            gameDao.updateLocalPath(game.id, newPath, game.source)
+            return newFile
+        }
+
+        val renamed = romFile.renameTo(newFile)
+        if (renamed) {
+            Logger.info(TAG, "Renamed ${romFile.name} -> ${newFile.name}")
+            gameDao.updateLocalPath(game.id, newPath, game.source)
+            return newFile
+        }
+
+        Logger.warn(TAG, "Failed to rename ${romFile.name} to ${newFile.name}")
+        return romFile
     }
 }
