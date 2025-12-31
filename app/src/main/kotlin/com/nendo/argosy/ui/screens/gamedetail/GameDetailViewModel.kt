@@ -13,6 +13,7 @@ import com.nendo.argosy.data.download.DownloadState
 import com.nendo.argosy.data.emulator.EmulatorDetector
 import com.nendo.argosy.data.emulator.EmulatorRegistry
 import com.nendo.argosy.data.emulator.EmulatorResolver
+import com.nendo.argosy.data.emulator.GameLauncher
 import com.nendo.argosy.data.emulator.InstalledEmulator
 import com.nendo.argosy.data.emulator.LaunchConfig
 import com.nendo.argosy.data.emulator.LaunchResult
@@ -101,7 +102,8 @@ class GameDetailViewModel @Inject constructor(
     private val playStoreService: PlayStoreService,
     private val apkInstallManager: ApkInstallManager,
     private val repairImageCacheUseCase: RepairImageCacheUseCase,
-    private val modalResetSignal: ModalResetSignal
+    private val modalResetSignal: ModalResetSignal,
+    private val gameLauncher: GameLauncher
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GameDetailUiState())
@@ -159,8 +161,14 @@ class GameDetailViewModel @Inject constructor(
                 val completed = queueState.completed.find { it.gameId == gameId }
 
                 val (status, progress) = when {
+                    activeDownload?.state == DownloadState.EXTRACTING -> {
+                        GameDownloadStatus.EXTRACTING to activeDownload.extractionPercent
+                    }
                     activeDownload != null -> {
                         GameDownloadStatus.DOWNLOADING to activeDownload.progressPercent
+                    }
+                    queued?.state == DownloadState.EXTRACTING -> {
+                        GameDownloadStatus.EXTRACTING to queued.extractionPercent
                     }
                     queued?.state == DownloadState.PAUSED -> {
                         GameDownloadStatus.PAUSED to queued.progressPercent
@@ -309,7 +317,9 @@ class GameDetailViewModel @Inject constructor(
                 ZipExtractor.listUpdateFiles(game.localPath, game.platformSlug).map { file ->
                     UpdateFileUi(
                         fileName = file.name,
-                        sizeBytes = file.length()
+                        filePath = file.absolutePath,
+                        sizeBytes = file.length(),
+                        type = UpdateFileType.UPDATE
                     )
                 }
             } else {
@@ -320,7 +330,9 @@ class GameDetailViewModel @Inject constructor(
                 ZipExtractor.listDlcFiles(game.localPath, game.platformSlug).map { file ->
                     UpdateFileUi(
                         fileName = file.name,
-                        sizeBytes = file.length()
+                        filePath = file.absolutePath,
+                        sizeBytes = file.length(),
+                        type = UpdateFileType.DLC
                     )
                 }
             } else {
@@ -633,8 +645,9 @@ class GameDetailViewModel @Inject constructor(
             GameDownloadStatus.QUEUED,
             GameDownloadStatus.WAITING_FOR_STORAGE,
             GameDownloadStatus.DOWNLOADING,
+            GameDownloadStatus.EXTRACTING,
             GameDownloadStatus.PAUSED -> {
-                // Already in progress or paused
+                // Already in progress, extracting, or paused
             }
         }
     }
@@ -1088,10 +1101,21 @@ class GameDetailViewModel @Inject constructor(
 
     fun moveUpdatesPickerFocus(delta: Int) {
         _uiState.update { state ->
-            val maxIndex = (state.updateFiles.size - 1).coerceAtLeast(0)
+            val allFiles = state.updateFiles + state.dlcFiles
+            val maxIndex = (allFiles.size - 1).coerceAtLeast(0)
             val newIndex = (state.updatesPickerFocusIndex + delta).coerceIn(0, maxIndex)
             state.copy(updatesPickerFocusIndex = newIndex)
         }
+    }
+
+    private fun confirmUpdateSelection() {
+        _uiState.update { it.copy(showUpdatesPicker = false) }
+        playGame()
+    }
+
+    fun installAllUpdatesAndDlc() {
+        _uiState.update { it.copy(showUpdatesPicker = false) }
+        playGame()
     }
 
     fun dismissMissingDiscPrompt() {
@@ -1739,7 +1763,7 @@ class GameDetailViewModel @Inject constructor(
                 state.showScreenshotViewer || state.showRatingPicker || state.showStatusPicker ||
                 state.showMoreOptions || state.showEmulatorPicker ||
                 state.showCorePicker || state.showDiscPicker || state.showMissingDiscPrompt ||
-                state.showExtractionFailedPrompt) {
+                state.showUpdatesPicker || state.showExtractionFailedPrompt) {
                 return InputResult.UNHANDLED
             }
             onNextGame()
@@ -1763,6 +1787,7 @@ class GameDetailViewModel @Inject constructor(
                 state.showExtractionFailedPrompt -> confirmExtractionPromptSelection()
                 state.showCorePicker -> confirmCoreSelection()
                 state.showDiscPicker -> confirmDiscSelection()
+                state.showUpdatesPicker -> { /* Informational only */ }
                 state.showEmulatorPicker -> confirmEmulatorSelection()
                 state.showSteamLauncherPicker -> confirmSteamLauncherSelection()
                 state.showMoreOptions -> confirmOptionSelection(onBack)

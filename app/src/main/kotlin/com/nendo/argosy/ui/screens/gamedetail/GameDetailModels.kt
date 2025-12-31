@@ -24,8 +24,14 @@ data class DiscUi(
 
 data class UpdateFileUi(
     val fileName: String,
-    val sizeBytes: Long
+    val filePath: String,
+    val sizeBytes: Long,
+    val type: UpdateFileType = UpdateFileType.UPDATE
 )
+
+enum class UpdateFileType {
+    UPDATE, DLC
+}
 
 data class AchievementUi(
     val raId: Long,
@@ -85,6 +91,7 @@ enum class GameDownloadStatus {
     QUEUED,
     WAITING_FOR_STORAGE,
     DOWNLOADING,
+    EXTRACTING,
     PAUSED,
     DOWNLOADED,
     NEEDS_INSTALL

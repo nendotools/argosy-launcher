@@ -555,6 +555,53 @@ class GameLauncher @Inject constructor(
         return "*/*"
     }
 
+    suspend fun buildInstallIntent(game: GameEntity, file: File): Intent? {
+        val emulator = resolveEmulator(game) ?: return null
+
+        Logger.debug(TAG, "buildInstallIntent: emulator=${emulator.displayName}, file=${file.name}")
+
+        val uri = getFileUri(file)
+        return Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "*/*")
+            setPackage(emulator.packageName)
+            addCategory(Intent.CATEGORY_DEFAULT)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+    }
+
+    suspend fun buildBatchInstallIntent(game: GameEntity, files: List<File>): Intent? {
+        if (files.isEmpty()) return null
+
+        val emulator = resolveEmulator(game) ?: return null
+
+        Logger.debug(TAG, "buildBatchInstallIntent: emulator=${emulator.displayName}, files=${files.size}")
+
+        val gameFile = game.localPath?.let { File(it) }
+        if (gameFile == null || !gameFile.exists()) {
+            Logger.warn(TAG, "buildBatchInstallIntent: base game file not found")
+            return null
+        }
+
+        val gameUri = getFileUri(gameFile)
+        val dlcUris = files.map { getFileUri(it) }
+
+        return Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(gameUri, "*/*")
+            setPackage(emulator.packageName)
+            addCategory(Intent.CATEGORY_DEFAULT)
+
+            clipData = android.content.ClipData.newRawUri(null, gameUri).apply {
+                dlcUris.forEach { uri ->
+                    addItem(android.content.ClipData.Item(uri))
+                }
+            }
+
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+    }
+
     @Suppress("unused")
     private suspend fun killRetroArchProcess(packageName: String) {
         try {

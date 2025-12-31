@@ -1,5 +1,6 @@
 package com.nendo.argosy.data.download
 
+import android.util.Log
 import android.content.Context
 import android.os.StatFs
 import com.nendo.argosy.data.local.dao.DownloadQueueDao
@@ -55,10 +56,15 @@ data class DownloadProgress(
     val bytesDownloaded: Long,
     val totalBytes: Long,
     val state: DownloadState,
-    val errorReason: String? = null
+    val errorReason: String? = null,
+    val extractionBytesWritten: Long = 0,
+    val extractionTotalBytes: Long = 0
 ) {
     val progressPercent: Float
         get() = if (totalBytes > 0) bytesDownloaded.toFloat() / totalBytes else 0f
+
+    val extractionPercent: Float
+        get() = if (extractionTotalBytes > 0) extractionBytesWritten.toFloat() / extractionTotalBytes else 0f
 
     val isDiscDownload: Boolean get() = discId != null
 
@@ -70,6 +76,7 @@ enum class DownloadState {
     QUEUED,
     WAITING_FOR_STORAGE,
     DOWNLOADING,
+    EXTRACTING,
     PAUSED,
     COMPLETED,
     FAILED,
@@ -135,22 +142,52 @@ class DownloadManager @Inject constructor(
     }
 
     private suspend fun restoreQueueFromDatabase() {
+        Log.d(TAG, "restoreQueueFromDatabase: starting")
         downloadQueueDao.clearFailed()
         downloadQueueDao.clearCompleted()
 
         val pending = downloadQueueDao.getPendingDownloads()
+        Log.d(TAG, "restoreQueueFromDatabase: found ${pending.size} pending downloads")
+        pending.forEach { Log.d(TAG, "  - ${it.gameTitle}: state=${it.state}, bytes=${it.bytesDownloaded}/${it.totalBytes}") }
+
         if (pending.isEmpty()) {
             updateAvailableStorage()
             return
         }
 
-        val restored = pending.map { it.toDownloadProgress() }
+        // Reset active states to QUEUED so they can be reprocessed on restart
+        val statesToReset = setOf(
+            DownloadState.DOWNLOADING.name,
+            DownloadState.EXTRACTING.name
+        )
+        for (entity in pending) {
+            if (entity.state in statesToReset) {
+                Log.d(TAG, "restoreQueueFromDatabase: resetting ${entity.gameTitle} from ${entity.state} to QUEUED")
+                downloadQueueDao.updateState(entity.id, DownloadState.QUEUED.name)
+            }
+        }
+
+        val restored = pending.map {
+            val progress = it.toDownloadProgress()
+            // Ensure restored items are in QUEUED state for processing
+            if (progress.state == DownloadState.DOWNLOADING || progress.state == DownloadState.EXTRACTING) {
+                progress.copy(state = DownloadState.QUEUED)
+            } else {
+                progress
+            }
+        }
+        Log.d(TAG, "restoreQueueFromDatabase: restored ${restored.size} items, states: ${restored.map { it.state }}")
+
         _state.value = DownloadQueueState(
             queue = restored,
             availableStorageBytes = getGlobalStorageBytes()
         )
 
         processQueue()
+    }
+
+    companion object {
+        private const val TAG = "DownloadManager"
     }
 
     private suspend fun getDownloadDir(platformSlug: String): File {
@@ -399,20 +436,36 @@ class DownloadManager @Inject constructor(
         val maxConcurrent = preferencesRepository.userPreferences.first().maxConcurrentDownloads
         val currentActive = _state.value.activeDownloads.size
 
-        if (currentActive >= maxConcurrent) return
+        Log.d(TAG, "processQueue: maxConcurrent=$maxConcurrent, currentActive=$currentActive")
+        Log.d(TAG, "processQueue: queue size=${_state.value.queue.size}, states=${_state.value.queue.map { "${it.gameTitle}:${it.state}" }}")
+
+        if (currentActive >= maxConcurrent) {
+            Log.d(TAG, "processQueue: at max capacity, returning")
+            return
+        }
 
         val slotsAvailable = maxConcurrent - currentActive
         val nextItems = _state.value.queue
             .filter { it.state == DownloadState.QUEUED }
             .take(slotsAvailable)
 
-        if (nextItems.isEmpty()) return
+        Log.d(TAG, "processQueue: found ${nextItems.size} QUEUED items to process")
+
+        if (nextItems.isEmpty()) {
+            Log.d(TAG, "processQueue: no QUEUED items, returning")
+            return
+        }
 
         for (next in nextItems) {
-            if (downloadJobs[next.id]?.isActive == true) continue
+            Log.d(TAG, "processQueue: processing ${next.gameTitle}")
+            if (downloadJobs[next.id]?.isActive == true) {
+                Log.d(TAG, "processQueue: ${next.gameTitle} already has active job, skipping")
+                continue
+            }
 
             val availableStorage = getAvailableStorageBytes(next.platformSlug)
             val requiredBytes = next.totalBytes - next.bytesDownloaded
+            Log.d(TAG, "processQueue: ${next.gameTitle} requires $requiredBytes bytes, available=$availableStorage")
 
             if (!hasEnoughStorage(requiredBytes, availableStorage)) {
                 downloadQueueDao.updateState(next.id, DownloadState.WAITING_FOR_STORAGE.name)
@@ -479,6 +532,38 @@ class DownloadManager @Inject constructor(
                 val platformDir = getDownloadDir(progress.platformSlug)
                 val tempFile = File(platformDir, "${progress.fileName}.tmp")
                 val targetFile = File(platformDir, progress.fileName)
+
+                // Check if download is already complete (e.g., app crashed during extraction)
+                if (targetFile.exists() && targetFile.length() >= progress.totalBytes && progress.totalBytes > 0) {
+                    val finalPath = processDownloadedFile(
+                        targetFile = targetFile,
+                        platformDir = platformDir,
+                        platformSlug = progress.platformSlug,
+                        gameTitle = progress.gameTitle,
+                        progressId = progress.id,
+                        onExtractionProgress = { bytesWritten, totalBytes ->
+                            updateProgress(
+                                progress.copy(
+                                    state = DownloadState.EXTRACTING,
+                                    extractionBytesWritten = bytesWritten,
+                                    extractionTotalBytes = totalBytes
+                                )
+                            )
+                        }
+                    )
+
+                    if (progress.isDiscDownload && progress.discId != null) {
+                        gameDiscDao.updateLocalPath(progress.discId, finalPath)
+                        m3uManager.generateM3uIfComplete(progress.gameId)
+                    } else {
+                        gameDao.updateLocalPath(
+                            progress.gameId,
+                            finalPath,
+                            GameSource.ROMM_SYNCED
+                        )
+                    }
+                    return@withContext DownloadResult.Success(progress.totalBytes)
+                }
 
                 val existingBytes = if (tempFile.exists()) tempFile.length() else 0L
                 val rangeHeader = if (existingBytes > 0) "bytes=$existingBytes-" else null
@@ -565,7 +650,17 @@ class DownloadManager @Inject constructor(
                                     targetFile = targetFile,
                                     platformDir = platformDir,
                                     platformSlug = progress.platformSlug,
-                                    gameTitle = progress.gameTitle
+                                    gameTitle = progress.gameTitle,
+                                    progressId = progress.id,
+                                    onExtractionProgress = { bytesWritten, totalBytes ->
+                                        updateProgress(
+                                            progress.copy(
+                                                state = DownloadState.EXTRACTING,
+                                                extractionBytesWritten = bytesWritten,
+                                                extractionTotalBytes = totalBytes
+                                            )
+                                        )
+                                    }
                                 )
 
                                 if (progress.isDiscDownload && progress.discId != null) {
@@ -623,16 +718,23 @@ class DownloadManager @Inject constructor(
         targetFile: File,
         platformDir: File,
         platformSlug: String,
-        gameTitle: String
+        gameTitle: String,
+        progressId: Long = 0,
+        onExtractionProgress: ((bytesWritten: Long, totalBytes: Long) -> Unit)? = null
     ): String {
         val isZip = ZipExtractor.isZipFile(targetFile)
+
+        if (isZip && onExtractionProgress != null) {
+            onExtractionProgress(0L, targetFile.length())
+        }
 
         return when {
             ZipExtractor.isNswPlatform(platformSlug) && isZip -> {
                 val extracted = ZipExtractor.extractForNsw(
-                    zipFile = targetFile,
+                    zipFilePath = targetFile,
                     gameTitle = gameTitle,
-                    platformDir = platformDir
+                    platformDir = platformDir,
+                    onProgress = onExtractionProgress
                 )
                 val resultPath = extracted.gameFile?.absolutePath ?: extracted.gameFolder.absolutePath
                 if (File(resultPath).exists()) {
@@ -646,7 +748,8 @@ class DownloadManager @Inject constructor(
                 val extracted = ZipExtractor.extractMultiDisc(
                     zipFile = targetFile,
                     gameTitle = gameTitle,
-                    platformDir = platformDir
+                    platformDir = platformDir,
+                    onProgress = onExtractionProgress
                 )
                 val resultPath = extracted.m3uFile?.absolutePath
                     ?: extracted.discFiles.firstOrNull()?.absolutePath
@@ -673,7 +776,7 @@ class DownloadManager @Inject constructor(
     private fun updateProgress(progress: DownloadProgress) {
         _state.value = _state.value.copy(
             activeDownloads = _state.value.activeDownloads.map {
-                if (it.id == progress.id) progress.copy(state = DownloadState.DOWNLOADING) else it
+                if (it.id == progress.id) progress else it
             }
         )
     }
@@ -836,7 +939,18 @@ class DownloadManager @Inject constructor(
                 targetFile = targetFile,
                 platformDir = platformDir,
                 platformSlug = queueEntry.platformSlug,
-                gameTitle = queueEntry.gameTitle
+                gameTitle = queueEntry.gameTitle,
+                progressId = queueEntry.id,
+                onExtractionProgress = { bytesWritten, totalBytes ->
+                    val progress = queueEntry.toDownloadProgress()
+                    updateProgress(
+                        progress.copy(
+                            state = DownloadState.EXTRACTING,
+                            extractionBytesWritten = bytesWritten,
+                            extractionTotalBytes = totalBytes
+                        )
+                    )
+                }
             )
 
             gameDao.updateLocalPath(gameId, finalPath, GameSource.ROMM_SYNCED)

@@ -83,6 +83,7 @@ class DownloadNotificationObserver @Inject constructor(
             DownloadState.QUEUED -> Triple("Queued", NotificationType.INFO, false)
             DownloadState.WAITING_FOR_STORAGE -> Triple("Waiting for Storage", NotificationType.WARNING, true)
             DownloadState.DOWNLOADING -> Triple("Downloading", NotificationType.INFO, false)
+            DownloadState.EXTRACTING -> Triple("Extracting", NotificationType.INFO, false)
             DownloadState.PAUSED -> Triple("Paused", NotificationType.INFO, false)
             DownloadState.COMPLETED -> Triple("Completed", NotificationType.SUCCESS, true)
             DownloadState.FAILED -> Triple("Failed", NotificationType.ERROR, true)

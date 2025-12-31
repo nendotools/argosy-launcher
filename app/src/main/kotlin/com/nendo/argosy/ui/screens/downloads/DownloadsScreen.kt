@@ -3,6 +3,7 @@ package com.nendo.argosy.ui.screens.downloads
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -41,9 +42,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -136,8 +146,13 @@ fun DownloadsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (activeItems.isNotEmpty()) {
+                val hasExtracting = activeItems.any { it.state == DownloadState.EXTRACTING }
                 val hasDownloading = activeItems.any { it.state == DownloadState.DOWNLOADING }
-                val headerText = if (hasDownloading) "Downloading" else "Active"
+                val headerText = when {
+                    hasExtracting -> "Extracting"
+                    hasDownloading -> "Downloading"
+                    else -> "Active"
+                }
                 item { SectionHeader(headerText) }
                 itemsIndexed(activeItems) { index, download ->
                     DownloadItem(
@@ -215,6 +230,11 @@ private fun DownloadItem(
             "${formatBytes(download.bytesDownloaded)} / ${formatBytes(download.totalBytes)}",
             MaterialTheme.colorScheme.primary
         )
+        DownloadState.EXTRACTING -> Triple(
+            Icons.Default.Download,
+            "Extracting...",
+            MaterialTheme.colorScheme.tertiary
+        )
         DownloadState.PAUSED -> Triple(
             Icons.Default.Pause,
             "Paused - ${formatBytes(download.bytesDownloaded)} / ${formatBytes(download.totalBytes)}",
@@ -280,8 +300,12 @@ private fun DownloadItem(
                     Spacer(modifier = Modifier.height(8.dp))
                     LinearProgressIndicator(
                         progress = { download.progressPercent },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.primary
                     )
+                } else if (download.state == DownloadState.EXTRACTING) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ShimmerProgressBar()
                 }
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -392,4 +416,44 @@ private fun formatBytes(bytes: Long): String {
     val digitGroups = (Math.log10(bytes.toDouble()) / Math.log10(1024.0)).toInt()
     val safeIndex = digitGroups.coerceIn(0, units.lastIndex)
     return String.format(java.util.Locale.US, "%.1f %s", bytes / Math.pow(1024.0, safeIndex.toDouble()), units[safeIndex])
+}
+
+@Composable
+private fun ShimmerProgressBar() {
+    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
+    val shimmerOffset by infiniteTransition.animateFloat(
+        initialValue = -0.5f,
+        targetValue = 1.5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmerOffset"
+    )
+
+    val baseColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.5f)
+    val shimmerColor = MaterialTheme.colorScheme.tertiary
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(4.dp)
+            .clip(RoundedCornerShape(2.dp))
+    ) {
+        val width = constraints.maxWidth.toFloat()
+        val shimmerWidth = width * 0.4f
+        val center = shimmerOffset * width
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(baseColor, shimmerColor, baseColor),
+                        start = Offset(center - shimmerWidth, 0f),
+                        end = Offset(center + shimmerWidth, 0f)
+                    )
+                )
+        )
+    }
 }

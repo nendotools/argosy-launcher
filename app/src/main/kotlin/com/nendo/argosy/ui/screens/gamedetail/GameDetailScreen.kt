@@ -402,6 +402,7 @@ private fun GameDetailContent(
                             uiState.downloadStatus == GameDownloadStatus.QUEUED -> "Queued"
                             uiState.downloadStatus == GameDownloadStatus.WAITING_FOR_STORAGE -> "No Space"
                             uiState.downloadStatus == GameDownloadStatus.DOWNLOADING -> "Downloading"
+                            uiState.downloadStatus == GameDownloadStatus.EXTRACTING -> "Extracting"
                             uiState.downloadStatus == GameDownloadStatus.PAUSED -> "Paused"
                             else -> "Play"
                         },
@@ -432,7 +433,7 @@ private fun GameDetailModals(
             game = game,
             focusIndex = uiState.moreOptionsFocusIndex,
             isDownloaded = uiState.downloadStatus == GameDownloadStatus.DOWNLOADED,
-            updateCount = uiState.updateFiles.size,
+            updateCount = uiState.updateFiles.size + uiState.dlcFiles.size,
             onOptionSelect = { index -> viewModel.selectOptionAtIndex(index, onBack) },
             onDismiss = viewModel::toggleMoreOptions
         )
@@ -444,7 +445,7 @@ private fun GameDetailModals(
         exit = fadeOut()
     ) {
         UpdatesPickerModal(
-            files = uiState.updateFiles,
+            files = uiState.updateFiles + uiState.dlcFiles,
             focusIndex = uiState.updatesPickerFocusIndex,
             onDismiss = viewModel::dismissUpdatesPicker
         )

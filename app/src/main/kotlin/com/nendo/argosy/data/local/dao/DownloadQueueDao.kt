@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface DownloadQueueDao {
 
-    @Query("SELECT * FROM download_queue WHERE state IN ('QUEUED', 'PAUSED', 'DOWNLOADING', 'WAITING_FOR_STORAGE') ORDER BY createdAt ASC")
+    @Query("SELECT * FROM download_queue WHERE state IN ('QUEUED', 'PAUSED', 'DOWNLOADING', 'EXTRACTING', 'WAITING_FOR_STORAGE') ORDER BY createdAt ASC")
     suspend fun getPendingDownloads(): List<DownloadQueueEntity>
 
     @Query("SELECT * FROM download_queue WHERE state = 'FAILED'")

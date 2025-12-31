@@ -1,8 +1,12 @@
 package com.nendo.argosy.data.download
 
+import android.util.Log
 import java.io.File
 import java.io.InputStream
+import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
+
+private const val TAG = "ZipExtractor"
 
 data class ExtractedGameFiles(
     val gameFile: File?,
@@ -102,85 +106,104 @@ object ZipExtractor {
     }
 
     fun extractForNsw(
-        zipFile: File,
+        zipFilePath: File,
         gameTitle: String,
         platformDir: File,
-        onProgress: ((current: Int, total: Int) -> Unit)? = null
+        onProgress: ((bytesWritten: Long, totalBytes: Long) -> Unit)? = null
     ): ExtractedGameFiles {
         val sanitizedTitle = sanitizeFileName(gameTitle)
         val gameFolder = File(platformDir, sanitizedTitle).apply { mkdirs() }
         val updatesFolder = File(gameFolder, "updates")
+        val dlcFolder = File(gameFolder, "dlc")
+
+        Log.d(TAG, "=== NSW Extraction Start ===")
+        Log.d(TAG, "ZIP file: ${zipFilePath.absolutePath}")
+        Log.d(TAG, "ZIP exists: ${zipFilePath.exists()}, size: ${zipFilePath.length()}")
+        Log.d(TAG, "Game folder: ${gameFolder.absolutePath}")
 
         val extractedFiles = mutableListOf<File>()
         var gameFile: File? = null
         val updateFiles = mutableListOf<File>()
+        val dlcFiles = mutableListOf<File>()
 
-        ZipInputStream(zipFile.inputStream().buffered()).use { zis ->
-            val entries = mutableListOf<Pair<String, Long>>()
+        ZipFile(zipFilePath).use { zip ->
+            val entries = zip.entries().toList().filter { !it.isDirectory }
+            val totalBytes = entries.sumOf { it.size }
+            var bytesWritten = 0L
+            var lastReportedBytes = 0L
+            val progressThreshold = 1024 * 1024L // Report every 1MB
+            Log.d(TAG, "Total entries found: ${entries.size}, total bytes: $totalBytes")
 
-            var entry = zis.nextEntry
-            while (entry != null) {
-                if (!entry.isDirectory) {
-                    entries.add(entry.name to entry.size)
-                }
-                entry = zis.nextEntry
-            }
+            entries.forEach { entry ->
+                val fileName = File(entry.name).name
+                val extension = fileName.substringAfterLast('.', "").lowercase()
+                val parentPath = File(entry.name).parent?.lowercase() ?: ""
 
-            val totalEntries = entries.size
-            var currentEntry = 0
+                val isUpdate = parentPath.contains("update")
+                val isDlc = parentPath.contains("dlc") || parentPath.contains("aoc")
 
-            ZipInputStream(zipFile.inputStream().buffered()).use { zis2 ->
-                var zipEntry = zis2.nextEntry
-                while (zipEntry != null) {
-                    if (!zipEntry.isDirectory) {
-                        val fileName = File(zipEntry.name).name
-                        val extension = fileName.substringAfterLast('.', "").lowercase()
-
-                        val targetFile = when {
-                            extension == "xci" -> {
-                                File(gameFolder, fileName)
-                            }
-                            extension in NSW_UPDATE_EXTENSIONS && gameFile != null -> {
-                                updatesFolder.mkdirs()
-                                File(updatesFolder, fileName)
-                            }
-                            extension in NSW_GAME_EXTENSIONS && gameFile == null -> {
-                                File(gameFolder, fileName)
-                            }
-                            extension in NSW_UPDATE_EXTENSIONS -> {
-                                updatesFolder.mkdirs()
-                                File(updatesFolder, fileName)
-                            }
-                            else -> {
-                                File(gameFolder, fileName)
-                            }
-                        }
-
-                        targetFile.outputStream().buffered().use { output ->
-                            zis2.copyTo(output)
-                        }
-
-                        extractedFiles.add(targetFile)
-
-                        if (extension == "xci" || extension in NSW_GAME_EXTENSIONS && gameFile == null) {
-                            gameFile = targetFile
-                        }
-                        if (targetFile.parentFile == updatesFolder) {
-                            updateFiles.add(targetFile)
-                        }
-
-                        currentEntry++
-                        onProgress?.invoke(currentEntry, totalEntries)
+                val targetFile = when {
+                    extension == "xci" -> File(gameFolder, fileName)
+                    isUpdate && extension in NSW_UPDATE_EXTENSIONS -> {
+                        updatesFolder.mkdirs()
+                        File(updatesFolder, fileName)
                     }
-                    zis2.closeEntry()
-                    zipEntry = zis2.nextEntry
+                    isDlc && extension in NSW_UPDATE_EXTENSIONS -> {
+                        dlcFolder.mkdirs()
+                        File(dlcFolder, fileName)
+                    }
+                    extension in NSW_GAME_EXTENSIONS && gameFile == null -> File(gameFolder, fileName)
+                    extension in NSW_UPDATE_EXTENSIONS && gameFile != null -> {
+                        updatesFolder.mkdirs()
+                        File(updatesFolder, fileName)
+                    }
+                    else -> File(gameFolder, fileName)
+                }
+
+                Log.d(TAG, "Extracting: ${entry.name} -> ${targetFile.absolutePath}, size: ${entry.size}")
+
+                zip.getInputStream(entry).buffered().use { input ->
+                    targetFile.outputStream().buffered().use { output ->
+                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                        var bytes = input.read(buffer)
+                        while (bytes >= 0) {
+                            output.write(buffer, 0, bytes)
+                            bytesWritten += bytes
+                            if (bytesWritten - lastReportedBytes >= progressThreshold) {
+                                onProgress?.invoke(bytesWritten, totalBytes)
+                                lastReportedBytes = bytesWritten
+                            }
+                            bytes = input.read(buffer)
+                        }
+                    }
+                }
+
+                Log.d(TAG, "Extracted: $fileName, expected=${entry.size}, actual=${targetFile.length()}")
+
+                if (targetFile.length() == 0L && entry.size > 0) {
+                    Log.e(TAG, "ERROR: File $fileName extracted as 0 bytes but expected ${entry.size}")
+                }
+
+                extractedFiles.add(targetFile)
+
+                when {
+                    extension == "xci" || (extension in NSW_GAME_EXTENSIONS && gameFile == null) -> gameFile = targetFile
+                    targetFile.parentFile == updatesFolder -> updateFiles.add(targetFile)
+                    targetFile.parentFile == dlcFolder -> dlcFiles.add(targetFile)
                 }
             }
         }
 
+        Log.d(TAG, "=== NSW Extraction Complete ===")
+        Log.d(TAG, "Game file: ${gameFile?.absolutePath}, size: ${gameFile?.length() ?: 0}")
+        Log.d(TAG, "Update files: ${updateFiles.size}")
+        Log.d(TAG, "DLC files: ${dlcFiles.size}")
+        Log.d(TAG, "Total extracted: ${extractedFiles.size}")
+
         return ExtractedGameFiles(
             gameFile = gameFile,
             updateFiles = updateFiles,
+            dlcFiles = dlcFiles,
             gameFolder = gameFolder
         )
     }
@@ -189,50 +212,47 @@ object ZipExtractor {
         zipFile: File,
         gameTitle: String,
         platformDir: File,
-        onProgress: ((current: Int, total: Int) -> Unit)? = null
+        onProgress: ((bytesWritten: Long, totalBytes: Long) -> Unit)? = null
     ): ExtractedMultiDiscFiles {
         val sanitizedTitle = sanitizeFileName(gameTitle)
         val gameFolder = File(platformDir, sanitizedTitle).apply { mkdirs() }
 
         val discFiles = mutableListOf<File>()
         var m3uFile: File? = null
+        val totalBytes = zipFile.length()
+        var bytesWritten = 0L
+        var lastReportedBytes = 0L
+        val progressThreshold = 1024 * 1024L // Report every 1MB
 
         ZipInputStream(zipFile.inputStream().buffered()).use { zis ->
-            val entries = mutableListOf<String>()
-            var entry = zis.nextEntry
-            while (entry != null) {
-                if (!entry.isDirectory) {
-                    entries.add(entry.name)
-                }
-                entry = zis.nextEntry
-            }
+            var zipEntry = zis.nextEntry
+            while (zipEntry != null) {
+                if (!zipEntry.isDirectory) {
+                    val fileName = File(zipEntry.name).name
+                    val extension = fileName.substringAfterLast('.', "").lowercase()
+                    val targetFile = File(gameFolder, fileName)
 
-            val totalEntries = entries.size
-            var currentEntry = 0
-
-            ZipInputStream(zipFile.inputStream().buffered()).use { zis2 ->
-                var zipEntry = zis2.nextEntry
-                while (zipEntry != null) {
-                    if (!zipEntry.isDirectory) {
-                        val fileName = File(zipEntry.name).name
-                        val extension = fileName.substringAfterLast('.', "").lowercase()
-                        val targetFile = File(gameFolder, fileName)
-
-                        targetFile.outputStream().buffered().use { output ->
-                            zis2.copyTo(output)
+                    targetFile.outputStream().buffered().use { output ->
+                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                        var bytes = zis.read(buffer)
+                        while (bytes >= 0) {
+                            output.write(buffer, 0, bytes)
+                            bytesWritten += bytes
+                            if (bytesWritten - lastReportedBytes >= progressThreshold) {
+                                onProgress?.invoke(bytesWritten, totalBytes)
+                                lastReportedBytes = bytesWritten
+                            }
+                            bytes = zis.read(buffer)
                         }
-
-                        when {
-                            extension == "m3u" -> m3uFile = targetFile
-                            extension in DISC_EXTENSIONS -> discFiles.add(targetFile)
-                        }
-
-                        currentEntry++
-                        onProgress?.invoke(currentEntry, totalEntries)
                     }
-                    zis2.closeEntry()
-                    zipEntry = zis2.nextEntry
+
+                    when {
+                        extension == "m3u" -> m3uFile = targetFile
+                        extension in DISC_EXTENSIONS -> discFiles.add(targetFile)
+                    }
                 }
+                zis.closeEntry()
+                zipEntry = zis.nextEntry
             }
         }
 

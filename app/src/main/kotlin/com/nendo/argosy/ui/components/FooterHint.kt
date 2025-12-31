@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -194,6 +195,7 @@ fun FooterBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .heightIn(min = 40.dp)
             .background(backgroundColor)
             .padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingSm + Dimens.spacingXs),
         verticalAlignment = Alignment.CenterVertically
@@ -247,6 +249,7 @@ fun FooterBarWithState(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .heightIn(min = 40.dp)
             .background(backgroundColor)
             .padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingSm + Dimens.spacingXs),
         verticalAlignment = Alignment.CenterVertically

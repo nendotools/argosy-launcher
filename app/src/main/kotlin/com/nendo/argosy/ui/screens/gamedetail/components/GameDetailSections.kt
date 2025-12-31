@@ -198,6 +198,14 @@ fun ActionButtons(
     uiState: GameDetailUiState,
     viewModel: GameDetailViewModel
 ) {
+    val isButtonDisabled = uiState.downloadStatus in listOf(
+        GameDownloadStatus.QUEUED,
+        GameDownloadStatus.WAITING_FOR_STORAGE,
+        GameDownloadStatus.DOWNLOADING,
+        GameDownloadStatus.EXTRACTING,
+        GameDownloadStatus.PAUSED
+    )
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -205,8 +213,11 @@ fun ActionButtons(
     ) {
         Button(
             onClick = { viewModel.primaryAction() },
+            enabled = !isButtonDisabled,
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
+                containerColor = MaterialTheme.colorScheme.primary,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
         ) {
             when (uiState.downloadStatus) {
@@ -228,6 +239,7 @@ fun ActionButtons(
                 GameDownloadStatus.QUEUED -> Text("QUEUED...")
                 GameDownloadStatus.WAITING_FOR_STORAGE -> Text("NO SPACE")
                 GameDownloadStatus.DOWNLOADING -> Text("${(uiState.downloadProgress * 100).toInt()}%")
+                GameDownloadStatus.EXTRACTING -> Text("EXTRACTING...")
                 GameDownloadStatus.PAUSED -> Text("PAUSED ${(uiState.downloadProgress * 100).toInt()}%")
             }
         }

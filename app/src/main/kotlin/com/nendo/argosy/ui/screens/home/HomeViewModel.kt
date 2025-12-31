@@ -90,11 +90,12 @@ private const val ROW_TYPE_ANDROID = "android"
 
 data class GameDownloadIndicator(
     val isDownloading: Boolean = false,
+    val isExtracting: Boolean = false,
     val isPaused: Boolean = false,
     val isQueued: Boolean = false,
     val progress: Float = 0f
 ) {
-    val isActive: Boolean get() = isDownloading || isPaused || isQueued
+    val isActive: Boolean get() = isDownloading || isExtracting || isPaused || isQueued
 
     companion object {
         val NONE = GameDownloadIndicator()
@@ -541,21 +542,25 @@ class HomeViewModel @Inject constructor(
             val indicators = mutableMapOf<Long, GameDownloadIndicator>()
 
             downloadState.activeDownloads.forEach { download ->
+                val isExtracting = download.state == DownloadState.EXTRACTING
                 indicators[download.gameId] = GameDownloadIndicator(
-                    isDownloading = true,
-                    progress = download.progressPercent
+                    isDownloading = !isExtracting,
+                    isExtracting = isExtracting,
+                    progress = if (isExtracting) download.extractionPercent else download.progressPercent
                 )
             }
 
             downloadState.queue.forEach { download ->
+                val isExtracting = download.state == DownloadState.EXTRACTING
                 val isPaused = download.state == DownloadState.PAUSED
                 val isQueued = download.state == DownloadState.QUEUED
-                if (isPaused || isQueued) {
+                if (isExtracting || isPaused || isQueued) {
                     indicators[download.gameId] = GameDownloadIndicator(
                         isDownloading = false,
+                        isExtracting = isExtracting,
                         isPaused = isPaused,
                         isQueued = isQueued,
-                        progress = download.progressPercent
+                        progress = if (isExtracting) download.extractionPercent else download.progressPercent
                     )
                 }
             }

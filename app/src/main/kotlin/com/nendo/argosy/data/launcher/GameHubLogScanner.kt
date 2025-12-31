@@ -58,7 +58,14 @@ object GameHubLogScanner {
         val games = mutableMapOf<Long, ScannedSteamGame>()
         val gameNamesWithoutAppId = mutableSetOf<String>()
 
-        logDir.listFiles()?.filter { it.name.startsWith("XiaoKunLogInfo") }?.forEach { file ->
+        val allFiles = logDir.listFiles()
+        Log.d(TAG, "Log directory: ${logDir.absolutePath}")
+        Log.d(TAG, "All files in directory: ${allFiles?.map { it.name } ?: "null"}")
+
+        val logFiles = allFiles?.filter { it.isFile } ?: emptyList()
+        Log.d(TAG, "Scanning ${logFiles.size} log files")
+
+        logFiles.forEach { file ->
             try {
                 scanFile(file, games, gameNamesWithoutAppId)
             } catch (e: Exception) {
@@ -87,18 +94,27 @@ object GameHubLogScanner {
         games: MutableMap<Long, ScannedSteamGame>,
         gameNamesWithoutAppId: MutableSet<String>
     ) {
+        var acfMatches = 0
+        var wineMatches = 0
+
         file.useLines { lines ->
             lines.forEach { line ->
                 if (line.contains("ACFWriter extend") && line.contains("subTask")) {
                     extractGameFromAcfLine(line)?.let { game ->
                         games[game.appId] = game
+                        acfMatches++
                     }
                 } else if (line.contains("Wine user process detected:")) {
                     extractGameNameFromWineLine(line)?.let { name ->
                         gameNamesWithoutAppId.add(name)
+                        wineMatches++
                     }
                 }
             }
+        }
+
+        if (acfMatches > 0 || wineMatches > 0) {
+            Log.d(TAG, "File ${file.name}: $acfMatches ACF matches, $wineMatches Wine matches")
         }
     }
 
