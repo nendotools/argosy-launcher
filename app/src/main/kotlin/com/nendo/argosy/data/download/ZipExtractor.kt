@@ -214,7 +214,7 @@ object ZipExtractor {
         Log.d(TAG, "Game folder: ${gameFolder.absolutePath}")
 
         val allFiles = mutableListOf<File>()
-        val discFiles = mutableListOf<File>()
+        val rootDiscFiles = mutableListOf<File>()
         var primaryFile: File? = null
         var existingM3u: File? = null
 
@@ -231,6 +231,7 @@ object ZipExtractor {
                 val entryPath = entry.name
                 val fileName = File(entryPath).name
                 val extension = fileName.substringAfterLast('.', "").lowercase()
+                val isRootFile = !entryPath.contains("/") && !entryPath.contains("\\")
 
                 // Preserve subfolder structure from ZIP
                 val targetFile = File(gameFolder, entryPath)
@@ -263,27 +264,27 @@ object ZipExtractor {
                 allFiles.add(targetFile)
 
                 when {
-                    extension == "m3u" -> existingM3u = targetFile
-                    extension in DISC_EXTENSIONS -> discFiles.add(targetFile)
-                    primaryFile == null && isGameFile(extension) -> primaryFile = targetFile
+                    extension == "m3u" && isRootFile -> existingM3u = targetFile
+                    extension in DISC_EXTENSIONS && isRootFile -> rootDiscFiles.add(targetFile)
+                    primaryFile == null && isGameFile(extension) && isRootFile -> primaryFile = targetFile
                 }
             }
         }
 
         Log.d(TAG, "=== Folder ROM Extraction Complete ===")
         Log.d(TAG, "Primary file: ${primaryFile?.absolutePath}")
-        Log.d(TAG, "Disc files: ${discFiles.size}")
+        Log.d(TAG, "Root disc files: ${rootDiscFiles.size}")
         Log.d(TAG, "Existing M3U: ${existingM3u?.absolutePath}")
         Log.d(TAG, "Total extracted: ${allFiles.size}")
 
-        // Generate M3U if multiple disc files and no existing M3U
-        val m3uFile = existingM3u ?: if (discFiles.size > 1) {
-            generateM3uFile(gameFolder, sanitizedTitle, discFiles)
+        // Generate M3U only if multiple disc files at root and no existing M3U
+        val m3uFile = existingM3u ?: if (rootDiscFiles.size > 1) {
+            generateM3uFile(gameFolder, sanitizedTitle, rootDiscFiles)
         } else null
 
         return ExtractedFolderRom(
             primaryFile = primaryFile,
-            discFiles = discFiles.sortedBy { it.name },
+            discFiles = rootDiscFiles.sortedBy { it.name },
             m3uFile = m3uFile,
             gameFolder = gameFolder,
             allFiles = allFiles
