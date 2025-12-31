@@ -3,6 +3,16 @@ package com.nendo.argosy.domain.model
 object Changelog {
     private val entries = listOf(
         ChangelogEntry(
+            version = "0.10.0",
+            highlights = listOf(
+                "Folder-based ROM downloads with updates and DLC support",
+                "Quick settings panel (R3) for haptics, sounds, and theme",
+                "Improved 3DS filetype handling (optional force .3ds/.cci)",
+                "Consolidated save/state path editing in storage settings"
+            ),
+            requiredActions = listOf(RequiredAction.ResyncLibrary)
+        ),
+        ChangelogEntry(
             version = "0.9.25",
             highlights = listOf(
                 "Internal database migration for platform IDs",
