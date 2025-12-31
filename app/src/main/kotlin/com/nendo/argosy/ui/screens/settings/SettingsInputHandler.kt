@@ -204,6 +204,10 @@ class SettingsInputHandler(
                 viewModel.cycleCoreForPlatform(config, -1)
                 return InputResult.HANDLED
             }
+            if (config?.showExtensionSelection == true) {
+                viewModel.cycleExtensionForPlatform(config, -1)
+                return InputResult.HANDLED
+            }
         }
 
         if (state.currentSection == SettingsSection.SYNC_SETTINGS && state.focusedIndex == 2) {
@@ -320,6 +324,10 @@ class SettingsInputHandler(
             val config = state.emulators.platforms.getOrNull(platformIndex)
             if (config?.showCoreSelection == true) {
                 viewModel.cycleCoreForPlatform(config, 1)
+                return InputResult.HANDLED
+            }
+            if (config?.showExtensionSelection == true) {
+                viewModel.cycleExtensionForPlatform(config, 1)
                 return InputResult.HANDLED
             }
         }

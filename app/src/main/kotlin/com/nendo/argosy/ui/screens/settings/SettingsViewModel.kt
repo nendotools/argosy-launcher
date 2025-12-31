@@ -494,6 +494,30 @@ class SettingsViewModel @Inject constructor(
         emulatorDelegate.changeExtensionForPlatform(viewModelScope, config.platform.id, extension) { loadSettings() }
     }
 
+    fun cycleExtensionForPlatform(config: PlatformEmulatorConfig, direction: Int) {
+        val options = config.extensionOptions
+        if (options.isEmpty()) return
+
+        val currentExtension = config.selectedExtension.orEmpty()
+        val currentIndex = options.indexOfFirst { it.extension == currentExtension }.coerceAtLeast(0)
+        val newIndex = (currentIndex + direction).coerceIn(0, options.size - 1)
+        if (newIndex == currentIndex) return
+
+        val newExtension = options[newIndex].extension
+
+        // Update UI immediately
+        val updatedPlatforms = _uiState.value.emulators.platforms.map {
+            if (it.platform.id == config.platform.id) it.copy(selectedExtension = newExtension.ifEmpty { null })
+            else it
+        }
+        _uiState.update { it.copy(emulators = it.emulators.copy(platforms = updatedPlatforms)) }
+
+        // Persist in background
+        viewModelScope.launch {
+            configureEmulatorUseCase.setExtensionForPlatform(config.platform.id, newExtension.ifEmpty { null })
+        }
+    }
+
     fun moveEmulatorPickerFocus(delta: Int) {
         emulatorDelegate.moveEmulatorPickerFocus(delta)
     }

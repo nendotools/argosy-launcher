@@ -912,20 +912,25 @@ object EmulatorRegistry {
 
     fun getEmulatorFamilies(): List<EmulatorFamily> = emulatorFamilies
 
+    private val extensionOptions3ds = listOf(
+        ExtensionOption("", "Unchanged"),
+        ExtensionOption("3ds", ".3ds"),
+        ExtensionOption("cci", ".cci")
+    )
+
     private val platformExtensionOptions: Map<String, List<ExtensionOption>> = mapOf(
-        "3ds" to listOf(
-            ExtensionOption("", "Unchanged"),
-            ExtensionOption("3ds", ".3ds"),
-            ExtensionOption("cci", ".cci")
-        )
+        "3ds" to extensionOptions3ds,
+        "n3ds" to extensionOptions3ds
     )
 
     fun getExtensionOptionsForPlatform(platformSlug: String): List<ExtensionOption> {
-        return platformExtensionOptions[platformSlug.lowercase()] ?: emptyList()
+        val canonical = PlatformDefinitions.getCanonicalSlug(platformSlug)
+        return platformExtensionOptions[canonical] ?: emptyList()
     }
 
     fun hasExtensionOptions(platformSlug: String): Boolean {
-        return platformExtensionOptions.containsKey(platformSlug.lowercase())
+        val canonical = PlatformDefinitions.getCanonicalSlug(platformSlug)
+        return platformExtensionOptions.containsKey(canonical)
     }
 
     fun matchesFamily(packageName: String, family: EmulatorFamily): Boolean {

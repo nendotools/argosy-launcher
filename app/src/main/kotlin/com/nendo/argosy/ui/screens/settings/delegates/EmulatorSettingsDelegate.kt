@@ -351,12 +351,22 @@ class EmulatorSettingsDelegate @Inject constructor(
                         gameDao.updateLocalPath(game.id, newPath, game.source)
                     }
                 }
-
-                emulatorConfigDao.updatePreferredExtension(platformId, extensionToStore)
-            } else {
-                emulatorConfigDao.updatePreferredExtension(platformId, "")
             }
 
+            configureEmulatorUseCase.setExtensionForPlatform(platformId, extensionToStore)
+            onLoadSettings()
+        }
+    }
+
+    fun setExtensionPreference(
+        scope: CoroutineScope,
+        platformId: Long,
+        newExtension: String,
+        onLoadSettings: suspend () -> Unit
+    ) {
+        scope.launch {
+            val extensionToStore = newExtension.ifEmpty { null }
+            configureEmulatorUseCase.setExtensionForPlatform(platformId, extensionToStore)
             onLoadSettings()
         }
     }
