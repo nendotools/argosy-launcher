@@ -1,6 +1,7 @@
 package com.nendo.argosy.data.remote.romm
 
 import com.nendo.argosy.data.cache.ImageCacheManager
+import com.nendo.argosy.data.repository.BiosRepository
 import com.nendo.argosy.util.Logger
 import com.nendo.argosy.data.local.dao.EmulatorConfigDao
 import com.nendo.argosy.data.local.dao.GameDao
@@ -58,7 +59,8 @@ class RomMRepository @Inject constructor(
     private val emulatorConfigDao: EmulatorConfigDao,
     private val imageCacheManager: ImageCacheManager,
     private val saveSyncRepository: dagger.Lazy<com.nendo.argosy.data.repository.SaveSyncRepository>,
-    private val gameRepository: dagger.Lazy<com.nendo.argosy.data.repository.GameRepository>
+    private val gameRepository: dagger.Lazy<com.nendo.argosy.data.repository.GameRepository>,
+    private val biosRepository: BiosRepository
 ) {
     private var api: RomMApi? = null
     private var baseUrl: String = ""
@@ -152,6 +154,7 @@ class RomMRepository @Inject constructor(
             if (response.isSuccessful) {
                 api = newApi
                 saveSyncRepository.get().setApi(api)
+                biosRepository.setApi(api)
                 val version = response.body()?.version ?: "unknown"
                 _connectionState.value = ConnectionState.Connected(version)
                 Logger.info(TAG, "connect: success, version=$version")
@@ -172,7 +175,7 @@ class RomMRepository @Inject constructor(
         val currentApi = api ?: return RomMResult.Error("Not connected")
 
         return try {
-            val scope = "me.read me.write platforms.read roms.read assets.read assets.write roms.user.read roms.user.write collections.read collections.write"
+            val scope = "me.read me.write platforms.read roms.read assets.read assets.write roms.user.read roms.user.write collections.read collections.write firmware.read"
             val response = currentApi.login(username, password, scope)
             if (response.isSuccessful) {
                 val token = response.body()?.accessToken
@@ -181,6 +184,7 @@ class RomMRepository @Inject constructor(
                 accessToken = token
                 api = createApi(baseUrl, token)
                 saveSyncRepository.get().setApi(api)
+                biosRepository.setApi(api)
 
                 userPreferencesRepository.setRomMCredentials(baseUrl, token, username)
                 RomMResult.Success(token)
@@ -424,6 +428,12 @@ class RomMRepository @Inject constructor(
 
         if (logoUrl != null && logoUrl.startsWith("http")) {
             imageCacheManager.queuePlatformLogoCache(platformId, logoUrl)
+        }
+
+        remote.firmware?.let { firmware ->
+            if (firmware.isNotEmpty()) {
+                biosRepository.syncPlatformFirmware(platformId, remote.slug, firmware)
+            }
         }
     }
 
@@ -1110,6 +1120,7 @@ class RomMRepository @Inject constructor(
 
     fun disconnect() {
         api = null
+        biosRepository.setApi(null)
         accessToken = null
         baseUrl = ""
         _connectionState.value = ConnectionState.Disconnected

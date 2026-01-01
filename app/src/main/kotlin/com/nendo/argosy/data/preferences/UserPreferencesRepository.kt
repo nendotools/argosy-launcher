@@ -98,6 +98,7 @@ class UserPreferencesRepository @Inject constructor(
         val SCREEN_DIMMER_ENABLED = booleanPreferencesKey("screen_dimmer_enabled")
         val SCREEN_DIMMER_TIMEOUT_MINUTES = intPreferencesKey("screen_dimmer_timeout_minutes")
         val SCREEN_DIMMER_LEVEL = intPreferencesKey("screen_dimmer_level")
+        val CUSTOM_BIOS_PATH = stringPreferencesKey("custom_bios_path")
     }
 
     val userPreferences: Flow<UserPreferences> = dataStore.data.map { prefs ->
@@ -196,7 +197,8 @@ class UserPreferencesRepository @Inject constructor(
             imageCachePath = prefs[Keys.IMAGE_CACHE_PATH],
             screenDimmerEnabled = prefs[Keys.SCREEN_DIMMER_ENABLED] ?: true,
             screenDimmerTimeoutMinutes = prefs[Keys.SCREEN_DIMMER_TIMEOUT_MINUTES] ?: 2,
-            screenDimmerLevel = prefs[Keys.SCREEN_DIMMER_LEVEL] ?: 50
+            screenDimmerLevel = prefs[Keys.SCREEN_DIMMER_LEVEL] ?: 50,
+            customBiosPath = prefs[Keys.CUSTOM_BIOS_PATH]
         )
     }
 
@@ -694,6 +696,16 @@ class UserPreferencesRepository @Inject constructor(
             prefs[Keys.SCREEN_DIMMER_LEVEL] = level.coerceIn(40, 70)
         }
     }
+
+    suspend fun setCustomBiosPath(path: String?) {
+        dataStore.edit { prefs ->
+            if (path != null) {
+                prefs[Keys.CUSTOM_BIOS_PATH] = path
+            } else {
+                prefs.remove(Keys.CUSTOM_BIOS_PATH)
+            }
+        }
+    }
 }
 
 data class UserPreferences(
@@ -759,7 +771,8 @@ data class UserPreferences(
     val imageCachePath: String? = null,
     val screenDimmerEnabled: Boolean = true,
     val screenDimmerTimeoutMinutes: Int = 2,
-    val screenDimmerLevel: Int = 50
+    val screenDimmerLevel: Int = 50,
+    val customBiosPath: String? = null
 )
 
 enum class ThemeMode(val displayName: String) {
