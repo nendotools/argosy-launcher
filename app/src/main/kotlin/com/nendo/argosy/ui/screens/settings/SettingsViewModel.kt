@@ -847,7 +847,7 @@ class SettingsViewModel @Inject constructor(
                     val autoAssignOffset = if (state.emulators.canAutoAssign) 1 else 0
                     (platformCount + autoAssignOffset - 1).coerceAtLeast(0)
                 }
-                SettingsSection.PERMISSIONS -> 3
+                SettingsSection.PERMISSIONS -> 2
                 SettingsSection.ABOUT -> if (state.fileLoggingPath != null) 4 else 3
             }
             val newIndex = if (state.currentSection == SettingsSection.SERVER && state.server.rommConfiguring) {
@@ -1936,10 +1936,6 @@ class SettingsViewModel @Inject constructor(
                     0 -> openStorageSettings()
                     1 -> openUsageStatsSettings()
                     2 -> openNotificationSettings()
-                    3 -> {
-                        toggleTrustUserCertificates()
-                        return InputResult.handled(SoundType.TOGGLE)
-                    }
                 }
                 InputResult.HANDLED
             }

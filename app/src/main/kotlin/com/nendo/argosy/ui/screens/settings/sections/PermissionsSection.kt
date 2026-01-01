@@ -22,10 +22,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,7 +32,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import com.nendo.argosy.ui.common.scrollToItemIfNeeded
-import com.nendo.argosy.ui.components.SwitchPreference
 import com.nendo.argosy.ui.screens.settings.SettingsUiState
 import com.nendo.argosy.ui.screens.settings.SettingsViewModel
 import com.nendo.argosy.ui.theme.Dimens
@@ -44,38 +40,9 @@ import com.nendo.argosy.ui.theme.Dimens
 fun PermissionsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
     val listState = rememberLazyListState()
 
-    // Map focus index to LazyColumn item index
-    // item 0: description, items 1-3: permission cards (focus 0-2),
-    // items 4-5: spacer/header, item 6: switch (focus 3)
     LaunchedEffect(uiState.focusedIndex) {
-        val scrollIndex = when (uiState.focusedIndex) {
-            0 -> 1
-            1 -> 2
-            2 -> 3
-            3 -> 6
-            else -> return@LaunchedEffect
-        }
+        val scrollIndex = uiState.focusedIndex + 1
         listState.scrollToItemIfNeeded(scrollIndex)
-    }
-
-    if (uiState.permissions.showRestartDialog) {
-        AlertDialog(
-            onDismissRequest = { viewModel.dismissRestartDialog() },
-            title = { Text("Restart Required") },
-            text = { Text("Enabling user certificates requires restarting Argosy for changes to take effect.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.setTrustUserCertificatesAndRestart(true)
-                }) {
-                    Text("Restart")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.dismissRestartDialog() }) {
-                    Text("Cancel")
-                }
-            }
-        )
     }
 
     LazyColumn(
@@ -135,27 +102,6 @@ fun PermissionsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 }
-            )
-        }
-
-        item {
-            Spacer(modifier = Modifier.height(Dimens.spacingLg))
-            Text(
-                text = "Security",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = Dimens.spacingSm)
-            )
-        }
-
-        item {
-            SwitchPreference(
-                title = "Trust User Certificates",
-                subtitle = "Allow connections to servers using custom CA certificates installed on your device. Enable if your RomM server uses self-signed or private certificates.",
-                icon = Icons.Default.Security,
-                isEnabled = uiState.permissions.trustUserCertificates,
-                isFocused = uiState.focusedIndex == 3,
-                onToggle = { viewModel.toggleTrustUserCertificates() }
             )
         }
     }

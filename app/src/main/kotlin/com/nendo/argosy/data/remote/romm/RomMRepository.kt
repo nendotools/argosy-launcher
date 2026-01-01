@@ -147,8 +147,7 @@ class RomMRepository @Inject constructor(
         accessToken = token
 
         return try {
-            val trustUserCerts = userPreferencesRepository.preferences.first().trustUserCertificates
-            val newApi = createApi(normalizedUrl, token, trustUserCerts)
+            val newApi = createApi(normalizedUrl, token)
             val response = newApi.heartbeat()
 
             if (response.isSuccessful) {
@@ -181,8 +180,7 @@ class RomMRepository @Inject constructor(
                     ?: return RomMResult.Error("No token received")
 
                 accessToken = token
-                val trustUserCerts = userPreferencesRepository.preferences.first().trustUserCertificates
-                api = createApi(baseUrl, token, trustUserCerts)
+                api = createApi(baseUrl, token)
                 saveSyncRepository.get().setApi(api)
 
                 userPreferencesRepository.setRomMCredentials(baseUrl, token, username)
@@ -1118,7 +1116,7 @@ class RomMRepository @Inject constructor(
         _connectionState.value = ConnectionState.Disconnected
     }
 
-    private fun createApi(baseUrl: String, token: String?, trustUserCerts: Boolean): RomMApi {
+    private fun createApi(baseUrl: String, token: String?): RomMApi {
         val moshi = Moshi.Builder().build()
 
         val loggingInterceptor = HttpLoggingInterceptor().apply {
@@ -1144,7 +1142,7 @@ class RomMRepository @Inject constructor(
             .writeTimeout(60, TimeUnit.SECONDS)
             .connectionPool(okhttp3.ConnectionPool(0, 1, TimeUnit.NANOSECONDS))
             .dns(okhttp3.Dns.SYSTEM)
-            .withUserCertTrust(trustUserCerts)
+            .withUserCertTrust(true)
             .build()
 
         return Retrofit.Builder()
