@@ -77,6 +77,9 @@ class GameLauncher @Inject constructor(
             }
         }
 
+        // For m3u files, validate and fall back to disc file if broken
+        romFile = validateAndResolveLaunchFile(game, romFile)
+
         // Apply extension preference if needed (lazy rename on launch)
         romFile = applyExtensionPreferenceIfNeeded(game, romFile)
 
@@ -626,6 +629,60 @@ class GameLauncher @Inject constructor(
         } catch (e: Exception) {
             Logger.warn(TAG, "Failed to kill RetroArch process", e)
         }
+    }
+
+    private suspend fun validateAndResolveLaunchFile(game: GameEntity, romFile: File): File {
+        if (romFile.extension.lowercase() != "m3u") return romFile
+
+        val parentDir = romFile.parentFile ?: return romFile
+        val siblingFiles = parentDir.listFiles() ?: return romFile
+
+        // Check if m3u is valid (references only launchable disc files)
+        val m3uLines = try {
+            romFile.readLines().filter { it.isNotBlank() && !it.startsWith("#") }
+        } catch (e: Exception) {
+            Logger.warn(TAG, "Failed to read m3u: ${e.message}")
+            emptyList()
+        }
+
+        // Find launchable disc files in the folder
+        val discFiles = siblingFiles.filter { it.extension.lowercase() in setOf("cue", "gdi", "chd", "iso", "bin", "img") }
+        val cueGdiFiles = discFiles.filter { it.extension.lowercase() in setOf("cue", "gdi") }
+        val chdFiles = discFiles.filter { it.extension.lowercase() == "chd" }
+
+        // Determine actual launchable files (prefer cue/gdi/chd over raw iso/bin)
+        val launchableFiles = when {
+            cueGdiFiles.isNotEmpty() -> cueGdiFiles
+            chdFiles.isNotEmpty() -> chdFiles
+            else -> discFiles.filter { it.extension.lowercase() in setOf("iso", "bin", "img") }
+        }
+
+        // For single-disc games, m3u is unnecessary - use disc file directly
+        if (launchableFiles.size == 1) {
+            val discFile = launchableFiles.first()
+            Logger.info(TAG, "Single disc game - using ${discFile.name} instead of m3u")
+            gameDao.updateLocalPath(game.id, discFile.absolutePath, game.source)
+            return discFile
+        }
+
+        // Validate m3u references correct files
+        val launchableNames = launchableFiles.map { it.name.lowercase() }.toSet()
+        val allReferencesValid = m3uLines.all { line ->
+            val refFile = File(parentDir, line)
+            refFile.exists() && refFile.name.lowercase() in launchableNames
+        }
+
+        if (!allReferencesValid || m3uLines.size != launchableFiles.size) {
+            // M3U is broken - for multi-disc, prefer first cue/chd; for single, use the disc file
+            val fallback = launchableFiles.minByOrNull { it.name }
+            if (fallback != null) {
+                Logger.warn(TAG, "Invalid m3u detected - falling back to ${fallback.name}")
+                gameDao.updateLocalPath(game.id, fallback.absolutePath, game.source)
+                return fallback
+            }
+        }
+
+        return romFile
     }
 
     private suspend fun applyExtensionPreferenceIfNeeded(game: GameEntity, romFile: File): File {

@@ -14,10 +14,22 @@ data class ExtractedFolderRom(
     val allFiles: List<File>
 ) {
     val launchPath: String
-        get() = m3uFile?.absolutePath
-            ?: primaryFile?.absolutePath
-            ?: discFiles.firstOrNull()?.absolutePath
-            ?: gameFolder.absolutePath
+        get() {
+            // 1. M3U for multi-disc games
+            m3uFile?.absolutePath?.let { return it }
+
+            // 2. For disc-based games, prefer cue/gdi/chd over raw iso/bin
+            val cueGdiFile = discFiles.find { it.extension.lowercase() in setOf("cue", "gdi") }
+            if (cueGdiFile != null) return cueGdiFile.absolutePath
+
+            val chdFile = discFiles.find { it.extension.lowercase() == "chd" }
+            if (chdFile != null) return chdFile.absolutePath
+
+            // 3. Fall back to primary file or first disc
+            return primaryFile?.absolutePath
+                ?: discFiles.firstOrNull()?.absolutePath
+                ?: gameFolder.absolutePath
+        }
 }
 
 private val NSW_UPDATE_EXTENSIONS = setOf("nsp")
@@ -292,10 +304,27 @@ object ZipExtractor {
         Log.d(TAG, "Existing M3U: ${existingM3u?.absolutePath}")
         Log.d(TAG, "Total extracted: ${allFiles.size}")
 
-        // Generate M3U only if multiple disc files at root and no existing M3U
-        val m3uFile = existingM3u ?: if (rootDiscFiles.size > 1) {
-            generateM3uFile(gameFolder, sanitizedTitle, rootDiscFiles)
-        } else null
+        // Determine actual launchable disc files (filter out raw data files when cue/gdi exists)
+        val launchableDiscFiles = filterToLaunchableDiscs(rootDiscFiles)
+        Log.d(TAG, "Launchable disc files: ${launchableDiscFiles.size}")
+
+        // For single-disc games, don't use m3u - just use the disc file directly
+        // M3U is only needed for multi-disc games to allow disc swapping
+        val m3uFile = when {
+            launchableDiscFiles.size <= 1 -> {
+                Log.d(TAG, "Single disc game - skipping m3u, will use disc file directly")
+                null
+            }
+            existingM3u != null && isValidM3u(existingM3u, launchableDiscFiles) -> {
+                Log.d(TAG, "Using validated existing m3u")
+                existingM3u
+            }
+            launchableDiscFiles.size > 1 -> {
+                Log.d(TAG, "Generating new m3u for ${launchableDiscFiles.size} discs")
+                generateM3uFile(gameFolder, sanitizedTitle, launchableDiscFiles)
+            }
+            else -> null
+        }
 
         return ExtractedFolderRom(
             primaryFile = primaryFile,
@@ -304,6 +333,58 @@ object ZipExtractor {
             gameFolder = gameFolder,
             allFiles = allFiles
         )
+    }
+
+    private fun filterToLaunchableDiscs(discFiles: List<File>): List<File> {
+        // For disc-based games, we need to identify which files are actually launchable
+        // vs which are just data files referenced by cue/gdi sheets
+        val cueGdiFiles = discFiles.filter { it.extension.lowercase() in setOf("cue", "gdi") }
+        val chdFiles = discFiles.filter { it.extension.lowercase() == "chd" }
+
+        return when {
+            // CHD files are self-contained, each is a launchable disc
+            chdFiles.isNotEmpty() -> chdFiles
+            // CUE/GDI files reference bin/iso/img, so they are the launchable files
+            cueGdiFiles.isNotEmpty() -> cueGdiFiles
+            // Otherwise, use iso/bin/img files directly
+            else -> discFiles.filter { it.extension.lowercase() in setOf("iso", "bin", "img", "cdi") }
+        }
+    }
+
+    private fun isValidM3u(m3uFile: File, launchableDiscs: List<File>): Boolean {
+        if (!m3uFile.exists()) return false
+
+        val lines = try {
+            m3uFile.readLines().filter { it.isNotBlank() && !it.startsWith("#") }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to read m3u for validation: ${e.message}")
+            return false
+        }
+
+        // M3U should list exactly the launchable disc files
+        if (lines.size != launchableDiscs.size) {
+            Log.d(TAG, "M3U validation failed: ${lines.size} entries vs ${launchableDiscs.size} launchable discs")
+            return false
+        }
+
+        // Each line should reference an existing launchable file
+        val launchableNames = launchableDiscs.map { it.name.lowercase() }.toSet()
+        val m3uDir = m3uFile.parentFile ?: return false
+
+        for (line in lines) {
+            val referencedFile = File(m3uDir, line)
+            if (!referencedFile.exists()) {
+                Log.d(TAG, "M3U validation failed: referenced file doesn't exist: $line")
+                return false
+            }
+            // Check if it references a launchable file (not a data file like .iso when .cue exists)
+            if (referencedFile.name.lowercase() !in launchableNames) {
+                Log.d(TAG, "M3U validation failed: $line is not a launchable disc file")
+                return false
+            }
+        }
+
+        return true
     }
 
     private fun isGameFile(extension: String): Boolean {

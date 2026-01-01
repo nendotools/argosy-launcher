@@ -18,6 +18,70 @@ data class BiosPathConfig(
 
 object BiosPathRegistry {
 
+    // MD5 hash -> RetroArch expected filename mapping
+    // RetroArch cores are strict about filenames, so we rename during distribution
+    private val retroArchBiosNames: Map<String, String> = mapOf(
+        // 3DO - Opera core
+        "f47264dd47fe30f73ab3c010015c155b" to "panafz1.bin",
+        "51f2f43ae2f3508a14d9f56597e2d3ce" to "panafz10.bin",
+        "1477bda80dc33731a65468c1f5bcbee9" to "panafz10-norsa.bin",
+        "a48e6746bd7edec0f40cff078f0bb19f" to "panafz10e-anvil.bin",
+        "cf11bbb5a16d7af9875cca9de9a15e09" to "panafz10e-anvil-norsa.bin",
+        "a496cfdded3da562759be3561317b605" to "panafz1j.bin",
+        "b832da9de7a5621bf1c67e79c9a6de9e" to "panafz1j-norsa.bin",
+        "8639fd5e549bd6238cfee79e3e749114" to "goldstar.bin",
+        "35fa1a1ebaaeea286dc5cd15487c13ea" to "sanyotry.bin",
+        "8970fc987ab89a7f64da9f8a8c4333ff" to "3do_arcade_saot.bin",
+
+        // PlayStation - PCSX ReARMed / Beetle PSX
+        "924e392ed05558ffdb115408c263dccf" to "scph1001.bin",
+        "8dd7d5296a650fac7319bce665a6a53c" to "scph5500.bin",
+        "490f666e1afb15b7362b406ed1cea246" to "scph5501.bin",
+        "32736f17079d0b2b7024407c39bd3050" to "scph5502.bin",
+        "1e68c231d0896b7eadcad1d7d8e76129" to "scph7001.bin",
+        "b9d9a0286c33dc6b7237bb13cd46fdee" to "scph101.bin",
+
+        // Dreamcast - Flycast (goes in dc/ subfolder)
+        "e10c53c2f8b90bab96ead2d368858623" to "dc/dc_boot.bin",
+        "0a93f7940c455905bea6e392dfde92a4" to "dc/dc_flash.bin",
+
+        // Saturn - Beetle Saturn / YabaSanshiro
+        "af5828fdff51384f99b3c4926be27762" to "sega_101.bin",
+        "3240872c70984b6cbfda1586cab68dbe" to "mpr-17933.bin",
+        "85ec9ca47d8f6f9ab5af2d1234c832d4" to "mpr-18811-mx.ic1",
+        "f273555d7d91e8a5a6bfd9bcf066331c" to "mpr-19367-mx.ic1",
+
+        // Sega CD - Genesis Plus GX
+        "2efd74e3232ff260e371b99f84024f7f" to "bios_CD_U.bin",
+        "e66fa1dc5820d254611fdcdba0662372" to "bios_CD_E.bin",
+        "278a9397d192149e84e820ac621a8edd" to "bios_CD_J.bin",
+
+        // GBA
+        "a860e8c0b6d573d191e4ec7db1b1e4f6" to "gba_bios.bin",
+
+        // NDS - melonDS / DeSmuME
+        "24f67bdea115a2c847c8813a628571b3" to "bios7.bin",
+        "a392174eb3e572fed6447e956bde4b25" to "bios9.bin",
+        "145eaef5bd3037cbc247c213bb3da1b3" to "firmware.bin",
+
+        // PC Engine CD - Beetle PCE
+        "38179df8f4ac870017db21ebcbf53114" to "syscard3.pce",
+
+        // PC-FX - Beetle PC-FX
+        "08e36edbea28a017f79f8d4f7ff9b6d7" to "pcfx.rom",
+
+        // Atari Lynx
+        "fcd403db69f54290b51035d82f835e7b" to "lynxboot.img",
+
+        // Neo Geo (kept as-is, usually a zip)
+        "dffb72f116d36d025068b23970a4f6df" to "neogeo.zip"
+    )
+
+    fun getRetroArchBiosName(md5Hash: String?): String? {
+        if (md5Hash == null) return null
+        return retroArchBiosNames[md5Hash.lowercase()]
+    }
+
     private val platformBiosFiles: Map<String, List<BiosRequirement>> = mapOf(
         "psx" to listOf(
             BiosRequirement("psx", "scph1001.bin", "924e392ed05558ffdb115408c263dccf", "PlayStation NTSC-U BIOS"),

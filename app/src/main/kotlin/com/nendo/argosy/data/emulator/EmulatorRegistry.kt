@@ -88,7 +88,7 @@ object EmulatorRegistry {
                 "nes", "snes", "n64", "gc", "ngc", "gb", "gbc", "gba", "nds",
                 "genesis", "sms", "gg", "scd", "32x",
                 "psx", "psp", "saturn", "dreamcast", "dc",
-                "tg16", "tgcd", "pcfx",
+                "tg16", "tgcd", "pcfx", "3do",
                 "atari2600", "atari5200", "atari7800", "lynx",
                 "ngp", "ngpc", "neogeo",
                 "msx", "msx2",
@@ -107,7 +107,7 @@ object EmulatorRegistry {
                 "nes", "snes", "n64", "gc", "ngc", "gb", "gbc", "gba", "nds",
                 "genesis", "sms", "gg", "scd", "32x",
                 "psx", "psp", "saturn", "dreamcast", "dc",
-                "tg16", "tgcd", "pcfx",
+                "tg16", "tgcd", "pcfx", "3do",
                 "atari2600", "atari5200", "atari7800", "lynx",
                 "ngp", "ngpc", "neogeo",
                 "msx", "msx2",
@@ -503,6 +503,7 @@ object EmulatorRegistry {
         "lynx" to listOf("retroarch", "retroarch_64"),
         "tg16" to listOf("retroarch", "retroarch_64"),
         "tgcd" to listOf("retroarch", "retroarch_64"),
+        "3do" to listOf("retroarch", "retroarch_64"),
         "ngp" to listOf("retroarch", "retroarch_64"),
         "ngpc" to listOf("retroarch", "retroarch_64"),
         "wonderswan" to listOf("retroarch", "retroarch_64"),
@@ -537,6 +538,7 @@ object EmulatorRegistry {
         "tg16" to "mednafen_pce_fast",
         "tgcd" to "mednafen_pce_fast",
         "pcfx" to "mednafen_pcfx",
+        "3do" to "opera",
         "atari2600" to "stella",
         "atari5200" to "atari800",
         "atari7800" to "prosystem",
@@ -574,6 +576,7 @@ object EmulatorRegistry {
         "tg16" to listOf("mednafen_pce"),
         "tgcd" to listOf("mednafen_pce"),
         "pcfx" to listOf("pcfx"),
+        "3do" to listOf("opera"),
         "atari2600" to listOf("stella"),
         "atari5200" to listOf("atari800", "a5200"),
         "atari7800" to listOf("prosystem"),
@@ -681,6 +684,9 @@ object EmulatorRegistry {
         ),
         "pcfx" to listOf(
             RetroArchCore("mednafen_pcfx", "Mednafen PC-FX")
+        ),
+        "3do" to listOf(
+            RetroArchCore("opera", "Opera")
         ),
         "atari2600" to listOf(
             RetroArchCore("stella", "Stella"),
@@ -897,7 +903,7 @@ object EmulatorRegistry {
                 "nes", "snes", "n64", "gc", "ngc", "gb", "gbc", "gba", "nds",
                 "genesis", "sms", "gg", "scd", "32x",
                 "psx", "psp", "saturn", "dreamcast", "dc",
-                "tg16", "tgcd", "pcfx",
+                "tg16", "tgcd", "pcfx", "3do",
                 "atari2600", "atari5200", "atari7800", "lynx",
                 "ngp", "ngpc", "neogeo",
                 "msx", "msx2",

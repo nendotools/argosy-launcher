@@ -209,6 +209,8 @@ class BiosRepository @Inject constructor(
         val downloaded = firmwareDao.getByPlatformSlug(platformSlug).filter { it.localPath != null }
         if (downloaded.isEmpty()) return@withContext 0
 
+        val isRetroArch = emulatorId.startsWith("retroarch")
+
         var copiedCount = 0
         for (targetPath in config.defaultPaths) {
             val targetDir = File(targetPath)
@@ -221,10 +223,20 @@ class BiosRepository @Inject constructor(
                 val sourceFile = File(firmware.localPath!!)
                 if (!sourceFile.exists()) continue
 
-                val targetFile = File(targetDir, firmware.fileName)
+                // For RetroArch, use MD5-based filename mapping (cores are strict about names)
+                val targetFileName = if (isRetroArch) {
+                    val md5 = firmware.md5Hash ?: calculateMd5(sourceFile)
+                    BiosPathRegistry.getRetroArchBiosName(md5) ?: firmware.fileName
+                } else {
+                    firmware.fileName
+                }
+
+                val targetFile = File(targetDir, targetFileName)
                 try {
+                    // Create parent directories if needed (e.g., dc/ subfolder for Dreamcast)
+                    targetFile.parentFile?.mkdirs()
                     sourceFile.copyTo(targetFile, overwrite = true)
-                    Logger.debug(TAG, "Copied ${firmware.fileName} to $targetPath")
+                    Logger.debug(TAG, "Copied ${firmware.fileName} -> $targetFileName to $targetPath")
                     copiedCount++
                 } catch (e: Exception) {
                     Logger.error(TAG, "Failed to copy ${firmware.fileName}: ${e.message}")
