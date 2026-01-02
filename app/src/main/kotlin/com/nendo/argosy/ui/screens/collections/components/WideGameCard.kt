@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,11 +36,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.nendo.argosy.ui.theme.Dimens
+import com.nendo.argosy.ui.theme.LocalBoxArtStyle
 
 @Composable
 fun WideGameCard(
@@ -57,7 +68,9 @@ fun WideGameCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val shape = RoundedCornerShape(12.dp)
+    val boxArtStyle = LocalBoxArtStyle.current
+    val cornerRadius = boxArtStyle.cornerRadiusDp
+    val shape = RoundedCornerShape(cornerRadius)
     val borderModifier = if (isFocused) {
         Modifier.border(3.dp, MaterialTheme.colorScheme.primary, shape)
     } else Modifier
@@ -174,6 +187,8 @@ fun WideGameCard(
 
             WideGameCardFooter(
                 platformShortName = platformShortName,
+                cornerRadius = cornerRadius,
+                isFocused = isFocused,
                 userRating = userRating,
                 userDifficulty = userDifficulty,
                 achievementCount = achievementCount,
@@ -186,57 +201,135 @@ fun WideGameCard(
 @Composable
 private fun WideGameCardFooter(
     platformShortName: String,
+    cornerRadius: Dp,
+    isFocused: Boolean,
     userRating: Int,
     userDifficulty: Int,
     achievementCount: Int,
     playTimeMinutes: Int
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(IntrinsicSize.Min),
-        verticalAlignment = Alignment.CenterVertically
+    val boxArtStyle = LocalBoxArtStyle.current
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val platformShape = RoundedCornerShape(
+        bottomStart = cornerRadius,
+        topEnd = cornerRadius
+    )
+
+    val borderOffset = if (isFocused) boxArtStyle.borderThicknessDp else 0.dp
+    val earSize = cornerRadius
+
+    Column(
+        modifier = Modifier.fillMaxWidth()
     ) {
+        // Top ear row (above the main footer content)
         Box(
             modifier = Modifier
-                .background(MaterialTheme.colorScheme.primary)
-                .padding(horizontal = Dimens.spacingMd, vertical = Dimens.spacingSm),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = platformShortName,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onPrimary
-            )
-        }
+                .offset(x = borderOffset, y = 1.dp)
+                .size(earSize)
+                .clip(remember(cornerRadius) { BottomLeftTopEarShape(cornerRadius) })
+                .background(primaryColor)
+        )
 
-        Row(
+        // Main footer row with slug and metadata
+        Box(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
-                .padding(horizontal = Dimens.spacingMd),
-            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min)
         ) {
-            Spacer(modifier = Modifier.weight(1f))
+            // Metadata background (full width, flows behind slug)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .padding(end = Dimens.spacingMd),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Spacer(modifier = Modifier.weight(1f))
 
-            if (userRating > 0) {
-                FooterStat(icon = Icons.Default.Star, value = "$userRating/10")
+                if (userRating > 0) {
+                    FooterStat(icon = Icons.Default.Star, value = "$userRating/10")
+                }
+
+                if (userDifficulty > 0) {
+                    FooterStat(icon = Icons.Default.Whatshot, value = "$userDifficulty/10")
+                }
+
+                if (achievementCount > 0) {
+                    FooterStat(icon = Icons.Default.EmojiEvents, value = "$achievementCount")
+                }
+
+                if (playTimeMinutes > 0) {
+                    FooterStat(icon = Icons.Default.Schedule, value = formatPlayTime(playTimeMinutes))
+                }
             }
 
-            if (userDifficulty > 0) {
-                FooterStat(icon = Icons.Default.Whatshot, value = "$userDifficulty/10")
-            }
-
-            if (achievementCount > 0) {
-                FooterStat(icon = Icons.Default.EmojiEvents, value = "$achievementCount")
-            }
-
-            if (playTimeMinutes > 0) {
-                FooterStat(icon = Icons.Default.Schedule, value = formatPlayTime(playTimeMinutes))
+            // Platform slug with right ear (on top)
+            Row(
+                modifier = Modifier.zIndex(1f),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(platformShape)
+                        .background(primaryColor)
+                        .padding(horizontal = Dimens.spacingMd, vertical = Dimens.spacingSm),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = platformShortName,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .offset(x = (-1).dp, y = -borderOffset)
+                        .size(earSize)
+                        .clip(remember(cornerRadius) { BottomLeftRightEarShape(cornerRadius) })
+                        .background(primaryColor)
+                )
             }
         }
+    }
+}
+
+private class BottomLeftTopEarShape(
+    private val cornerRadius: Dp
+) : Shape {
+    override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density
+    ): Outline {
+        val r = with(density) { cornerRadius.toPx() }
+        val path = Path().apply {
+            moveTo(0f, r)
+            lineTo(r, r)
+            arcTo(Rect(0f, -r, r * 2, r), 90f, 90f, false)
+            close()
+        }
+        return Outline.Generic(path)
+    }
+}
+
+private class BottomLeftRightEarShape(
+    private val cornerRadius: Dp
+) : Shape {
+    override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density
+    ): Outline {
+        val r = with(density) { cornerRadius.toPx() }
+        val path = Path().apply {
+            moveTo(0f, r)
+            lineTo(r, r)
+            arcTo(Rect(0f, -r, r * 2, r), 90f, 90f, false)
+            close()
+        }
+        return Outline.Generic(path)
     }
 }
 
@@ -245,6 +338,7 @@ private fun FooterStat(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     value: String
 ) {
+    val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
     Row(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -252,13 +346,13 @@ private fun FooterStat(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.surface,
+            tint = contentColor,
             modifier = Modifier.size(14.dp)
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.surface
+            color = contentColor
         )
     }
 }
