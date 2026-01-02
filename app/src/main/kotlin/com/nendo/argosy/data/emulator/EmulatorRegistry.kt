@@ -282,8 +282,7 @@ object EmulatorRegistry {
             displayName = "melonDS",
             supportedPlatforms = setOf("nds"),
             launchConfig = LaunchConfig.Custom(
-                activityClass = "me.magnum.melonds.ui.emulator.EmulatorActivity",
-                intentExtras = mapOf("PATH" to ExtraValue.FilePath)
+                activityClass = "me.magnum.melonds.ui.emulator.EmulatorActivity"
             ),
             downloadUrl = "https://play.google.com/store/apps/details?id=me.magnum.melonds"
         ),
@@ -890,8 +889,7 @@ object EmulatorRegistry {
             packagePatterns = listOf("me.magnum.melonds*"),
             supportedPlatforms = setOf("nds"),
             launchConfig = LaunchConfig.Custom(
-                activityClass = "me.magnum.melonds.ui.emulator.EmulatorActivity",
-                intentExtras = mapOf("PATH" to ExtraValue.FilePath)
+                activityClass = "me.magnum.melonds.ui.emulator.EmulatorActivity"
             ),
             downloadUrl = "https://melonds.kuribo64.net/downloads.php"
         ),
