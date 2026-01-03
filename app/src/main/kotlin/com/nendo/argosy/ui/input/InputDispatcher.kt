@@ -14,9 +14,21 @@ class InputDispatcher(
     private var pendingEvent: GamepadEvent? = null
     private var inputBlockedUntil: Long = 0L
     private var currentRoute: String? = null
+    private var pendingViewSubscription: Pair<InputHandler, String>? = null
 
     fun setCurrentRoute(route: String?) {
         currentRoute = route
+        processPendingViewSubscription()
+    }
+
+    private fun processPendingViewSubscription() {
+        val pending = pendingViewSubscription ?: return
+        if (isRouteMatch(pending.second, currentRoute)) {
+            pendingViewSubscription = null
+            clearModals()
+            viewHandler = pending.first
+            processPendingEvent()
+        }
     }
 
     fun pushModal(handler: InputHandler) {
@@ -55,8 +67,10 @@ class InputDispatcher(
 
     fun subscribeView(handler: InputHandler, forRoute: String): Boolean {
         if (!isRouteMatch(forRoute, currentRoute)) {
+            pendingViewSubscription = handler to forRoute
             return false
         }
+        pendingViewSubscription = null
         clearModals()
         viewHandler = handler
         processPendingEvent()
