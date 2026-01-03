@@ -76,7 +76,8 @@ data class GameDetailUi(
     val isSteamGame: Boolean = false,
     val steamLauncherName: String? = null,
     val isAndroidApp: Boolean = false,
-    val packageName: String? = null
+    val packageName: String? = null,
+    val isHidden: Boolean = false
 )
 
 sealed class LaunchEvent {

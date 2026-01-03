@@ -9,6 +9,7 @@ import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.util.Log
+import coil.imageLoader
 import com.nendo.argosy.data.local.dao.AchievementDao
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.dao.PlatformDao
@@ -305,6 +306,10 @@ class ImageCacheManager @Inject constructor(
                     Log.d(TAG, "Deleted cached image: ${file.name}")
                 }
             }
+        }
+        withContext(Dispatchers.Main) {
+            context.imageLoader.memoryCache?.clear()
+            Log.d(TAG, "Cleared Coil memory cache after deleting images for rommId $rommId")
         }
     }
 

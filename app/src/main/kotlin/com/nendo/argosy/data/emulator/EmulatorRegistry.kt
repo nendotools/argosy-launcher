@@ -85,7 +85,7 @@ object EmulatorRegistry {
             packageName = "com.retroarch",
             displayName = "RetroArch",
             supportedPlatforms = setOf(
-                "nes", "snes", "n64", "gc", "ngc", "gb", "gbc", "gba", "nds",
+                "nes", "snes", "n64", "gc", "ngc", "gb", "gbc", "gba", "nds", "3ds",
                 "genesis", "sms", "gg", "scd", "32x",
                 "psx", "psp", "saturn", "dreamcast", "dc",
                 "tg16", "tgcd", "pcfx", "3do",
@@ -104,7 +104,7 @@ object EmulatorRegistry {
             packageName = "com.retroarch.aarch64",
             displayName = "RetroArch (64-bit)",
             supportedPlatforms = setOf(
-                "nes", "snes", "n64", "gc", "ngc", "gb", "gbc", "gba", "nds",
+                "nes", "snes", "n64", "gc", "ngc", "gb", "gbc", "gba", "nds", "3ds",
                 "genesis", "sms", "gg", "scd", "32x",
                 "psx", "psp", "saturn", "dreamcast", "dc",
                 "tg16", "tgcd", "pcfx", "3do",
@@ -478,7 +478,7 @@ object EmulatorRegistry {
         "psvita" to listOf("vita3k-zx", "vita3k"),
         "n64" to listOf("mupen64plus_fz", "retroarch", "retroarch_64"),
         "nds" to listOf("drastic", "melonds", "retroarch", "retroarch_64"),
-        "3ds" to listOf("azahar_plus", "azahar", "citra_mmj", "borked3ds", "citra"),
+        "3ds" to listOf("azahar_plus", "azahar", "citra_mmj", "borked3ds", "citra", "retroarch", "retroarch_64"),
         "gc" to listOf("dolphin", "dolphin_handheld", "retroarch", "retroarch_64"),
         "ngc" to listOf("dolphin", "dolphin_handheld", "retroarch", "retroarch_64"),
         "wii" to listOf("dolphin", "dolphin_handheld"),
@@ -527,6 +527,7 @@ object EmulatorRegistry {
         "gbc" to "gambatte",
         "gba" to "mgba",
         "nds" to "melonds",
+        "3ds" to "citra",
         "genesis" to "genesis_plus_gx",
         "sms" to "genesis_plus_gx",
         "gg" to "genesis_plus_gx",
@@ -565,6 +566,7 @@ object EmulatorRegistry {
         "gbc" to listOf("gambatte", "mgba", "sameboy", "gearboy", "tgbdual"),
         "gba" to listOf("mgba", "vba", "gpsp"),
         "nds" to listOf("melonds", "desmume"),
+        "3ds" to listOf("citra"),
         "genesis" to listOf("genesis_plus_gx", "picodrive"),
         "sms" to listOf("genesis_plus_gx", "picodrive", "gearsystem"),
         "gg" to listOf("genesis_plus_gx", "gearsystem"),
@@ -635,6 +637,10 @@ object EmulatorRegistry {
             RetroArchCore("melonds", "melonDS"),
             RetroArchCore("desmume", "DeSmuME"),
             RetroArchCore("desmume2015", "DeSmuME 2015")
+        ),
+        "3ds" to listOf(
+            RetroArchCore("citra", "Citra"),
+            RetroArchCore("citra_canary", "Citra Canary")
         ),
         "genesis" to listOf(
             RetroArchCore("genesis_plus_gx", "Genesis Plus GX"),

@@ -868,7 +868,7 @@ class GameDetailViewModel @Inject constructor(
                 toggleMoreOptions()
                 if (isAndroidApp) uninstallAndroidApp() else deleteLocalFile()
             }
-            hideIdx -> { hideGame(); onBack() }
+            hideIdx -> { toggleHideGame(); onBack() }
             else -> toggleMoreOptions()
         }
     }
@@ -1177,6 +1177,11 @@ class GameDetailViewModel @Inject constructor(
         }
     }
 
+    fun selectStatus(value: String) {
+        _uiState.update { it.copy(statusPickerValue = value) }
+        confirmStatus()
+    }
+
     fun confirmStatus() {
         val state = _uiState.value
         val value = state.statusPickerValue
@@ -1196,9 +1201,14 @@ class GameDetailViewModel @Inject constructor(
         }
     }
 
-    fun hideGame() {
+    fun toggleHideGame() {
         viewModelScope.launch {
-            gameActions.hideGame(currentGameId)
+            val isHidden = _uiState.value.game?.isHidden ?: false
+            if (isHidden) {
+                gameActions.unhideGame(currentGameId)
+            } else {
+                gameActions.hideGame(currentGameId)
+            }
         }
     }
 

@@ -58,7 +58,8 @@ fun GameEntity.toGameDetailUi(
         isSteamGame = source == GameSource.STEAM,
         steamLauncherName = steamLauncherName,
         isAndroidApp = source == GameSource.ANDROID_APP || platformSlug == "android",
-        packageName = packageName
+        packageName = packageName,
+        isHidden = isHidden
     )
 }
 

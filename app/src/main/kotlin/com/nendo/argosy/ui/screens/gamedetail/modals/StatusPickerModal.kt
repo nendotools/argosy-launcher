@@ -26,6 +26,7 @@ import com.nendo.argosy.ui.components.InputButton
 fun StatusPickerModal(
     selectedValue: String?,
     currentValue: String?,
+    onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
     val effectiveSelection = selectedValue ?: CompletionStatus.entries.first().apiValue
@@ -59,7 +60,7 @@ fun StatusPickerModal(
 
                 ListItem(
                     selected = isSelected,
-                    onClick = { },
+                    onClick = { onSelect(status.apiValue) },
                     headlineContent = {
                         Text(
                             text = status.label,

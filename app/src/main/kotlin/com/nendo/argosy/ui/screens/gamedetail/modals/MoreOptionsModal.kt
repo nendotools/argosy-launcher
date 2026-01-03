@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.runtime.Composable
@@ -155,10 +156,10 @@ fun MoreOptionsModal(
         }
         val hideIdx = currentIndex
         OptionItem(
-            icon = Icons.Default.VisibilityOff,
-            label = "Hide",
+            icon = if (game.isHidden) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+            label = if (game.isHidden) "Show" else "Hide",
             isFocused = focusIndex == hideIdx,
-            isDangerous = true,
+            isDangerous = !game.isHidden,
             onClick = { onOptionSelect(hideIdx) }
         )
     }

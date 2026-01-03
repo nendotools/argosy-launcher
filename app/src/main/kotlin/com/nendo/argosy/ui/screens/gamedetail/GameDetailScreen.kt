@@ -515,6 +515,7 @@ private fun GameDetailModals(
         StatusPickerModal(
             selectedValue = uiState.statusPickerValue,
             currentValue = uiState.game?.status,
+            onSelect = viewModel::selectStatus,
             onDismiss = viewModel::dismissStatusPicker
         )
     }
