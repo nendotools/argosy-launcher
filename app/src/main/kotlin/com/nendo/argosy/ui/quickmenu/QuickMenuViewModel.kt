@@ -26,12 +26,17 @@ enum class QuickMenuOrb {
     SEARCH, RANDOM, MOST_PLAYED, TOP_UNPLAYED, RECENT, FAVORITES
 }
 
+enum class MetadataType {
+    NONE, RATING, PLAY_TIME, RELATIVE_TIME
+}
+
 data class GameRowUi(
     val id: Long,
     val title: String,
     val platformName: String,
     val coverPath: String?,
     val metadata: String,
+    val metadataType: MetadataType = MetadataType.NONE,
     val isDownloaded: Boolean
 )
 
@@ -206,25 +211,25 @@ class QuickMenuViewModel @Inject constructor(
 
     private suspend fun loadMostPlayed() {
         val games = gameDao.getPlayedGames().take(LIST_LIMIT)
-        val rows = games.map { it.toGameRowUi { formatPlayTime(it.playTimeMinutes) } }
+        val rows = games.map { it.toGameRowUi(MetadataType.PLAY_TIME) { formatPlayTime(it.playTimeMinutes) } }
         _uiState.update { it.copy(mostPlayedGames = rows) }
     }
 
     private suspend fun loadTopUnplayed() {
         val games = getTopUnplayedUseCase(LIST_LIMIT).first()
-        val rows = games.map { it.toGameRowUi { formatRating(it.rating) } }
+        val rows = games.map { it.toGameRowUi(MetadataType.RATING) { formatRating(it.rating) } }
         _uiState.update { it.copy(topUnplayedGames = rows) }
     }
 
     private suspend fun loadRecent() {
         val games = gameDao.getRecentlyPlayed(LIST_LIMIT)
-        val rows = games.map { it.toGameRowUi { formatRelativeTime(it.lastPlayed) } }
+        val rows = games.map { it.toGameRowUi(MetadataType.RELATIVE_TIME) { formatRelativeTime(it.lastPlayed) } }
         _uiState.update { it.copy(recentGames = rows) }
     }
 
     private suspend fun loadFavorites() {
         val games = gameDao.getFavorites().take(LIST_LIMIT)
-        val rows = games.map { it.toGameRowUi { "" } }
+        val rows = games.map { it.toGameRowUi(MetadataType.NONE) { "" } }
         _uiState.update { it.copy(favoriteGames = rows) }
     }
 
@@ -256,7 +261,7 @@ class QuickMenuViewModel @Inject constructor(
             val games = gameDao.getByIds(matchedIds)
             val gamesById = games.associateBy { it.id }
             val orderedGames = matchedIds.mapNotNull { gamesById[it] }
-            val rows = orderedGames.map { it.toGameRowUi { formatRating(it.rating) } }
+            val rows = orderedGames.map { it.toGameRowUi(MetadataType.RATING) { formatRating(it.rating) } }
             _uiState.update { it.copy(searchResults = rows, focusedContentIndex = 0) }
         }
     }
@@ -265,7 +270,10 @@ class QuickMenuViewModel @Inject constructor(
         searchCandidates = null
     }
 
-    private suspend fun GameEntity.toGameRowUi(metadataProvider: () -> String): GameRowUi {
+    private suspend fun GameEntity.toGameRowUi(
+        metadataType: MetadataType,
+        metadataProvider: () -> String
+    ): GameRowUi {
         val platformName = getPlatformName(platformId)
         return GameRowUi(
             id = id,
@@ -273,6 +281,7 @@ class QuickMenuViewModel @Inject constructor(
             platformName = platformName,
             coverPath = coverPath,
             metadata = metadataProvider(),
+            metadataType = metadataType,
             isDownloaded = localPath != null
         )
     }
