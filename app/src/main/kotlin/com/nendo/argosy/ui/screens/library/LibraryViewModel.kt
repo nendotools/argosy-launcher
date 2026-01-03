@@ -42,6 +42,8 @@ import com.nendo.argosy.ui.screens.gamedetail.CollectionItemUi
 import com.nendo.argosy.ui.screens.home.HomePlatformUi
 import com.nendo.argosy.ui.ModalResetSignal
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.Job
@@ -463,26 +465,32 @@ class LibraryViewModel @Inject constructor(
                 }
             }
 
-            baseFlow.collectLatest { games ->
-                val filteredGames = games.filter { game ->
-                    val matchesSearch = filters.searchQuery.isEmpty() ||
-                        game.title.contains(filters.searchQuery, ignoreCase = true)
-                    val matchesGenre = filters.genres.isEmpty() ||
-                        filters.genres.contains(game.genre)
-                    val matchesPlayers = filters.players.isEmpty() ||
-                        game.gameModes?.split(",")?.map { it.trim() }?.any { it in filters.players } == true
-                    matchesSearch && matchesGenre && matchesPlayers
+            baseFlow
+                .catch { e ->
+                    Log.e(TAG, "Error loading games, retrying: ${e.message}")
+                    kotlinx.coroutines.delay(100)
+                    emitAll(baseFlow)
                 }
+                .collectLatest { games ->
+                    val filteredGames = games.filter { game ->
+                        val matchesSearch = filters.searchQuery.isEmpty() ||
+                            game.title.contains(filters.searchQuery, ignoreCase = true)
+                        val matchesGenre = filters.genres.isEmpty() ||
+                            filters.genres.contains(game.genre)
+                        val matchesPlayers = filters.players.isEmpty() ||
+                            game.gameModes?.split(",")?.map { it.trim() }?.any { it in filters.players } == true
+                        matchesSearch && matchesGenre && matchesPlayers
+                    }
 
-                Log.d(TAG, "loadGames: ${games.size} total, ${filteredGames.size} after filters")
-                _uiState.update { uiState ->
-                    val shouldResetFocus = uiState.games.isEmpty()
-                    uiState.copy(
-                        games = filteredGames.map { it.toUi() },
-                        focusedIndex = if (shouldResetFocus) 0 else uiState.focusedIndex.coerceAtMost((filteredGames.size - 1).coerceAtLeast(0))
-                    )
+                    Log.d(TAG, "loadGames: ${games.size} total, ${filteredGames.size} after filters")
+                    _uiState.update { uiState ->
+                        val shouldResetFocus = uiState.games.isEmpty()
+                        uiState.copy(
+                            games = filteredGames.map { it.toUi() },
+                            focusedIndex = if (shouldResetFocus) 0 else uiState.focusedIndex.coerceAtMost((filteredGames.size - 1).coerceAtLeast(0))
+                        )
+                    }
                 }
-            }
         }
     }
 
