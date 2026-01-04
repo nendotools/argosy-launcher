@@ -17,7 +17,6 @@ class SettingsInputHandler(
     override fun onUp(): InputResult {
         val state = viewModel.uiState.value
 
-        // Modal priority checks
         if (state.emulators.showSavePathModal) {
             viewModel.moveSavePathModalFocus(-1)
             return InputResult.HANDLED
@@ -43,7 +42,6 @@ class SettingsInputHandler(
             return InputResult.HANDLED
         }
 
-        // Normal navigation
         if (state.currentSection == SettingsSection.EMULATORS) {
             val focusOffset = if (state.emulators.canAutoAssign) 1 else 0
             val platformIndex = state.focusedIndex - focusOffset
@@ -62,7 +60,6 @@ class SettingsInputHandler(
     override fun onDown(): InputResult {
         val state = viewModel.uiState.value
 
-        // Modal priority checks
         if (state.emulators.showSavePathModal) {
             viewModel.moveSavePathModalFocus(1)
             return InputResult.HANDLED
@@ -88,7 +85,6 @@ class SettingsInputHandler(
             return InputResult.HANDLED
         }
 
-        // Normal navigation
         if (state.currentSection == SettingsSection.EMULATORS) {
             val focusOffset = if (state.emulators.canAutoAssign) 1 else 0
             val platformIndex = state.focusedIndex - focusOffset
@@ -107,15 +103,14 @@ class SettingsInputHandler(
     override fun onLeft(): InputResult {
         val state = viewModel.uiState.value
 
-        // Modal priority - handle or block left/right in modals
         if (state.emulators.showSavePathModal) {
-            viewModel.moveSavePathModalButtonFocus(1) // Left goes to Reset (higher index, left side)
+            viewModel.moveSavePathModalButtonFocus(1)
             return InputResult.HANDLED
         }
         if (state.storage.platformSettingsModalId != null) {
             val focusIdx = state.storage.platformSettingsFocusIndex
             if (focusIdx in 1..3) {
-                viewModel.movePlatformSettingsButtonFocus(1) // Left goes to Reset
+                viewModel.movePlatformSettingsButtonFocus(1)
             }
             return InputResult.HANDLED
         }
@@ -148,7 +143,6 @@ class SettingsInputHandler(
             val showIconPadding = state.display.systemIconPosition != com.nendo.argosy.data.preferences.SystemIconPosition.OFF
             val showOuterThickness = state.display.boxArtOuterEffect != com.nendo.argosy.data.preferences.BoxArtOuterEffect.OFF
             val showInnerThickness = state.display.boxArtInnerEffect != com.nendo.argosy.data.preferences.BoxArtInnerEffect.OFF
-            // Dynamic indices: 0=Corner, 1=Thickness, 2=Style, 3?=GlassTint, N=IconPos, N+1?=IconPad, ...
             var idx = 3
             val glassTintIdx = if (showGlassTint) idx++ else -1
             val iconPosIdx = idx++
@@ -173,7 +167,6 @@ class SettingsInputHandler(
         }
 
         if (state.currentSection == SettingsSection.STORAGE) {
-            // Max Downloads slider is always at index 0 in the new layout
             if (state.focusedIndex == 0) {
                 viewModel.adjustMaxConcurrentDownloads(-1)
                 return InputResult.HANDLED
@@ -269,15 +262,14 @@ class SettingsInputHandler(
     override fun onRight(): InputResult {
         val state = viewModel.uiState.value
 
-        // Modal priority - handle or block left/right in modals
         if (state.emulators.showSavePathModal) {
-            viewModel.moveSavePathModalButtonFocus(-1) // Right goes to Change (lower index, right side)
+            viewModel.moveSavePathModalButtonFocus(-1)
             return InputResult.HANDLED
         }
         if (state.storage.platformSettingsModalId != null) {
             val focusIdx = state.storage.platformSettingsFocusIndex
             if (focusIdx in 1..3) {
-                viewModel.movePlatformSettingsButtonFocus(-1) // Right goes to Change
+                viewModel.movePlatformSettingsButtonFocus(-1)
             }
             return InputResult.HANDLED
         }
@@ -334,7 +326,6 @@ class SettingsInputHandler(
         }
 
         if (state.currentSection == SettingsSection.STORAGE) {
-            // Max Downloads slider is always at index 0 in the new layout
             if (state.focusedIndex == 0) {
                 viewModel.adjustMaxConcurrentDownloads(1)
                 return InputResult.HANDLED
@@ -493,7 +484,6 @@ class SettingsInputHandler(
     override fun onContextMenu(): InputResult {
         val state = viewModel.uiState.value
 
-        // Modal priority - block context menu in modals
         if (state.emulators.showSavePathModal ||
             state.storage.platformSettingsModalId != null ||
             state.syncSettings.showSyncFiltersModal ||

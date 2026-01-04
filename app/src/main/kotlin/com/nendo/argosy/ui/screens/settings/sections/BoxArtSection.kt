@@ -54,7 +54,6 @@ fun BoxArtSection(
     val showOuterThickness = display.boxArtOuterEffect != BoxArtOuterEffect.OFF
     val showInnerThickness = display.boxArtInnerEffect != BoxArtInnerEffect.OFF
     val showGlassTint = display.boxArtBorderStyle == BoxArtBorderStyle.GLASS
-    // Dynamic indices: 0=Corner, 1=Thickness, 2=Style, 3?=GlassTint, N=IconPos, N+1?=IconPad, ...
     var idx = 3
     val glassTintIndex = if (showGlassTint) idx++ else -1
     val iconPosIndex = idx++

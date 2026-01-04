@@ -555,14 +555,12 @@ class SettingsViewModel @Inject constructor(
 
         val newExtension = options[newIndex].extension
 
-        // Update UI immediately
         val updatedPlatforms = _uiState.value.emulators.platforms.map {
             if (it.platform.id == config.platform.id) it.copy(selectedExtension = newExtension.ifEmpty { null })
             else it
         }
         _uiState.update { it.copy(emulators = it.emulators.copy(platforms = updatedPlatforms)) }
 
-        // Persist in background
         viewModelScope.launch {
             configureEmulatorUseCase.setExtensionForPlatform(config.platform.id, newExtension.ifEmpty { null })
         }
@@ -686,7 +684,6 @@ class SettingsViewModel @Inject constructor(
             SettingsSection.SERVER -> {
                 val isConnected = state.server.connectionStatus == ConnectionStatus.ONLINE ||
                     state.server.connectionStatus == ConnectionStatus.OFFLINE
-                // Android is at: 6/4/1, Steam starts at: 7/5/2
                 val steamBaseIndex = when {
                     isConnected && state.syncSettings.saveSyncEnabled -> 7
                     isConnected -> 5
@@ -785,7 +782,6 @@ class SettingsViewModel @Inject constructor(
                 true
             }
             state.currentSection == SettingsSection.STEAM_SETTINGS -> {
-                // Steam starts at index: 7 (with save sync) or 5 (without save sync)
                 val steamIndex = if (_uiState.value.syncSettings.saveSyncEnabled) 7 else 5
                 _uiState.update { it.copy(currentSection = SettingsSection.SERVER, focusedIndex = steamIndex) }
                 true
@@ -835,8 +831,6 @@ class SettingsViewModel @Inject constructor(
                 SettingsSection.SERVER -> if (state.server.rommConfiguring) {
                     4
                 } else {
-                    // Android is at index: 6/4/1 (after save games/tracking/romm)
-                    // Steam starts at index: 7/5/2 (after Android)
                     val steamBaseIndex = when {
                         isConnected && state.syncSettings.saveSyncEnabled -> 7
                         isConnected -> 5
@@ -848,7 +842,6 @@ class SettingsViewModel @Inject constructor(
                 SettingsSection.SYNC_SETTINGS -> if (state.syncSettings.saveSyncEnabled) 4 else 3
                 SettingsSection.STEAM_SETTINGS -> 2 + state.steam.installedLaunchers.size
                 SettingsSection.STORAGE -> {
-                    // Base items: Max Downloads(0), Threshold(1), Global ROM(2), Image Cache(3), Validate Cache(4), Platforms Expand(5)
                     val baseItemCount = 6
                     val expandedPlatforms = if (state.storage.platformsExpanded) state.storage.platformConfigs.size else 0
                     (baseItemCount + expandedPlatforms - 1).coerceAtLeast(baseItemCount - 1)
@@ -860,22 +853,19 @@ class SettingsViewModel @Inject constructor(
                     val showIconPadding = state.display.systemIconPosition != com.nendo.argosy.data.preferences.SystemIconPosition.OFF
                     val showOuterThickness = state.display.boxArtOuterEffect != com.nendo.argosy.data.preferences.BoxArtOuterEffect.OFF
                     val showInnerThickness = state.display.boxArtInnerEffect != com.nendo.argosy.data.preferences.BoxArtInnerEffect.OFF
-                    // 0: Corner, 1: Thickness, 2: Style, 3?: GlassTint, N: IconPos, N+1?: IconPad, ...
                     var idx = 3
                     if (showGlassTint) idx++
-                    idx++ // IconPos
+                    idx++
                     if (showIconPadding) idx++
-                    idx++ // OuterEffect
+                    idx++
                     if (showOuterThickness) idx++
-                    idx++ // InnerEffect
+                    idx++
                     if (showInnerThickness) idx++
-                    idx - 1 // maxIndex is last valid index
+                    idx - 1
                 }
                 SettingsSection.CONTROLS -> if (state.controls.hapticEnabled) 4 else 3
                 SettingsSection.SOUNDS -> {
-                    // BGM first: toggle (0), volume (1), file (2) if enabled
                     val bgmItemCount = if (state.ambientAudio.enabled) 3 else 1
-                    // UI Sounds after: toggle, volume, sound types if enabled
                     val uiSoundsItemCount = if (state.sounds.enabled) 2 + SoundType.entries.size else 1
                     bgmItemCount + uiSoundsItemCount - 1
                 }
@@ -1801,7 +1791,6 @@ class SettingsViewModel @Inject constructor(
                         4 -> cancelRommConfig()
                     }
                 } else {
-                    // Indices: 0=RomM, 1=SyncSettings, 2=SyncLibrary, 3=AccuratePlayTime, 4=SaveCache, 5=SyncSaves, 6=Android, 7+=Steam
                     val androidBaseIndex = when {
                         isConnected && state.syncSettings.saveSyncEnabled -> 6
                         isConnected -> 4
@@ -2004,8 +1993,6 @@ class SettingsViewModel @Inject constructor(
                 if (isToggle) InputResult.handled(SoundType.TOGGLE) else InputResult.HANDLED
             }
             SettingsSection.SOUNDS -> {
-                // BGM first: 0=toggle, 1=volume, 2=file (if enabled)
-                // UI Sounds after: uiSoundsToggleIndex=toggle, +1=volume, +2+=sound types
                 val bgmItemCount = if (state.ambientAudio.enabled) 3 else 1
                 val uiSoundsToggleIndex = bgmItemCount
                 when {

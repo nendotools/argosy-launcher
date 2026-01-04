@@ -337,7 +337,6 @@ fun GameCard(
             if (useGlassBorder) {
                 val glassTintAlpha = boxArtStyle.glassBorderTintAlpha
                 val glassColorFilter = if (glassTintAlpha > 0f) {
-                    // Lerp between white (no tint) and borderColor based on alpha
                     val tintColor = lerp(Color.White, borderColor, glassTintAlpha)
                     ColorFilter.lighting(
                         multiply = tintColor,
