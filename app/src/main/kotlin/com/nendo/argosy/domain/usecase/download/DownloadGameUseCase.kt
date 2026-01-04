@@ -68,6 +68,13 @@ class DownloadGameUseCase @Inject constructor(
                 val rom = result.data
                 var fileName = rom.fileName ?: "${game.title}.rom"
 
+                if (rom.multi) {
+                    val hasExtension = fileName.contains('.')
+                    if (!hasExtension) {
+                        fileName = "$fileName.zip"
+                    }
+                }
+
                 val ext = fileName.substringAfterLast('.', "").lowercase()
                 if (ext in INVALID_ROM_EXTENSIONS) {
                     return DownloadResult.Error("Invalid ROM file type: .$ext")

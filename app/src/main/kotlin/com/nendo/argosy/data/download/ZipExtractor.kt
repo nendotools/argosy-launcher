@@ -233,19 +233,33 @@ object ZipExtractor {
         onProgress: ((bytesWritten: Long, totalBytes: Long) -> Unit)? = null
     ): ExtractedFolderRom {
         val sanitizedTitle = sanitizeFileName(gameTitle)
-        val gameFolder = File(platformDir, sanitizedTitle).apply { mkdirs() }
+        val gameFolder = File(platformDir, sanitizedTitle)
 
         Log.d(TAG, "=== Folder ROM Extraction Start ===")
         Log.d(TAG, "ZIP file: ${zipFilePath.absolutePath}")
         Log.d(TAG, "ZIP exists: ${zipFilePath.exists()}, size: ${zipFilePath.length()}")
         Log.d(TAG, "Game folder: ${gameFolder.absolutePath}")
 
+        val actualZipFile = if (zipFilePath.absolutePath == gameFolder.absolutePath) {
+            val renamedZip = File(platformDir, "${sanitizedTitle}.zip")
+            Log.d(TAG, "ZIP path collides with game folder, renaming to: ${renamedZip.absolutePath}")
+            if (!zipFilePath.renameTo(renamedZip)) {
+                zipFilePath.copyTo(renamedZip, overwrite = true)
+                zipFilePath.delete()
+            }
+            renamedZip
+        } else {
+            zipFilePath
+        }
+
+        gameFolder.mkdirs()
+
         val allFiles = mutableListOf<File>()
         val rootDiscFiles = mutableListOf<File>()
         var primaryFile: File? = null
         var existingM3u: File? = null
 
-        ZipFile(zipFilePath).use { zip ->
+        ZipFile(actualZipFile).use { zip ->
             val entries = zip.entries().toList().filter { !it.isDirectory }
             val totalBytes = entries.sumOf { it.size }
             var bytesWritten = 0L
@@ -296,6 +310,11 @@ object ZipExtractor {
                     primaryFile == null && isGameFile(extension) && isRootFile -> primaryFile = targetFile
                 }
             }
+        }
+
+        if (actualZipFile != zipFilePath && actualZipFile.exists()) {
+            Log.d(TAG, "Cleaning up renamed zip: ${actualZipFile.absolutePath}")
+            actualZipFile.delete()
         }
 
         Log.d(TAG, "=== Folder ROM Extraction Complete ===")

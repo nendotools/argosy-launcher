@@ -739,7 +739,9 @@ class DownloadManager @Inject constructor(
                 )
                 val resultPath = extracted.launchPath
                 if (File(resultPath).exists()) {
-                    targetFile.delete()
+                    if (targetFile.isFile) {
+                        targetFile.delete()
+                    }
                     resultPath
                 } else {
                     throw java.io.IOException("Extraction failed: $resultPath does not exist")
