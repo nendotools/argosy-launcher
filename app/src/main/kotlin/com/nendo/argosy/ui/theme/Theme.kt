@@ -15,6 +15,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.nendo.argosy.BuildConfig
+import com.nendo.argosy.data.preferences.BoxArtBorderStyle
+import com.nendo.argosy.data.preferences.BoxArtInnerEffect
+import com.nendo.argosy.data.preferences.BoxArtOuterEffect
 import com.nendo.argosy.data.preferences.SystemIconPosition
 import com.nendo.argosy.data.preferences.ThemeMode
 import com.nendo.argosy.ui.components.FooterStyleConfig
@@ -180,8 +183,14 @@ val LocalLauncherTheme = staticCompositionLocalOf {
 data class BoxArtStyleConfig(
     val cornerRadiusDp: Dp = 8.dp,
     val borderThicknessDp: Dp = 2.dp,
+    val borderStyle: BoxArtBorderStyle = BoxArtBorderStyle.SOLID,
+    val glassBorderTintAlpha: Float = 0f,
     val glowAlpha: Float = 0.4f,
     val isShadow: Boolean = false,
+    val outerEffect: BoxArtOuterEffect = BoxArtOuterEffect.GLOW,
+    val outerEffectThicknessPx: Float = 16f,
+    val innerEffect: BoxArtInnerEffect = BoxArtInnerEffect.SHADOW,
+    val innerEffectThicknessPx: Float = 4f,
     val systemIconPosition: SystemIconPosition = SystemIconPosition.TOP_LEFT,
     val systemIconPaddingDp: Dp = 8.dp
 )
@@ -229,8 +238,14 @@ fun ALauncherTheme(
     val boxArtStyle = BoxArtStyleConfig(
         cornerRadiusDp = themeState.boxArtCornerRadius.dp.dp,
         borderThicknessDp = themeState.boxArtBorderThickness.dp.dp,
+        borderStyle = themeState.boxArtBorderStyle,
+        glassBorderTintAlpha = themeState.glassBorderTintAlpha,
         glowAlpha = themeState.boxArtGlowStrength.alpha,
         isShadow = themeState.boxArtGlowStrength.isShadow,
+        outerEffect = themeState.boxArtOuterEffect,
+        outerEffectThicknessPx = themeState.boxArtOuterEffectThickness.px,
+        innerEffect = themeState.boxArtInnerEffect,
+        innerEffectThicknessPx = themeState.boxArtInnerEffectThickness.px,
         systemIconPosition = themeState.systemIconPosition,
         systemIconPaddingDp = themeState.systemIconPadding.dp.dp
     )

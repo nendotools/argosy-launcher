@@ -78,7 +78,13 @@ class UserPreferencesRepository @Inject constructor(
 
         val BOX_ART_CORNER_RADIUS = stringPreferencesKey("box_art_corner_radius")
         val BOX_ART_BORDER_THICKNESS = stringPreferencesKey("box_art_border_thickness")
+        val BOX_ART_BORDER_STYLE = stringPreferencesKey("box_art_border_style")
+        val GLASS_BORDER_TINT = stringPreferencesKey("glass_border_tint")
         val BOX_ART_GLOW_STRENGTH = stringPreferencesKey("box_art_glow_strength")
+        val BOX_ART_OUTER_EFFECT = stringPreferencesKey("box_art_outer_effect")
+        val BOX_ART_OUTER_EFFECT_THICKNESS = stringPreferencesKey("box_art_outer_effect_thickness")
+        val BOX_ART_INNER_EFFECT = stringPreferencesKey("box_art_inner_effect")
+        val BOX_ART_INNER_EFFECT_THICKNESS = stringPreferencesKey("box_art_inner_effect_thickness")
         val SYSTEM_ICON_POSITION = stringPreferencesKey("system_icon_position")
         val SYSTEM_ICON_PADDING = stringPreferencesKey("system_icon_padding")
         val DEFAULT_VIEW = stringPreferencesKey("default_view")
@@ -173,7 +179,13 @@ class UserPreferencesRepository @Inject constructor(
             fileLogLevel = LogLevel.fromString(prefs[Keys.FILE_LOG_LEVEL]),
             boxArtCornerRadius = BoxArtCornerRadius.fromString(prefs[Keys.BOX_ART_CORNER_RADIUS]),
             boxArtBorderThickness = BoxArtBorderThickness.fromString(prefs[Keys.BOX_ART_BORDER_THICKNESS]),
+            boxArtBorderStyle = BoxArtBorderStyle.fromString(prefs[Keys.BOX_ART_BORDER_STYLE]),
+            glassBorderTint = GlassBorderTint.fromString(prefs[Keys.GLASS_BORDER_TINT]),
             boxArtGlowStrength = BoxArtGlowStrength.fromString(prefs[Keys.BOX_ART_GLOW_STRENGTH]),
+            boxArtOuterEffect = BoxArtOuterEffect.fromString(prefs[Keys.BOX_ART_OUTER_EFFECT]),
+            boxArtOuterEffectThickness = BoxArtOuterEffectThickness.fromString(prefs[Keys.BOX_ART_OUTER_EFFECT_THICKNESS]),
+            boxArtInnerEffect = BoxArtInnerEffect.fromString(prefs[Keys.BOX_ART_INNER_EFFECT]),
+            boxArtInnerEffectThickness = BoxArtInnerEffectThickness.fromString(prefs[Keys.BOX_ART_INNER_EFFECT_THICKNESS]),
             systemIconPosition = SystemIconPosition.fromString(prefs[Keys.SYSTEM_ICON_POSITION]),
             systemIconPadding = SystemIconPadding.fromString(prefs[Keys.SYSTEM_ICON_PADDING]),
             defaultView = DefaultView.fromString(prefs[Keys.DEFAULT_VIEW]),
@@ -575,9 +587,45 @@ class UserPreferencesRepository @Inject constructor(
         }
     }
 
+    suspend fun setBoxArtBorderStyle(style: BoxArtBorderStyle) {
+        dataStore.edit { prefs ->
+            prefs[Keys.BOX_ART_BORDER_STYLE] = style.name
+        }
+    }
+
+    suspend fun setGlassBorderTint(tint: GlassBorderTint) {
+        dataStore.edit { prefs ->
+            prefs[Keys.GLASS_BORDER_TINT] = tint.name
+        }
+    }
+
     suspend fun setBoxArtGlowStrength(strength: BoxArtGlowStrength) {
         dataStore.edit { prefs ->
             prefs[Keys.BOX_ART_GLOW_STRENGTH] = strength.name
+        }
+    }
+
+    suspend fun setBoxArtOuterEffect(effect: BoxArtOuterEffect) {
+        dataStore.edit { prefs ->
+            prefs[Keys.BOX_ART_OUTER_EFFECT] = effect.name
+        }
+    }
+
+    suspend fun setBoxArtOuterEffectThickness(thickness: BoxArtOuterEffectThickness) {
+        dataStore.edit { prefs ->
+            prefs[Keys.BOX_ART_OUTER_EFFECT_THICKNESS] = thickness.name
+        }
+    }
+
+    suspend fun setBoxArtInnerEffect(effect: BoxArtInnerEffect) {
+        dataStore.edit { prefs ->
+            prefs[Keys.BOX_ART_INNER_EFFECT] = effect.name
+        }
+    }
+
+    suspend fun setBoxArtInnerEffectThickness(thickness: BoxArtInnerEffectThickness) {
+        dataStore.edit { prefs ->
+            prefs[Keys.BOX_ART_INNER_EFFECT_THICKNESS] = thickness.name
         }
     }
 
@@ -754,7 +802,13 @@ data class UserPreferences(
     val fileLogLevel: LogLevel = LogLevel.INFO,
     val boxArtCornerRadius: BoxArtCornerRadius = BoxArtCornerRadius.MEDIUM,
     val boxArtBorderThickness: BoxArtBorderThickness = BoxArtBorderThickness.MEDIUM,
+    val boxArtBorderStyle: BoxArtBorderStyle = BoxArtBorderStyle.SOLID,
+    val glassBorderTint: GlassBorderTint = GlassBorderTint.OFF,
     val boxArtGlowStrength: BoxArtGlowStrength = BoxArtGlowStrength.MEDIUM,
+    val boxArtOuterEffect: BoxArtOuterEffect = BoxArtOuterEffect.GLOW,
+    val boxArtOuterEffectThickness: BoxArtOuterEffectThickness = BoxArtOuterEffectThickness.MEDIUM,
+    val boxArtInnerEffect: BoxArtInnerEffect = BoxArtInnerEffect.SHADOW,
+    val boxArtInnerEffectThickness: BoxArtInnerEffectThickness = BoxArtInnerEffectThickness.MEDIUM,
     val systemIconPosition: SystemIconPosition = SystemIconPosition.TOP_LEFT,
     val systemIconPadding: SystemIconPadding = SystemIconPadding.MEDIUM,
     val defaultView: DefaultView = DefaultView.SHOWCASE,
@@ -824,6 +878,24 @@ enum class BoxArtBorderThickness(val dp: Int) {
     }
 }
 
+enum class BoxArtBorderStyle {
+    SOLID, GLASS, GRADIENT;
+
+    companion object {
+        fun fromString(value: String?): BoxArtBorderStyle =
+            entries.find { it.name == value } ?: SOLID
+    }
+}
+
+enum class GlassBorderTint(val alpha: Float) {
+    OFF(0f), TINT_5(0.05f), TINT_10(0.10f), TINT_15(0.15f), TINT_20(0.20f), TINT_25(0.25f);
+
+    companion object {
+        fun fromString(value: String?): GlassBorderTint =
+            entries.find { it.name == value } ?: OFF
+    }
+}
+
 enum class BoxArtGlowStrength(val alpha: Float, val isShadow: Boolean = false) {
     OFF(0f),
     LOW(0.2f),
@@ -865,5 +937,41 @@ enum class DefaultView {
             "LIBRARY" -> LIBRARY
             else -> SHOWCASE
         }
+    }
+}
+
+enum class BoxArtInnerEffect {
+    OFF, GLOW, SHADOW, GLASS, SHINE;
+
+    companion object {
+        fun fromString(value: String?): BoxArtInnerEffect =
+            entries.find { it.name == value } ?: SHADOW
+    }
+}
+
+enum class BoxArtInnerEffectThickness(val px: Float) {
+    THIN(3f), MEDIUM(8f), THICK(16f);
+
+    companion object {
+        fun fromString(value: String?): BoxArtInnerEffectThickness =
+            entries.find { it.name == value } ?: MEDIUM
+    }
+}
+
+enum class BoxArtOuterEffect {
+    OFF, GLOW, SHADOW, SHINE;
+
+    companion object {
+        fun fromString(value: String?): BoxArtOuterEffect =
+            entries.find { it.name == value } ?: GLOW
+    }
+}
+
+enum class BoxArtOuterEffectThickness(val px: Float) {
+    THIN(8f), MEDIUM(16f), THICK(24f);
+
+    companion object {
+        fun fromString(value: String?): BoxArtOuterEffectThickness =
+            entries.find { it.name == value } ?: MEDIUM
     }
 }

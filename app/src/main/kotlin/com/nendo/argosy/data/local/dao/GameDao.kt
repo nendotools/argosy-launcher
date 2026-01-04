@@ -428,6 +428,16 @@ interface GameDao {
         AND (status IS NULL OR status NOT IN ('retired', 'never_playing'))
     """)
     suspend fun getSearchCandidates(): List<SearchCandidate>
+
+    @Query("""
+        SELECT id, platformId, platformSlug, title, sortTitle, localPath, source, coverPath,
+               isFavorite, isHidden, isMultiDisc, rommId, steamAppId, packageName,
+               playCount, playTimeMinutes, lastPlayed, genre, gameModes
+        FROM games
+        WHERE coverPath LIKE '/%' AND isHidden = 0
+        LIMIT 1
+    """)
+    suspend fun getFirstGameWithCover(): GameListItem?
 }
 
 data class SearchCandidate(

@@ -21,6 +21,7 @@ coroutines = "1.9.0"
 mockk = "1.13.14"
 tvFoundation = "1.0.0-alpha11"
 tvMaterial = "1.0.0"
+palette = "1.0.0"
 
 [libraries]
 # Core Android
@@ -69,6 +70,9 @@ moshi-kotlin = { group = "com.squareup.moshi", name = "moshi-kotlin-codegen", ve
 
 # Image loading
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+
+# Color extraction
+androidx-palette = { group = "androidx.palette", name = "palette-ktx", version.ref = "palette" }
 
 # Background work
 work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workManager" }

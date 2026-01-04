@@ -144,13 +144,30 @@ class SettingsInputHandler(
         }
 
         if (state.currentSection == SettingsSection.BOX_ART) {
+            val showGlassTint = state.display.boxArtBorderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GLASS
             val showIconPadding = state.display.systemIconPosition != com.nendo.argosy.data.preferences.SystemIconPosition.OFF
+            val showOuterThickness = state.display.boxArtOuterEffect != com.nendo.argosy.data.preferences.BoxArtOuterEffect.OFF
+            val showInnerThickness = state.display.boxArtInnerEffect != com.nendo.argosy.data.preferences.BoxArtInnerEffect.OFF
+            // Dynamic indices: 0=Corner, 1=Thickness, 2=Style, 3?=GlassTint, N=IconPos, N+1?=IconPad, ...
+            var idx = 3
+            val glassTintIdx = if (showGlassTint) idx++ else -1
+            val iconPosIdx = idx++
+            val iconPadIdx = if (showIconPadding) idx++ else -1
+            val outerEffectIdx = idx++
+            val outerThicknessIdx = if (showOuterThickness) idx++ else -1
+            val innerEffectIdx = idx++
+            val innerThicknessIdx = if (showInnerThickness) idx++ else -1
             when (state.focusedIndex) {
                 0 -> viewModel.cycleBoxArtCornerRadius(-1)
                 1 -> viewModel.cycleBoxArtBorderThickness(-1)
-                2 -> viewModel.cycleBoxArtGlowStrength(-1)
-                3 -> viewModel.cycleSystemIconPosition(-1)
-                4 -> if (showIconPadding) viewModel.cycleSystemIconPadding(-1)
+                2 -> viewModel.cycleBoxArtBorderStyle(-1)
+                glassTintIdx -> viewModel.cycleGlassBorderTint(-1)
+                iconPosIdx -> viewModel.cycleSystemIconPosition(-1)
+                iconPadIdx -> viewModel.cycleSystemIconPadding(-1)
+                outerEffectIdx -> viewModel.cycleBoxArtOuterEffect(-1)
+                outerThicknessIdx -> viewModel.cycleBoxArtOuterEffectThickness(-1)
+                innerEffectIdx -> viewModel.cycleBoxArtInnerEffect(-1)
+                innerThicknessIdx -> viewModel.cycleBoxArtInnerEffectThickness(-1)
             }
             return InputResult.HANDLED
         }
@@ -289,13 +306,29 @@ class SettingsInputHandler(
         }
 
         if (state.currentSection == SettingsSection.BOX_ART) {
+            val showGlassTint = state.display.boxArtBorderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GLASS
             val showIconPadding = state.display.systemIconPosition != com.nendo.argosy.data.preferences.SystemIconPosition.OFF
+            val showOuterThickness = state.display.boxArtOuterEffect != com.nendo.argosy.data.preferences.BoxArtOuterEffect.OFF
+            val showInnerThickness = state.display.boxArtInnerEffect != com.nendo.argosy.data.preferences.BoxArtInnerEffect.OFF
+            var idx = 3
+            val glassTintIdx = if (showGlassTint) idx++ else -1
+            val iconPosIdx = idx++
+            val iconPadIdx = if (showIconPadding) idx++ else -1
+            val outerEffectIdx = idx++
+            val outerThicknessIdx = if (showOuterThickness) idx++ else -1
+            val innerEffectIdx = idx++
+            val innerThicknessIdx = if (showInnerThickness) idx++ else -1
             when (state.focusedIndex) {
                 0 -> viewModel.cycleBoxArtCornerRadius(1)
                 1 -> viewModel.cycleBoxArtBorderThickness(1)
-                2 -> viewModel.cycleBoxArtGlowStrength(1)
-                3 -> viewModel.cycleSystemIconPosition(1)
-                4 -> if (showIconPadding) viewModel.cycleSystemIconPadding(1)
+                2 -> viewModel.cycleBoxArtBorderStyle(1)
+                glassTintIdx -> viewModel.cycleGlassBorderTint(1)
+                iconPosIdx -> viewModel.cycleSystemIconPosition(1)
+                iconPadIdx -> viewModel.cycleSystemIconPadding(1)
+                outerEffectIdx -> viewModel.cycleBoxArtOuterEffect(1)
+                outerThicknessIdx -> viewModel.cycleBoxArtOuterEffectThickness(1)
+                innerEffectIdx -> viewModel.cycleBoxArtInnerEffect(1)
+                innerThicknessIdx -> viewModel.cycleBoxArtInnerEffectThickness(1)
             }
             return InputResult.HANDLED
         }

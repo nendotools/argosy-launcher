@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nendo.argosy.data.platform.PlatformDefinitions
+import com.nendo.argosy.data.preferences.BoxArtBorderStyle
 import com.nendo.argosy.data.preferences.SystemIconPosition
 import com.nendo.argosy.ui.theme.LocalBoxArtStyle
 
@@ -124,7 +125,12 @@ fun PlatformBadge(
     val horizontalPadding = (BASE_HORIZONTAL_PADDING_DP + userPadding + borderPadding) * scale
     val verticalPadding = (BASE_VERTICAL_PADDING_DP + userPadding / 2 + borderPadding / 2) * scale
 
-    val primaryColor = MaterialTheme.colorScheme.primary
+    val badgeColor = when {
+        isFocused && boxArtStyle.borderStyle != BoxArtBorderStyle.SOLID -> Color.Transparent
+        boxArtStyle.borderStyle != BoxArtBorderStyle.SOLID -> Color.Black.copy(alpha = 0.6f)
+        else -> MaterialTheme.colorScheme.primary
+    }
+    val textColor = Color.White
     val borderOffset = if (isFocused) boxArtStyle.borderThicknessDp else 0.dp
     val isExtremeCase = isFocused && boxArtStyle.borderThicknessDp >= 4.dp && userPadding <= 1.dp
     val earSize = if (isExtremeCase) cornerRadius - boxArtStyle.borderThicknessDp / 2 else cornerRadius
@@ -136,7 +142,7 @@ fun PlatformBadge(
                     Box(
                         modifier = Modifier
                             .clip(badgeShape)
-                            .background(primaryColor)
+                            .background(badgeColor)
                             .padding(horizontal = horizontalPadding, vertical = verticalPadding),
                         contentAlignment = Alignment.Center
                     ) {
@@ -144,7 +150,7 @@ fun PlatformBadge(
                             text = shortName,
                             fontSize = fontSize,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White,
+                            color = textColor,
                             lineHeight = fontSize
                         )
                     }
@@ -153,7 +159,7 @@ fun PlatformBadge(
                             .offset(x = (-1).dp, y = borderOffset - 1.dp)
                             .size(earSize)
                             .clip(remember(cornerRadius) { CurvedEarShape(cornerRadius, EarPosition.TOP_LEFT_RIGHT) })
-                            .background(primaryColor)
+                            .background(badgeColor)
                     )
                 }
                 Row {
@@ -162,7 +168,7 @@ fun PlatformBadge(
                             .offset(x = borderOffset - 1.dp, y = (-1).dp)
                             .size(earSize)
                             .clip(remember(cornerRadius) { CurvedEarShape(cornerRadius, EarPosition.TOP_LEFT_BOTTOM) })
-                            .background(primaryColor)
+                            .background(badgeColor)
                     )
                 }
             }
@@ -175,12 +181,12 @@ fun PlatformBadge(
                             .offset(x = 1.dp, y = borderOffset - 1.dp)
                             .size(earSize)
                             .clip(remember(cornerRadius) { CurvedEarShape(cornerRadius, EarPosition.TOP_RIGHT_LEFT) })
-                            .background(primaryColor)
+                            .background(badgeColor)
                     )
                     Box(
                         modifier = Modifier
                             .clip(badgeShape)
-                            .background(primaryColor)
+                            .background(badgeColor)
                             .padding(horizontal = horizontalPadding, vertical = verticalPadding),
                         contentAlignment = Alignment.Center
                     ) {
@@ -188,7 +194,7 @@ fun PlatformBadge(
                             text = shortName,
                             fontSize = fontSize,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White,
+                            color = textColor,
                             lineHeight = fontSize
                         )
                     }
@@ -199,7 +205,7 @@ fun PlatformBadge(
                             .offset(x = -(borderOffset - 1.dp), y = (-1).dp)
                             .size(earSize)
                             .clip(remember(cornerRadius) { CurvedEarShape(cornerRadius, EarPosition.TOP_RIGHT_BOTTOM) })
-                            .background(primaryColor)
+                            .background(badgeColor)
                     )
                 }
             }
@@ -208,7 +214,7 @@ fun PlatformBadge(
             Box(
                 modifier = modifier
                     .clip(badgeShape)
-                    .background(primaryColor)
+                    .background(badgeColor)
                     .padding(horizontal = horizontalPadding, vertical = verticalPadding),
                 contentAlignment = Alignment.Center
             ) {
@@ -216,7 +222,7 @@ fun PlatformBadge(
                     text = shortName,
                     fontSize = fontSize,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = textColor,
                     lineHeight = fontSize
                 )
             }

@@ -4,10 +4,17 @@ import com.nendo.argosy.data.emulator.EmulatorDef
 import com.nendo.argosy.data.emulator.ExtensionOption
 import com.nendo.argosy.data.emulator.InstalledEmulator
 import com.nendo.argosy.data.emulator.RetroArchCore
+import com.nendo.argosy.data.local.entity.GameListItem
 import com.nendo.argosy.data.local.entity.PlatformEntity
+import com.nendo.argosy.data.preferences.BoxArtBorderStyle
 import com.nendo.argosy.data.preferences.BoxArtBorderThickness
 import com.nendo.argosy.data.preferences.BoxArtCornerRadius
 import com.nendo.argosy.data.preferences.BoxArtGlowStrength
+import com.nendo.argosy.data.preferences.BoxArtInnerEffect
+import com.nendo.argosy.data.preferences.GlassBorderTint
+import com.nendo.argosy.data.preferences.BoxArtInnerEffectThickness
+import com.nendo.argosy.data.preferences.BoxArtOuterEffect
+import com.nendo.argosy.data.preferences.BoxArtOuterEffectThickness
 import com.nendo.argosy.data.preferences.DefaultView
 import com.nendo.argosy.data.preferences.GridDensity
 import com.nendo.argosy.data.preferences.HapticIntensity
@@ -105,7 +112,13 @@ data class DisplayState(
     val useAccentColorFooter: Boolean = false,
     val boxArtCornerRadius: BoxArtCornerRadius = BoxArtCornerRadius.MEDIUM,
     val boxArtBorderThickness: BoxArtBorderThickness = BoxArtBorderThickness.MEDIUM,
+    val boxArtBorderStyle: BoxArtBorderStyle = BoxArtBorderStyle.SOLID,
+    val glassBorderTint: GlassBorderTint = GlassBorderTint.OFF,
     val boxArtGlowStrength: BoxArtGlowStrength = BoxArtGlowStrength.MEDIUM,
+    val boxArtOuterEffect: BoxArtOuterEffect = BoxArtOuterEffect.GLOW,
+    val boxArtOuterEffectThickness: BoxArtOuterEffectThickness = BoxArtOuterEffectThickness.MEDIUM,
+    val boxArtInnerEffect: BoxArtInnerEffect = BoxArtInnerEffect.SHADOW,
+    val boxArtInnerEffectThickness: BoxArtInnerEffectThickness = BoxArtInnerEffectThickness.MEDIUM,
     val systemIconPosition: SystemIconPosition = SystemIconPosition.TOP_LEFT,
     val systemIconPadding: SystemIconPadding = SystemIconPadding.MEDIUM,
     val defaultView: DefaultView = DefaultView.SHOWCASE
@@ -404,5 +417,6 @@ data class SettingsUiState(
     val fileLoggingEnabled: Boolean = false,
     val fileLoggingPath: String? = null,
     val fileLogLevel: LogLevel = LogLevel.INFO,
-    val boxArtPreviewRatio: BoxArtPreviewRatio = BoxArtPreviewRatio.VERTICAL_3_4
+    val boxArtPreviewRatio: BoxArtPreviewRatio = BoxArtPreviewRatio.VERTICAL_3_4,
+    val previewGame: GameListItem? = null
 )

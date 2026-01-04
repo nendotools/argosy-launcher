@@ -140,6 +140,7 @@ class SettingsViewModel @Inject constructor(
         observeDelegateEvents()
         observeModalResetSignal()
         loadSettings()
+        displayDelegate.loadPreviewGame(viewModelScope)
     }
 
     private fun observeModalResetSignal() {
@@ -160,6 +161,10 @@ class SettingsViewModel @Inject constructor(
     private fun observeDelegateStates() {
         displayDelegate.state.onEach { display ->
             _uiState.update { it.copy(display = display, colorFocusIndex = displayDelegate.colorFocusIndex) }
+        }.launchIn(viewModelScope)
+
+        displayDelegate.previewGame.onEach { previewGame ->
+            _uiState.update { it.copy(previewGame = previewGame) }
         }.launchIn(viewModelScope)
 
         controlsDelegate.state.onEach { controls ->
@@ -367,7 +372,13 @@ class SettingsViewModel @Inject constructor(
                 useAccentColorFooter = prefs.useAccentColorFooter,
                 boxArtCornerRadius = prefs.boxArtCornerRadius,
                 boxArtBorderThickness = prefs.boxArtBorderThickness,
+                boxArtBorderStyle = prefs.boxArtBorderStyle,
+                glassBorderTint = prefs.glassBorderTint,
                 boxArtGlowStrength = prefs.boxArtGlowStrength,
+                boxArtOuterEffect = prefs.boxArtOuterEffect,
+                boxArtOuterEffectThickness = prefs.boxArtOuterEffectThickness,
+                boxArtInnerEffect = prefs.boxArtInnerEffect,
+                boxArtInnerEffectThickness = prefs.boxArtInnerEffectThickness,
                 systemIconPosition = prefs.systemIconPosition,
                 systemIconPadding = prefs.systemIconPadding,
                 defaultView = prefs.defaultView
@@ -845,8 +856,20 @@ class SettingsViewModel @Inject constructor(
                 SettingsSection.DISPLAY -> 8
                 SettingsSection.HOME_SCREEN -> if (state.display.useGameBackground) 4 else 5
                 SettingsSection.BOX_ART -> {
+                    val showGlassTint = state.display.boxArtBorderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GLASS
                     val showIconPadding = state.display.systemIconPosition != com.nendo.argosy.data.preferences.SystemIconPosition.OFF
-                    if (showIconPadding) 4 else 3
+                    val showOuterThickness = state.display.boxArtOuterEffect != com.nendo.argosy.data.preferences.BoxArtOuterEffect.OFF
+                    val showInnerThickness = state.display.boxArtInnerEffect != com.nendo.argosy.data.preferences.BoxArtInnerEffect.OFF
+                    // 0: Corner, 1: Thickness, 2: Style, 3?: GlassTint, N: IconPos, N+1?: IconPad, ...
+                    var idx = 3
+                    if (showGlassTint) idx++
+                    idx++ // IconPos
+                    if (showIconPadding) idx++
+                    idx++ // OuterEffect
+                    if (showOuterThickness) idx++
+                    idx++ // InnerEffect
+                    if (showInnerThickness) idx++
+                    idx - 1 // maxIndex is last valid index
                 }
                 SettingsSection.CONTROLS -> if (state.controls.hapticEnabled) 4 else 3
                 SettingsSection.SOUNDS -> {
@@ -985,8 +1008,24 @@ class SettingsViewModel @Inject constructor(
         displayDelegate.cycleBoxArtBorderThickness(viewModelScope, direction)
     }
 
+    fun cycleBoxArtBorderStyle(direction: Int = 1) {
+        displayDelegate.cycleBoxArtBorderStyle(viewModelScope, direction)
+    }
+
+    fun cycleGlassBorderTint(direction: Int = 1) {
+        displayDelegate.cycleGlassBorderTint(viewModelScope, direction)
+    }
+
     fun cycleBoxArtGlowStrength(direction: Int = 1) {
         displayDelegate.cycleBoxArtGlowStrength(viewModelScope, direction)
+    }
+
+    fun cycleBoxArtOuterEffect(direction: Int = 1) {
+        displayDelegate.cycleBoxArtOuterEffect(viewModelScope, direction)
+    }
+
+    fun cycleBoxArtOuterEffectThickness(direction: Int = 1) {
+        displayDelegate.cycleBoxArtOuterEffectThickness(viewModelScope, direction)
     }
 
     fun cycleSystemIconPosition(direction: Int = 1) {
@@ -995,6 +1034,14 @@ class SettingsViewModel @Inject constructor(
 
     fun cycleSystemIconPadding(direction: Int = 1) {
         displayDelegate.cycleSystemIconPadding(viewModelScope, direction)
+    }
+
+    fun cycleBoxArtInnerEffect(direction: Int = 1) {
+        displayDelegate.cycleBoxArtInnerEffect(viewModelScope, direction)
+    }
+
+    fun cycleBoxArtInnerEffectThickness(direction: Int = 1) {
+        displayDelegate.cycleBoxArtInnerEffectThickness(viewModelScope, direction)
     }
 
     fun cycleDefaultView() {
@@ -1907,13 +1954,29 @@ class SettingsViewModel @Inject constructor(
                 InputResult.HANDLED
             }
             SettingsSection.BOX_ART -> {
+                val showGlassTint = state.display.boxArtBorderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GLASS
                 val showIconPadding = state.display.systemIconPosition != com.nendo.argosy.data.preferences.SystemIconPosition.OFF
+                val showOuterThickness = state.display.boxArtOuterEffect != com.nendo.argosy.data.preferences.BoxArtOuterEffect.OFF
+                val showInnerThickness = state.display.boxArtInnerEffect != com.nendo.argosy.data.preferences.BoxArtInnerEffect.OFF
+                var idx = 3
+                val glassTintIdx = if (showGlassTint) idx++ else -1
+                val iconPosIdx = idx++
+                val iconPadIdx = if (showIconPadding) idx++ else -1
+                val outerEffectIdx = idx++
+                val outerThicknessIdx = if (showOuterThickness) idx++ else -1
+                val innerEffectIdx = idx++
+                val innerThicknessIdx = if (showInnerThickness) idx++ else -1
                 when (state.focusedIndex) {
                     0 -> cycleBoxArtCornerRadius()
                     1 -> cycleBoxArtBorderThickness()
-                    2 -> cycleBoxArtGlowStrength()
-                    3 -> cycleSystemIconPosition()
-                    4 -> if (showIconPadding) cycleSystemIconPadding()
+                    2 -> cycleBoxArtBorderStyle()
+                    glassTintIdx -> cycleGlassBorderTint()
+                    iconPosIdx -> cycleSystemIconPosition()
+                    iconPadIdx -> cycleSystemIconPadding()
+                    outerEffectIdx -> cycleBoxArtOuterEffect()
+                    outerThicknessIdx -> cycleBoxArtOuterEffectThickness()
+                    innerEffectIdx -> cycleBoxArtInnerEffect()
+                    innerThicknessIdx -> cycleBoxArtInnerEffectThickness()
                 }
                 InputResult.HANDLED
             }

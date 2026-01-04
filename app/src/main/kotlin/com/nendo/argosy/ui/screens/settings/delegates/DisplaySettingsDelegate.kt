@@ -1,15 +1,23 @@
 package com.nendo.argosy.ui.screens.settings.delegates
 
 import androidx.core.graphics.ColorUtils
+import com.nendo.argosy.data.preferences.BoxArtBorderStyle
 import com.nendo.argosy.data.preferences.BoxArtBorderThickness
 import com.nendo.argosy.data.preferences.BoxArtCornerRadius
 import com.nendo.argosy.data.preferences.BoxArtGlowStrength
+import com.nendo.argosy.data.preferences.BoxArtInnerEffect
+import com.nendo.argosy.data.preferences.GlassBorderTint
+import com.nendo.argosy.data.preferences.BoxArtInnerEffectThickness
+import com.nendo.argosy.data.preferences.BoxArtOuterEffect
+import com.nendo.argosy.data.preferences.BoxArtOuterEffectThickness
 import com.nendo.argosy.data.preferences.DefaultView
 import com.nendo.argosy.data.preferences.GridDensity
 import com.nendo.argosy.data.preferences.SystemIconPadding
 import com.nendo.argosy.data.preferences.SystemIconPosition
 import com.nendo.argosy.data.preferences.ThemeMode
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
+import com.nendo.argosy.data.local.dao.GameDao
+import com.nendo.argosy.data.local.entity.GameListItem
 import com.nendo.argosy.ui.screens.settings.DisplayState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -23,7 +31,8 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 class DisplaySettingsDelegate @Inject constructor(
-    private val preferencesRepository: UserPreferencesRepository
+    private val preferencesRepository: UserPreferencesRepository,
+    private val gameDao: GameDao
 ) {
     private val _state = MutableStateFlow(DisplayState())
     val state: StateFlow<DisplayState> = _state.asStateFlow()
@@ -31,9 +40,18 @@ class DisplaySettingsDelegate @Inject constructor(
     private val _openBackgroundPickerEvent = MutableSharedFlow<Unit>()
     val openBackgroundPickerEvent: SharedFlow<Unit> = _openBackgroundPickerEvent.asSharedFlow()
 
+    private val _previewGame = MutableStateFlow<GameListItem?>(null)
+    val previewGame: StateFlow<GameListItem?> = _previewGame.asStateFlow()
+
     private val colorCount = 7
     private var _colorFocusIndex = 0
     val colorFocusIndex: Int get() = _colorFocusIndex
+
+    fun loadPreviewGame(scope: CoroutineScope) {
+        scope.launch {
+            _previewGame.value = gameDao.getFirstGameWithCover()
+        }
+    }
 
     fun updateState(newState: DisplayState) {
         _state.value = newState
@@ -195,6 +213,26 @@ class DisplaySettingsDelegate @Inject constructor(
         }
     }
 
+    fun cycleBoxArtBorderStyle(scope: CoroutineScope, direction: Int = 1) {
+        val current = _state.value.boxArtBorderStyle
+        val values = BoxArtBorderStyle.entries
+        val next = values[(values.indexOf(current) + direction).mod(values.size)]
+        scope.launch {
+            preferencesRepository.setBoxArtBorderStyle(next)
+            _state.update { it.copy(boxArtBorderStyle = next) }
+        }
+    }
+
+    fun cycleGlassBorderTint(scope: CoroutineScope, direction: Int = 1) {
+        val current = _state.value.glassBorderTint
+        val values = GlassBorderTint.entries
+        val next = values[(values.indexOf(current) + direction).mod(values.size)]
+        scope.launch {
+            preferencesRepository.setGlassBorderTint(next)
+            _state.update { it.copy(glassBorderTint = next) }
+        }
+    }
+
     fun cycleBoxArtGlowStrength(scope: CoroutineScope, direction: Int = 1) {
         val current = _state.value.boxArtGlowStrength
         val values = BoxArtGlowStrength.entries
@@ -202,6 +240,26 @@ class DisplaySettingsDelegate @Inject constructor(
         scope.launch {
             preferencesRepository.setBoxArtGlowStrength(next)
             _state.update { it.copy(boxArtGlowStrength = next) }
+        }
+    }
+
+    fun cycleBoxArtOuterEffect(scope: CoroutineScope, direction: Int = 1) {
+        val current = _state.value.boxArtOuterEffect
+        val values = BoxArtOuterEffect.entries
+        val next = values[(values.indexOf(current) + direction).mod(values.size)]
+        scope.launch {
+            preferencesRepository.setBoxArtOuterEffect(next)
+            _state.update { it.copy(boxArtOuterEffect = next) }
+        }
+    }
+
+    fun cycleBoxArtOuterEffectThickness(scope: CoroutineScope, direction: Int = 1) {
+        val current = _state.value.boxArtOuterEffectThickness
+        val values = BoxArtOuterEffectThickness.entries
+        val next = values[(values.indexOf(current) + direction).mod(values.size)]
+        scope.launch {
+            preferencesRepository.setBoxArtOuterEffectThickness(next)
+            _state.update { it.copy(boxArtOuterEffectThickness = next) }
         }
     }
 
@@ -222,6 +280,26 @@ class DisplaySettingsDelegate @Inject constructor(
         scope.launch {
             preferencesRepository.setSystemIconPadding(next)
             _state.update { it.copy(systemIconPadding = next) }
+        }
+    }
+
+    fun cycleBoxArtInnerEffect(scope: CoroutineScope, direction: Int = 1) {
+        val current = _state.value.boxArtInnerEffect
+        val values = BoxArtInnerEffect.entries
+        val next = values[(values.indexOf(current) + direction).mod(values.size)]
+        scope.launch {
+            preferencesRepository.setBoxArtInnerEffect(next)
+            _state.update { it.copy(boxArtInnerEffect = next) }
+        }
+    }
+
+    fun cycleBoxArtInnerEffectThickness(scope: CoroutineScope, direction: Int = 1) {
+        val current = _state.value.boxArtInnerEffectThickness
+        val values = BoxArtInnerEffectThickness.entries
+        val next = values[(values.indexOf(current) + direction).mod(values.size)]
+        scope.launch {
+            preferencesRepository.setBoxArtInnerEffectThickness(next)
+            _state.update { it.copy(boxArtInnerEffectThickness = next) }
         }
     }
 

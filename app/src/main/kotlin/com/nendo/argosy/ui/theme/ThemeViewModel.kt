@@ -2,9 +2,14 @@ package com.nendo.argosy.ui.theme
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nendo.argosy.data.preferences.BoxArtBorderStyle
 import com.nendo.argosy.data.preferences.BoxArtBorderThickness
 import com.nendo.argosy.data.preferences.BoxArtCornerRadius
 import com.nendo.argosy.data.preferences.BoxArtGlowStrength
+import com.nendo.argosy.data.preferences.BoxArtInnerEffect
+import com.nendo.argosy.data.preferences.BoxArtInnerEffectThickness
+import com.nendo.argosy.data.preferences.BoxArtOuterEffect
+import com.nendo.argosy.data.preferences.BoxArtOuterEffectThickness
 import com.nendo.argosy.data.preferences.SystemIconPadding
 import com.nendo.argosy.data.preferences.SystemIconPosition
 import com.nendo.argosy.data.preferences.ThemeMode
@@ -24,7 +29,13 @@ data class ThemeState(
     val tertiaryColor: Int? = null,
     val boxArtCornerRadius: BoxArtCornerRadius = BoxArtCornerRadius.MEDIUM,
     val boxArtBorderThickness: BoxArtBorderThickness = BoxArtBorderThickness.MEDIUM,
+    val boxArtBorderStyle: BoxArtBorderStyle = BoxArtBorderStyle.SOLID,
+    val glassBorderTintAlpha: Float = 0f,
     val boxArtGlowStrength: BoxArtGlowStrength = BoxArtGlowStrength.MEDIUM,
+    val boxArtOuterEffect: BoxArtOuterEffect = BoxArtOuterEffect.GLOW,
+    val boxArtOuterEffectThickness: BoxArtOuterEffectThickness = BoxArtOuterEffectThickness.MEDIUM,
+    val boxArtInnerEffect: BoxArtInnerEffect = BoxArtInnerEffect.SHADOW,
+    val boxArtInnerEffectThickness: BoxArtInnerEffectThickness = BoxArtInnerEffectThickness.MEDIUM,
     val systemIconPosition: SystemIconPosition = SystemIconPosition.TOP_LEFT,
     val systemIconPadding: SystemIconPadding = SystemIconPadding.MEDIUM,
     val useAccentColorFooter: Boolean = false
@@ -44,7 +55,13 @@ class ThemeViewModel @Inject constructor(
                 tertiaryColor = prefs.tertiaryColor,
                 boxArtCornerRadius = prefs.boxArtCornerRadius,
                 boxArtBorderThickness = prefs.boxArtBorderThickness,
+                boxArtBorderStyle = prefs.boxArtBorderStyle,
+                glassBorderTintAlpha = prefs.glassBorderTint.alpha,
                 boxArtGlowStrength = prefs.boxArtGlowStrength,
+                boxArtOuterEffect = prefs.boxArtOuterEffect,
+                boxArtOuterEffectThickness = prefs.boxArtOuterEffectThickness,
+                boxArtInnerEffect = prefs.boxArtInnerEffect,
+                boxArtInnerEffectThickness = prefs.boxArtInnerEffectThickness,
                 systemIconPosition = prefs.systemIconPosition,
                 systemIconPadding = prefs.systemIconPadding,
                 useAccentColorFooter = prefs.useAccentColorFooter

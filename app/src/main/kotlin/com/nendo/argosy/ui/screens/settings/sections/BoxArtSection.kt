@@ -21,9 +21,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.nendo.argosy.data.preferences.BoxArtBorderStyle
 import com.nendo.argosy.data.preferences.BoxArtBorderThickness
 import com.nendo.argosy.data.preferences.BoxArtCornerRadius
 import com.nendo.argosy.data.preferences.BoxArtGlowStrength
+import com.nendo.argosy.data.preferences.BoxArtInnerEffect
+import com.nendo.argosy.data.preferences.GlassBorderTint
+import com.nendo.argosy.data.preferences.BoxArtInnerEffectThickness
+import com.nendo.argosy.data.preferences.BoxArtOuterEffect
+import com.nendo.argosy.data.preferences.BoxArtOuterEffectThickness
 import com.nendo.argosy.data.preferences.SystemIconPadding
 import com.nendo.argosy.data.preferences.SystemIconPosition
 import com.nendo.argosy.ui.components.CyclePreference
@@ -45,15 +51,66 @@ fun BoxArtSection(
     val listState = rememberLazyListState()
     val display = uiState.display
     val showIconPadding = display.systemIconPosition != SystemIconPosition.OFF
-    val maxIndex = if (showIconPadding) 4 else 3
+    val showOuterThickness = display.boxArtOuterEffect != BoxArtOuterEffect.OFF
+    val showInnerThickness = display.boxArtInnerEffect != BoxArtInnerEffect.OFF
+    val showGlassTint = display.boxArtBorderStyle == BoxArtBorderStyle.GLASS
+    // Dynamic indices: 0=Corner, 1=Thickness, 2=Style, 3?=GlassTint, N=IconPos, N+1?=IconPad, ...
+    var idx = 3
+    val glassTintIndex = if (showGlassTint) idx++ else -1
+    val iconPosIndex = idx++
+    val iconPadIndex = if (showIconPadding) idx++ else -1
+    val outerEffectIndex = idx++
+    val outerThicknessIndex = if (showOuterThickness) idx++ else -1
+    val innerEffectIndex = idx++
+    val innerThicknessIndex = if (showInnerThickness) idx++ else -1
+    val maxIndex = idx - 1
 
     LaunchedEffect(uiState.focusedIndex) {
         if (uiState.focusedIndex in 0..maxIndex) {
+            val scrollIndex = run {
+                val focus = uiState.focusedIndex
+                when {
+                    focus <= 2 -> focus + 1
+                    else -> {
+                        var scrollIdx = 4
+                        var focusIdx = 3
+                        if (showGlassTint) {
+                            if (focus == focusIdx) return@run scrollIdx
+                            scrollIdx++
+                            focusIdx++
+                        }
+                        scrollIdx++
+                        if (focus == focusIdx) return@run scrollIdx
+                        scrollIdx++
+                        focusIdx++
+                        if (showIconPadding) {
+                            if (focus == focusIdx) return@run scrollIdx
+                            scrollIdx++
+                            focusIdx++
+                        }
+                        scrollIdx++
+                        if (focus == focusIdx) return@run scrollIdx
+                        scrollIdx++
+                        focusIdx++
+                        if (showOuterThickness) {
+                            if (focus == focusIdx) return@run scrollIdx
+                            scrollIdx++
+                            focusIdx++
+                        }
+                        scrollIdx++
+                        if (focus == focusIdx) return@run scrollIdx
+                        scrollIdx++
+                        focusIdx++
+                        if (showInnerThickness && focus == focusIdx) return@run scrollIdx
+                        scrollIdx
+                    }
+                }
+            }
             val viewportHeight = listState.layoutInfo.viewportSize.height
             val itemHeight = listState.layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 0
             val centerOffset = if (itemHeight > 0) (viewportHeight - itemHeight) / 2 else 0
             val paddingBuffer = (itemHeight * Motion.scrollPaddingPercent).toInt()
-            listState.animateScrollToItem(uiState.focusedIndex, -centerOffset + paddingBuffer)
+            listState.animateScrollToItem(scrollIndex, -centerOffset + paddingBuffer)
         }
     }
 
@@ -91,11 +148,21 @@ fun BoxArtSection(
             }
             item {
                 CyclePreference(
-                    title = "Glow Effect",
-                    value = display.boxArtGlowStrength.displayName(),
+                    title = "Border Style",
+                    value = display.boxArtBorderStyle.displayName(),
                     isFocused = uiState.focusedIndex == 2,
-                    onClick = { viewModel.cycleBoxArtGlowStrength() }
+                    onClick = { viewModel.cycleBoxArtBorderStyle() }
                 )
+            }
+            if (showGlassTint) {
+                item {
+                    CyclePreference(
+                        title = "Glass Tint",
+                        value = display.glassBorderTint.displayName(),
+                        isFocused = uiState.focusedIndex == glassTintIndex,
+                        onClick = { viewModel.cycleGlassBorderTint() }
+                    )
+                }
             }
             item {
                 BoxArtSectionHeader("System Icon")
@@ -104,7 +171,7 @@ fun BoxArtSection(
                 CyclePreference(
                     title = "Position",
                     value = display.systemIconPosition.displayName(),
-                    isFocused = uiState.focusedIndex == 3,
+                    isFocused = uiState.focusedIndex == iconPosIndex,
                     onClick = { viewModel.cycleSystemIconPosition() }
                 )
             }
@@ -113,8 +180,50 @@ fun BoxArtSection(
                     CyclePreference(
                         title = "Padding",
                         value = display.systemIconPadding.displayName(),
-                        isFocused = uiState.focusedIndex == 4,
+                        isFocused = uiState.focusedIndex == iconPadIndex,
                         onClick = { viewModel.cycleSystemIconPadding() }
+                    )
+                }
+            }
+            item {
+                BoxArtSectionHeader("Outer Effect")
+            }
+            item {
+                CyclePreference(
+                    title = "Effect",
+                    value = display.boxArtOuterEffect.displayName(),
+                    isFocused = uiState.focusedIndex == outerEffectIndex,
+                    onClick = { viewModel.cycleBoxArtOuterEffect() }
+                )
+            }
+            if (showOuterThickness) {
+                item {
+                    CyclePreference(
+                        title = "Thickness",
+                        value = display.boxArtOuterEffectThickness.displayName(),
+                        isFocused = uiState.focusedIndex == outerThicknessIndex,
+                        onClick = { viewModel.cycleBoxArtOuterEffectThickness() }
+                    )
+                }
+            }
+            item {
+                BoxArtSectionHeader("Inner Effect")
+            }
+            item {
+                CyclePreference(
+                    title = "Effect",
+                    value = display.boxArtInnerEffect.displayName(),
+                    isFocused = uiState.focusedIndex == innerEffectIndex,
+                    onClick = { viewModel.cycleBoxArtInnerEffect() }
+                )
+            }
+            if (showInnerThickness) {
+                item {
+                    CyclePreference(
+                        title = "Thickness",
+                        value = display.boxArtInnerEffectThickness.displayName(),
+                        isFocused = uiState.focusedIndex == innerThicknessIndex,
+                        onClick = { viewModel.cycleBoxArtInnerEffectThickness() }
                     )
                 }
             }
@@ -130,13 +239,33 @@ fun BoxArtSection(
             val previewBoxArtStyle = BoxArtStyleConfig(
                 cornerRadiusDp = display.boxArtCornerRadius.dp.dp,
                 borderThicknessDp = display.boxArtBorderThickness.dp.dp,
+                borderStyle = display.boxArtBorderStyle,
+                glassBorderTintAlpha = display.glassBorderTint.alpha,
                 glowAlpha = display.boxArtGlowStrength.alpha,
                 isShadow = display.boxArtGlowStrength.isShadow,
+                outerEffect = display.boxArtOuterEffect,
+                outerEffectThicknessPx = display.boxArtOuterEffectThickness.px,
+                innerEffect = display.boxArtInnerEffect,
+                innerEffectThicknessPx = display.boxArtInnerEffectThickness.px,
                 systemIconPosition = display.systemIconPosition,
                 systemIconPaddingDp = display.systemIconPadding.dp.dp
             )
 
-            val dummyGame = HomeGameUi(
+            val previewGame = uiState.previewGame?.let { game ->
+                HomeGameUi(
+                    id = game.id,
+                    title = game.title,
+                    platformId = game.platformId,
+                    platformSlug = game.platformSlug,
+                    coverPath = game.coverPath,
+                    backgroundPath = null,
+                    developer = null,
+                    releaseYear = null,
+                    genre = game.genre,
+                    isFavorite = game.isFavorite,
+                    isDownloaded = game.localPath != null
+                )
+            } ?: HomeGameUi(
                 id = 0,
                 title = "GAME",
                 platformId = 0L,
@@ -152,7 +281,7 @@ fun BoxArtSection(
 
             CompositionLocalProvider(LocalBoxArtStyle provides previewBoxArtStyle) {
                 GameCard(
-                    game = dummyGame,
+                    game = previewGame,
                     isFocused = true,
                     modifier = Modifier
                         .width(120.dp)
@@ -193,6 +322,21 @@ private fun BoxArtBorderThickness.displayName(): String = when (this) {
     BoxArtBorderThickness.THICK -> "Thick"
 }
 
+private fun BoxArtBorderStyle.displayName(): String = when (this) {
+    BoxArtBorderStyle.SOLID -> "Solid"
+    BoxArtBorderStyle.GLASS -> "Glass"
+    BoxArtBorderStyle.GRADIENT -> "Gradient"
+}
+
+private fun GlassBorderTint.displayName(): String = when (this) {
+    GlassBorderTint.OFF -> "Off"
+    GlassBorderTint.TINT_5 -> "5%"
+    GlassBorderTint.TINT_10 -> "10%"
+    GlassBorderTint.TINT_15 -> "15%"
+    GlassBorderTint.TINT_20 -> "20%"
+    GlassBorderTint.TINT_25 -> "25%"
+}
+
 private fun BoxArtGlowStrength.displayName(): String = when (this) {
     BoxArtGlowStrength.OFF -> "Off"
     BoxArtGlowStrength.LOW -> "Low"
@@ -212,4 +356,31 @@ private fun SystemIconPadding.displayName(): String = when (this) {
     SystemIconPadding.SMALL -> "Small"
     SystemIconPadding.MEDIUM -> "Medium"
     SystemIconPadding.LARGE -> "Large"
+}
+
+private fun BoxArtOuterEffect.displayName(): String = when (this) {
+    BoxArtOuterEffect.OFF -> "Off"
+    BoxArtOuterEffect.GLOW -> "Glow"
+    BoxArtOuterEffect.SHADOW -> "Shadow"
+    BoxArtOuterEffect.SHINE -> "Shine"
+}
+
+private fun BoxArtOuterEffectThickness.displayName(): String = when (this) {
+    BoxArtOuterEffectThickness.THIN -> "Thin"
+    BoxArtOuterEffectThickness.MEDIUM -> "Medium"
+    BoxArtOuterEffectThickness.THICK -> "Thick"
+}
+
+private fun BoxArtInnerEffect.displayName(): String = when (this) {
+    BoxArtInnerEffect.OFF -> "Off"
+    BoxArtInnerEffect.GLOW -> "Glow"
+    BoxArtInnerEffect.SHADOW -> "Shadow"
+    BoxArtInnerEffect.GLASS -> "Glass"
+    BoxArtInnerEffect.SHINE -> "Shine"
+}
+
+private fun BoxArtInnerEffectThickness.displayName(): String = when (this) {
+    BoxArtInnerEffectThickness.THIN -> "Thin"
+    BoxArtInnerEffectThickness.MEDIUM -> "Medium"
+    BoxArtInnerEffectThickness.THICK -> "Thick"
 }

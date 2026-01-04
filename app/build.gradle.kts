@@ -142,6 +142,9 @@ dependencies {
     // Image loading
     implementation(libs.coil.compose)
 
+    // Color extraction
+    implementation(libs.androidx.palette)
+
     // WorkManager
     implementation(libs.work.runtime.ktx)
     implementation(libs.hilt.work)
