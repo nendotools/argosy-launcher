@@ -32,7 +32,11 @@ class RestoreCachedSaveUseCase @Inject constructor(
 
         val targetPath = saveSyncRepository.discoverSavePath(
             emulatorId, game.title, game.platformSlug, game.localPath
-        ) ?: return Result.Error("Cannot determine save location")
+        ) ?: entry.serverFileName?.let { serverFileName ->
+            saveSyncRepository.constructSavePathWithFileName(
+                emulatorId, game.platformSlug, game.localPath, serverFileName
+            )
+        } ?: return Result.Error("Cannot determine save location")
 
         val restoreSuccess = when (entry.source) {
             UnifiedSaveEntry.Source.LOCAL,

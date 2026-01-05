@@ -2,6 +2,7 @@ package com.nendo.argosy.ui.screens.common
 
 import android.content.Intent
 import com.nendo.argosy.data.emulator.EmulatorResolver
+import com.nendo.argosy.data.emulator.GameLauncher
 import com.nendo.argosy.data.emulator.LaunchResult
 import com.nendo.argosy.data.emulator.PlaySessionTracker
 import com.nendo.argosy.data.emulator.SavePathRegistry
@@ -39,9 +40,14 @@ class GameLaunchDelegate @Inject constructor(
     private val launchGameUseCase: LaunchGameUseCase,
     private val launchWithSyncUseCase: LaunchWithSyncUseCase,
     private val playSessionTracker: PlaySessionTracker,
+    private val gameLauncher: GameLauncher,
     private val soundManager: SoundFeedbackManager,
     private val notificationManager: NotificationManager
 ) {
+    companion object {
+        private const val EMULATOR_KILL_DELAY_MS = 500L
+    }
+
     private val _syncOverlayState = MutableStateFlow<SyncOverlayState?>(null)
     val syncOverlayState: StateFlow<SyncOverlayState?> = _syncOverlayState.asStateFlow()
 
@@ -59,7 +65,17 @@ class GameLaunchDelegate @Inject constructor(
 
         scope.launch {
             try {
+                val activeSession = playSessionTracker.activeSession.value
                 val canResume = playSessionTracker.canResumeSession(gameId)
+
+                // Different game is active - end that session and kill emulator first
+                if (!canResume && activeSession != null && activeSession.gameId != gameId) {
+                    android.util.Log.d("GameLaunchDelegate", "Ending session for game ${activeSession.gameId}, killing ${activeSession.emulatorPackage}")
+                    playSessionTracker.endSession()
+                    gameLauncher.forceStopEmulator(activeSession.emulatorPackage)
+                    delay(EMULATOR_KILL_DELAY_MS)
+                }
+
                 if (canResume) {
                     when (val result = launchGameUseCase(gameId, discId, forResume = true)) {
                         is LaunchResult.Success -> {

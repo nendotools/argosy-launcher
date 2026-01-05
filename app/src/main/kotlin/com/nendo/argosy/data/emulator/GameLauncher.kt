@@ -365,10 +365,16 @@ class GameLauncher @Inject constructor(
             putExtra("DATADIR", dataDir)
             putExtra("SDCARD", "/storage/emulated/0")
             putExtra("EXTERNAL", externalDir)
-            addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK or
-                Intent.FLAG_ACTIVITY_SINGLE_TOP
-            )
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        }
+    }
+
+    suspend fun forceStopEmulator(packageName: String) {
+        try {
+            Runtime.getRuntime().exec(arrayOf("am", "force-stop", packageName))
+            Logger.debug(TAG, "Force stopped via am: $packageName")
+        } catch (e: Exception) {
+            Logger.warn(TAG, "Failed to force stop $packageName", e)
         }
     }
 
