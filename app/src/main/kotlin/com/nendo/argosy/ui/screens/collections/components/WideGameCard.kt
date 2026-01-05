@@ -227,7 +227,6 @@ private fun WideGameCardFooter(
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
-        // Top ear row (above the main footer content)
         Box(
             modifier = Modifier
                 .offset(x = borderOffset, y = 1.dp)
@@ -236,13 +235,11 @@ private fun WideGameCardFooter(
                 .background(primaryColor)
         )
 
-        // Main footer row with slug and metadata
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(IntrinsicSize.Min)
         ) {
-            // Metadata background (full width, flows behind slug)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -271,7 +268,6 @@ private fun WideGameCardFooter(
                 }
             }
 
-            // Platform slug with right ear (on top)
             Row(
                 modifier = Modifier.zIndex(1f),
                 verticalAlignment = Alignment.Bottom

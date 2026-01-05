@@ -58,7 +58,6 @@ fun QuickMenuOverlay(
         label = "contentAlpha"
     )
 
-    // Scrim fade
     AnimatedVisibility(
         visible = uiState.isVisible,
         enter = fadeIn(animationSpec = tween(250)),
@@ -72,7 +71,6 @@ fun QuickMenuOverlay(
         )
     }
 
-    // Content with scale + fade
     AnimatedVisibility(
         visible = uiState.isVisible,
         enter = fadeIn(animationSpec = tween(300, delayMillis = 50)) +

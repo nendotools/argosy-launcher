@@ -111,7 +111,6 @@ class SoundFeedbackManager @Inject constructor(
                         val totalCount = SoundPreset.entries.count { it.resourceId != null }
                         if (loadedCount >= totalCount) {
                             soundsLoaded = true
-                            Log.d(TAG, "All $loadedCount sounds loaded")
                         }
                     }
                 }
@@ -122,7 +121,6 @@ class SoundFeedbackManager @Inject constructor(
                 try {
                     val id = soundPool?.load(context, resId, 1) ?: 0
                     soundIds[preset] = id
-                    Log.d(TAG, "Loading ${preset.name} (id=$id)")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to load ${preset.name}", e)
                 }
@@ -132,17 +130,14 @@ class SoundFeedbackManager @Inject constructor(
 
     fun setEnabled(enabled: Boolean) {
         this.enabled = enabled
-        Log.d(TAG, "setEnabled=$enabled")
     }
 
     fun setVolume(volume: Int) {
         this.volume = (volume / 100f).coerceIn(0f, 1f)
-        Log.d(TAG, "setVolume=$volume (${this.volume})")
     }
 
     fun setSoundConfigs(configs: Map<SoundType, SoundConfig>) {
         soundConfigs = configs
-        Log.d(TAG, "Sound configs updated: ${configs.size} custom sounds")
     }
 
     fun setSoundConfig(type: SoundType, config: SoundConfig) {
@@ -178,10 +173,7 @@ class SoundFeedbackManager @Inject constructor(
 
         val config = soundConfigs[type]
         when {
-            config?.presetName == SoundPreset.SILENT.name -> {
-                Log.d(TAG, "Sound $type is silenced")
-                return
-            }
+            config?.presetName == SoundPreset.SILENT.name -> return
             config?.customFilePath != null -> {
                 playCustomFile(config.customFilePath)
                 return
@@ -199,8 +191,9 @@ class SoundFeedbackManager @Inject constructor(
         playPreset(preset)
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun playCustomFile(path: String) {
-        Log.d(TAG, "Custom file playback not yet implemented: $path")
+        // Custom file playback not yet implemented
     }
 
     fun release() {

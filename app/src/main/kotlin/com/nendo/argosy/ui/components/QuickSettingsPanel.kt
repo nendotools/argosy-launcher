@@ -67,7 +67,6 @@ fun QuickSettingsPanel(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.CenterEnd
     ) {
-        // Scrim
         if (isVisible) {
             Box(
                 modifier = Modifier
@@ -81,7 +80,6 @@ fun QuickSettingsPanel(
             )
         }
 
-        // Panel
         AnimatedVisibility(
             visible = isVisible,
             enter = slideInHorizontally(initialOffsetX = { it }),
@@ -108,7 +106,6 @@ fun QuickSettingsPanel(
                     color = MaterialTheme.colorScheme.outlineVariant
                 )
 
-                // Theme Mode (cycle)
                 QuickSettingItem(
                     icon = when (state.themeMode) {
                         ThemeMode.LIGHT -> Icons.Default.LightMode
@@ -121,7 +118,6 @@ fun QuickSettingsPanel(
                     onClick = onThemeCycle
                 )
 
-                // Haptic toggle
                 QuickSettingToggle(
                     icon = Icons.Default.Vibration,
                     label = "Haptics",
@@ -130,7 +126,6 @@ fun QuickSettingsPanel(
                     onClick = onHapticToggle
                 )
 
-                // Sound toggle
                 QuickSettingToggle(
                     icon = if (state.soundEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
                     label = "UI Sounds",
@@ -139,7 +134,6 @@ fun QuickSettingsPanel(
                     onClick = onSoundToggle
                 )
 
-                // Ambient audio toggle
                 QuickSettingToggle(
                     icon = if (state.ambientAudioEnabled) Icons.Default.MusicNote else Icons.Default.MusicOff,
                     label = "BGM",
@@ -150,7 +144,6 @@ fun QuickSettingsPanel(
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                // Footer hint
                 Text(
                     text = "Press B or R3 to close",
                     style = MaterialTheme.typography.labelSmall,
