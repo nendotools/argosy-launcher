@@ -747,7 +747,7 @@ fun GameCard(
                     .padding(Dimens.spacingSm)
                     .size(22.dp)
                     .background(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f),
                         CircleShape
                     ),
                 contentAlignment = Alignment.Center
@@ -813,11 +813,11 @@ fun GameCard(
             }
 
             if (downloadIndicator.isActive) {
-                val primaryColor = MaterialTheme.colorScheme.primary
+                val secondaryColor = MaterialTheme.colorScheme.secondary
                 val progressColor = if (downloadIndicator.isPaused || downloadIndicator.isQueued) {
-                    primaryColor.copy(alpha = 0.5f)
+                    secondaryColor.copy(alpha = 0.5f)
                 } else {
-                    primaryColor
+                    secondaryColor
                 }
                 val progressBarHeight = 6.dp
 

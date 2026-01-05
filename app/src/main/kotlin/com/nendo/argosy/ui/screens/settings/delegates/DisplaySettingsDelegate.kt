@@ -117,6 +117,38 @@ class DisplaySettingsDelegate @Inject constructor(
         setPrimaryColor(scope, null)
     }
 
+    fun setSecondaryColor(scope: CoroutineScope, color: Int?) {
+        scope.launch {
+            preferencesRepository.setSecondaryColor(color)
+            _state.update { it.copy(secondaryColor = color) }
+        }
+    }
+
+    fun resetToDefaultSecondaryColor(scope: CoroutineScope) {
+        setSecondaryColor(scope, null)
+    }
+
+    fun adjustSecondaryHue(scope: CoroutineScope, delta: Float) {
+        val currentColor = _state.value.secondaryColor
+        val currentHue = if (currentColor != null) {
+            val hsl = FloatArray(3)
+            ColorUtils.colorToHSL(currentColor, hsl)
+            hsl[0]
+        } else {
+            val primaryColor = _state.value.primaryColor
+            if (primaryColor != null) {
+                val hsl = FloatArray(3)
+                ColorUtils.colorToHSL(primaryColor, hsl)
+                hsl[0]
+            } else {
+                180f
+            }
+        }
+        val newHue = (currentHue + delta).mod(360f)
+        val newColor = ColorUtils.HSLToColor(floatArrayOf(newHue, 0.7f, 0.5f))
+        setSecondaryColor(scope, newColor)
+    }
+
     fun setGridDensity(scope: CoroutineScope, density: GridDensity) {
         scope.launch {
             preferencesRepository.setGridDensity(density)

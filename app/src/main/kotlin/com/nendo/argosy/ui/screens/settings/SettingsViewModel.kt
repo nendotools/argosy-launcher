@@ -362,6 +362,7 @@ class SettingsViewModel @Inject constructor(
             displayDelegate.updateState(DisplayState(
                 themeMode = prefs.themeMode,
                 primaryColor = prefs.primaryColor,
+                secondaryColor = prefs.secondaryColor,
                 gridDensity = prefs.gridDensity,
                 backgroundBlur = prefs.backgroundBlur,
                 backgroundSaturation = prefs.backgroundSaturation,
@@ -786,11 +787,11 @@ class SettingsViewModel @Inject constructor(
                 true
             }
             state.currentSection == SettingsSection.BOX_ART -> {
-                _uiState.update { it.copy(currentSection = SettingsSection.DISPLAY, focusedIndex = 3) }
+                _uiState.update { it.copy(currentSection = SettingsSection.DISPLAY, focusedIndex = 4) }
                 true
             }
             state.currentSection == SettingsSection.HOME_SCREEN -> {
-                _uiState.update { it.copy(currentSection = SettingsSection.DISPLAY, focusedIndex = 4) }
+                _uiState.update { it.copy(currentSection = SettingsSection.DISPLAY, focusedIndex = 5) }
                 true
             }
             state.currentSection != SettingsSection.MAIN -> {
@@ -845,7 +846,7 @@ class SettingsViewModel @Inject constructor(
                     val expandedPlatforms = if (state.storage.platformsExpanded) state.storage.platformConfigs.size else 0
                     (baseItemCount + expandedPlatforms - 1).coerceAtLeast(baseItemCount - 1)
                 }
-                SettingsSection.DISPLAY -> 8
+                SettingsSection.DISPLAY -> 9
                 SettingsSection.HOME_SCREEN -> if (state.display.useGameBackground) 4 else 5
                 SettingsSection.BOX_ART -> {
                     val showGlassTint = state.display.boxArtBorderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GLASS
@@ -929,6 +930,18 @@ class SettingsViewModel @Inject constructor(
 
     fun resetToDefaultColor() {
         displayDelegate.resetToDefaultColor(viewModelScope)
+    }
+
+    fun setSecondaryColor(color: Int?) {
+        displayDelegate.setSecondaryColor(viewModelScope, color)
+    }
+
+    fun adjustSecondaryHue(delta: Float) {
+        displayDelegate.adjustSecondaryHue(viewModelScope, delta)
+    }
+
+    fun resetToDefaultSecondaryColor() {
+        displayDelegate.resetToDefaultSecondaryColor(viewModelScope)
     }
 
     fun setGridDensity(density: GridDensity) {
@@ -1902,7 +1915,7 @@ class SettingsViewModel @Inject constructor(
                         }
                         setThemeMode(next)
                     }
-                    2 -> {
+                    3 -> {
                         val next = when (state.display.gridDensity) {
                             GridDensity.COMPACT -> GridDensity.NORMAL
                             GridDensity.NORMAL -> GridDensity.SPACIOUS
@@ -1910,12 +1923,12 @@ class SettingsViewModel @Inject constructor(
                         }
                         setGridDensity(next)
                     }
-                    3 -> navigateToBoxArt()
-                    4 -> navigateToHomeScreen()
-                    5 -> cycleDefaultView()
-                    6 -> toggleScreenDimmer()
-                    7 -> cycleScreenDimmerTimeout()
-                    8 -> cycleScreenDimmerLevel()
+                    4 -> navigateToBoxArt()
+                    5 -> navigateToHomeScreen()
+                    6 -> cycleDefaultView()
+                    7 -> toggleScreenDimmer()
+                    8 -> cycleScreenDimmerTimeout()
+                    9 -> cycleScreenDimmerLevel()
                 }
                 InputResult.HANDLED
             }

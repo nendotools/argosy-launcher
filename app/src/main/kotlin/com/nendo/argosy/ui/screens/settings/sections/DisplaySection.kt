@@ -32,8 +32,9 @@ import com.nendo.argosy.ui.theme.Motion
 fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
     val listState = rememberLazyListState()
     val currentHue = uiState.display.primaryColor?.let { colorIntToHue(it) }
+    val secondaryHue = uiState.display.secondaryColor?.let { colorIntToHue(it) }
     val storage = uiState.storage
-    val maxIndex = 8
+    val maxIndex = 9
 
     LaunchedEffect(uiState.focusedIndex) {
         if (uiState.focusedIndex in 0..maxIndex) {
@@ -83,10 +84,24 @@ fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
             )
         }
         item {
+            HueSliderPreference(
+                title = "Secondary Color",
+                currentHue = secondaryHue,
+                isFocused = uiState.focusedIndex == 2,
+                onHueChange = { hue ->
+                    if (hue != null) {
+                        viewModel.setSecondaryColor(hueToColorInt(hue))
+                    } else {
+                        viewModel.resetToDefaultSecondaryColor()
+                    }
+                }
+            )
+        }
+        item {
             CyclePreference(
                 title = "Grid Density",
                 value = uiState.display.gridDensity.name.lowercase().replaceFirstChar { it.uppercase() },
-                isFocused = uiState.focusedIndex == 2,
+                isFocused = uiState.focusedIndex == 3,
                 onClick = {
                     val next = when (uiState.display.gridDensity) {
                         GridDensity.COMPACT -> GridDensity.NORMAL
@@ -102,7 +117,7 @@ fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 icon = Icons.Outlined.Image,
                 title = "Box Art",
                 subtitle = "Customize card appearance",
-                isFocused = uiState.focusedIndex == 3,
+                isFocused = uiState.focusedIndex == 4,
                 onClick = { viewModel.navigateToBoxArt() }
             )
         }
@@ -111,7 +126,7 @@ fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 icon = Icons.Outlined.Home,
                 title = "Home Screen",
                 subtitle = "Background and footer settings",
-                isFocused = uiState.focusedIndex == 4,
+                isFocused = uiState.focusedIndex == 5,
                 onClick = { viewModel.navigateToHomeScreen() }
             )
         }
@@ -125,7 +140,7 @@ fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                     DefaultView.SHOWCASE -> "Showcase"
                     DefaultView.LIBRARY -> "Library"
                 },
-                isFocused = uiState.focusedIndex == 5,
+                isFocused = uiState.focusedIndex == 6,
                 onClick = { viewModel.cycleDefaultView() }
             )
         }
@@ -137,7 +152,7 @@ fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 title = "Screen Dimmer",
                 subtitle = "Dims screen after inactivity to prevent burn-in",
                 isEnabled = storage.screenDimmerEnabled,
-                isFocused = uiState.focusedIndex == 6,
+                isFocused = uiState.focusedIndex == 7,
                 onToggle = { viewModel.toggleScreenDimmer() }
             )
         }
@@ -145,7 +160,7 @@ fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
             CyclePreference(
                 title = "Dim After",
                 value = "${storage.screenDimmerTimeoutMinutes} min",
-                isFocused = uiState.focusedIndex == 7,
+                isFocused = uiState.focusedIndex == 8,
                 onClick = { viewModel.cycleScreenDimmerTimeout() }
             )
         }
@@ -155,7 +170,7 @@ fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 value = storage.screenDimmerLevel,
                 minValue = 40,
                 maxValue = 70,
-                isFocused = uiState.focusedIndex == 8,
+                isFocused = uiState.focusedIndex == 9,
                 step = 10,
                 onClick = { viewModel.cycleScreenDimmerLevel() }
             )

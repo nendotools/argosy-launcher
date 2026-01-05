@@ -213,14 +213,18 @@ fun ALauncherTheme(
     val defaultPrimary = if (BuildConfig.DEBUG) ALauncherColors.Orange else ALauncherColors.Indigo
     val defaultPrimaryDark = if (BuildConfig.DEBUG) ALauncherColors.OrangeDark else ALauncherColors.IndigoDark
     val primaryColor = themeState.primaryColor?.let { Color(it) }
+    val secondaryColor = themeState.secondaryColor?.let { Color(it) }
 
+    val effectivePrimary = primaryColor ?: if (isDarkTheme) defaultPrimary else defaultPrimaryDark
     val colorScheme = if (isDarkTheme) {
         createDarkColorScheme(
-            primary = primaryColor ?: defaultPrimary
+            primary = effectivePrimary,
+            secondary = secondaryColor ?: effectivePrimary
         )
     } else {
         createLightColorScheme(
-            primary = primaryColor ?: defaultPrimaryDark
+            primary = effectivePrimary,
+            secondary = secondaryColor ?: effectivePrimary
         )
     }
 

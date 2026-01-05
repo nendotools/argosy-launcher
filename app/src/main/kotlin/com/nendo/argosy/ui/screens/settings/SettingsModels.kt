@@ -103,6 +103,7 @@ data class CorePickerInfo(
 data class DisplayState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val primaryColor: Int? = null,
+    val secondaryColor: Int? = null,
     val gridDensity: GridDensity = GridDensity.NORMAL,
     val backgroundBlur: Int = 0,
     val backgroundSaturation: Int = 100,

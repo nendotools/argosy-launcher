@@ -307,6 +307,13 @@ class UserPreferencesRepository @Inject constructor(
         }
     }
 
+    suspend fun setSecondaryColor(color: Int?) {
+        dataStore.edit { prefs ->
+            if (color != null) prefs[Keys.SECONDARY_COLOR] = color
+            else prefs.remove(Keys.SECONDARY_COLOR)
+        }
+    }
+
     suspend fun setHapticEnabled(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[Keys.HAPTIC_ENABLED] = enabled

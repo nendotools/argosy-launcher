@@ -122,8 +122,9 @@ class SettingsInputHandler(
         if (state.currentSection == SettingsSection.DISPLAY) {
             when (state.focusedIndex) {
                 1 -> { viewModel.adjustHue(-HUE_STEP); return InputResult.HANDLED }
-                7 -> { viewModel.adjustScreenDimmerTimeout(-1); return InputResult.HANDLED }
-                8 -> { viewModel.adjustScreenDimmerLevel(-1); return InputResult.HANDLED }
+                2 -> { viewModel.adjustSecondaryHue(-HUE_STEP); return InputResult.HANDLED }
+                8 -> { viewModel.adjustScreenDimmerTimeout(-1); return InputResult.HANDLED }
+                9 -> { viewModel.adjustScreenDimmerLevel(-1); return InputResult.HANDLED }
             }
         }
 
@@ -281,8 +282,9 @@ class SettingsInputHandler(
         if (state.currentSection == SettingsSection.DISPLAY) {
             when (state.focusedIndex) {
                 1 -> { viewModel.adjustHue(HUE_STEP); return InputResult.HANDLED }
-                7 -> { viewModel.adjustScreenDimmerTimeout(1); return InputResult.HANDLED }
-                8 -> { viewModel.adjustScreenDimmerLevel(1); return InputResult.HANDLED }
+                2 -> { viewModel.adjustSecondaryHue(HUE_STEP); return InputResult.HANDLED }
+                8 -> { viewModel.adjustScreenDimmerTimeout(1); return InputResult.HANDLED }
+                9 -> { viewModel.adjustScreenDimmerLevel(1); return InputResult.HANDLED }
             }
         }
 
@@ -451,6 +453,11 @@ class SettingsInputHandler(
 
         if (state.currentSection == SettingsSection.DISPLAY && state.focusedIndex == 1) {
             viewModel.resetToDefaultColor()
+            return InputResult.HANDLED
+        }
+
+        if (state.currentSection == SettingsSection.DISPLAY && state.focusedIndex == 2) {
+            viewModel.resetToDefaultSecondaryColor()
             return InputResult.HANDLED
         }
 
