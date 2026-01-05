@@ -465,9 +465,9 @@ fun HomeScreen(
                 achievementCount = uiState.focusedGame?.achievementCount ?: 0,
                 earnedAchievementCount = uiState.focusedGame?.earnedAchievementCount ?: 0,
                 modifier = Modifier
-                    .fillMaxWidth(0.6f)
+                    .fillMaxWidth(0.7f)
                     .align(Alignment.TopEnd)
-                    .padding(top = 144.dp)
+                    .padding(top = 80.dp)
             )
         }
         }
