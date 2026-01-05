@@ -21,6 +21,7 @@ import com.nendo.argosy.ui.input.SoundType
 import com.nendo.argosy.ui.navigation.Screen
 import com.nendo.argosy.ui.notification.DownloadNotificationObserver
 import com.nendo.argosy.ui.notification.NotificationManager
+import com.nendo.argosy.ui.notification.SyncNotificationObserver
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -73,6 +74,7 @@ class ArgosyViewModel @Inject constructor(
     val soundManager: SoundFeedbackManager,
     val notificationManager: NotificationManager,
     downloadNotificationObserver: DownloadNotificationObserver,
+    syncNotificationObserver: SyncNotificationObserver,
     private val gameRepository: GameRepository,
     private val romMRepository: RomMRepository,
     private val downloadManager: DownloadManager,
@@ -82,6 +84,7 @@ class ArgosyViewModel @Inject constructor(
 
     init {
         downloadNotificationObserver.observe(viewModelScope)
+        syncNotificationObserver.observe(viewModelScope)
         scheduleDownloadValidation()
         observeFeedbackSettings(preferencesRepository)
         downloadManager.clearCompleted()

@@ -11,6 +11,7 @@ import com.nendo.argosy.data.sync.SaveSyncDownloadObserver
 import com.nendo.argosy.data.update.ApkInstallManager
 import com.nendo.argosy.data.download.DownloadServiceController
 import com.nendo.argosy.data.sync.SaveSyncWorker
+import com.nendo.argosy.data.sync.SyncServiceController
 import com.nendo.argosy.data.update.UpdateCheckWorker
 import com.nendo.argosy.ui.coil.AppIconFetcher
 import dagger.hilt.android.HiltAndroidApp
@@ -40,12 +41,16 @@ class ArgosyApp : Application(), Configuration.Provider, ImageLoaderFactory {
     @Inject
     lateinit var downloadServiceController: DownloadServiceController
 
+    @Inject
+    lateinit var syncServiceController: SyncServiceController
+
     override fun onCreate() {
         super.onCreate()
         UpdateCheckWorker.schedule(this)
         SaveSyncWorker.schedule(this)
         saveSyncDownloadObserver.start()
         downloadServiceController.start()
+        syncServiceController.start()
         syncPlatformSortOrders()
     }
 

@@ -21,6 +21,9 @@ import com.nendo.argosy.data.remote.romm.RomMSave
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -48,6 +51,30 @@ sealed class SaveSyncResult {
     data object NotConfigured : SaveSyncResult()
 }
 
+enum class SyncDirection { UPLOAD, DOWNLOAD }
+enum class SyncStatus { PENDING, IN_PROGRESS, COMPLETED, FAILED }
+
+data class SyncOperation(
+    val gameId: Long,
+    val gameName: String,
+    val coverPath: String?,
+    val direction: SyncDirection,
+    val status: SyncStatus,
+    val progress: Float = 0f,
+    val error: String? = null
+)
+
+data class SyncQueueState(
+    val operations: List<SyncOperation> = emptyList(),
+    val isActive: Boolean = false,
+    val currentOperation: SyncOperation? = null
+) {
+    val hasOperations: Boolean get() = operations.isNotEmpty()
+    val pendingCount: Int get() = operations.count { it.status == SyncStatus.PENDING }
+    val completedCount: Int get() = operations.count { it.status == SyncStatus.COMPLETED }
+    val inProgressCount: Int get() = operations.count { it.status == SyncStatus.IN_PROGRESS }
+}
+
 @Singleton
 class SaveSyncRepository @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -63,8 +90,67 @@ class SaveSyncRepository @Inject constructor(
 ) {
     private var api: RomMApi? = null
 
+    private val _syncQueueState = MutableStateFlow(SyncQueueState())
+    val syncQueueState: StateFlow<SyncQueueState> = _syncQueueState.asStateFlow()
+
     fun setApi(api: RomMApi?) {
         this.api = api
+    }
+
+    private fun updateSyncQueue(transform: (SyncQueueState) -> SyncQueueState) {
+        _syncQueueState.value = transform(_syncQueueState.value)
+    }
+
+    private fun addOperation(operation: SyncOperation) {
+        updateSyncQueue { state ->
+            val existingIndex = state.operations.indexOfFirst { it.gameId == operation.gameId }
+            val updatedOps = if (existingIndex >= 0) {
+                state.operations.toMutableList().apply { set(existingIndex, operation) }
+            } else {
+                state.operations + operation
+            }
+            state.copy(operations = updatedOps, isActive = true)
+        }
+    }
+
+    private fun updateOperation(gameId: Long, transform: (SyncOperation) -> SyncOperation) {
+        updateSyncQueue { state ->
+            val updatedOps = state.operations.map { op ->
+                if (op.gameId == gameId) transform(op) else op
+            }
+            val current = updatedOps.find { it.status == SyncStatus.IN_PROGRESS }
+            state.copy(operations = updatedOps, currentOperation = current)
+        }
+    }
+
+    private fun completeOperation(gameId: Long, error: String? = null) {
+        updateSyncQueue { state ->
+            val updatedOps = state.operations.map { op ->
+                if (op.gameId == gameId) {
+                    op.copy(
+                        status = if (error == null) SyncStatus.COMPLETED else SyncStatus.FAILED,
+                        error = error,
+                        progress = if (error == null) 1f else op.progress
+                    )
+                } else op
+            }
+            val remaining = updatedOps.filter { it.status != SyncStatus.COMPLETED && it.status != SyncStatus.FAILED }
+            val current = updatedOps.find { it.status == SyncStatus.IN_PROGRESS }
+            state.copy(
+                operations = updatedOps,
+                currentOperation = current,
+                isActive = remaining.isNotEmpty()
+            )
+        }
+    }
+
+    fun clearCompletedOperations() {
+        updateSyncQueue { state ->
+            val remaining = state.operations.filter {
+                it.status != SyncStatus.COMPLETED && it.status != SyncStatus.FAILED
+            }
+            state.copy(operations = remaining, isActive = remaining.isNotEmpty())
+        }
     }
 
     private suspend fun isFolderSaveSyncEnabled(): Boolean {
@@ -1027,23 +1113,44 @@ class SaveSyncRepository @Inject constructor(
             return@withContext 0
         }
         Logger.info(TAG, "Processing ${pending.size} pending save uploads")
+
+        for (item in pending) {
+            val game = gameDao.getById(item.gameId) ?: continue
+            addOperation(
+                SyncOperation(
+                    gameId = item.gameId,
+                    gameName = game.title,
+                    coverPath = game.coverPath,
+                    direction = SyncDirection.UPLOAD,
+                    status = SyncStatus.PENDING
+                )
+            )
+        }
+
         var processed = 0
 
         for (item in pending) {
             Logger.debug(TAG, "Processing pending upload: gameId=${item.gameId}, emulator=${item.emulatorId}")
+            updateOperation(item.gameId) { it.copy(status = SyncStatus.IN_PROGRESS) }
+
             when (val result = uploadSave(item.gameId, item.emulatorId)) {
                 is SaveSyncResult.Success -> {
                     pendingSaveSyncDao.delete(item.id)
+                    completeOperation(item.gameId)
                     processed++
                 }
                 is SaveSyncResult.Conflict -> {
                     Logger.debug(TAG, "Pending upload conflict for gameId=${item.gameId}, leaving in queue")
+                    completeOperation(item.gameId, "Server has newer save")
                 }
                 is SaveSyncResult.Error -> {
                     Logger.debug(TAG, "Pending upload failed for gameId=${item.gameId}: ${result.message}")
                     pendingSaveSyncDao.incrementRetry(item.id, result.message)
+                    completeOperation(item.gameId, result.message)
                 }
-                else -> {}
+                else -> {
+                    completeOperation(item.gameId, "Sync not available")
+                }
             }
         }
 
@@ -1053,11 +1160,39 @@ class SaveSyncRepository @Inject constructor(
 
     suspend fun downloadPendingServerSaves(): Int = withContext(Dispatchers.IO) {
         val pendingDownloads = saveSyncDao.getPendingDownloads()
+        if (pendingDownloads.isEmpty()) {
+            return@withContext 0
+        }
+
+        for (syncEntity in pendingDownloads) {
+            val game = gameDao.getById(syncEntity.gameId) ?: continue
+            addOperation(
+                SyncOperation(
+                    gameId = syncEntity.gameId,
+                    gameName = game.title,
+                    coverPath = game.coverPath,
+                    direction = SyncDirection.DOWNLOAD,
+                    status = SyncStatus.PENDING
+                )
+            )
+        }
+
         var downloaded = 0
 
         for (syncEntity in pendingDownloads) {
-            if (downloadSave(syncEntity.gameId, syncEntity.emulatorId, syncEntity.channelName) is SaveSyncResult.Success) {
-                downloaded++
+            updateOperation(syncEntity.gameId) { it.copy(status = SyncStatus.IN_PROGRESS) }
+
+            when (val result = downloadSave(syncEntity.gameId, syncEntity.emulatorId, syncEntity.channelName)) {
+                is SaveSyncResult.Success -> {
+                    completeOperation(syncEntity.gameId)
+                    downloaded++
+                }
+                is SaveSyncResult.Error -> {
+                    completeOperation(syncEntity.gameId, result.message)
+                }
+                else -> {
+                    completeOperation(syncEntity.gameId, "Download failed")
+                }
             }
         }
 

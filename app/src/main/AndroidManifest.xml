@@ -84,5 +84,10 @@
             android:name=".data.download.DownloadForegroundService"
             android:foregroundServiceType="dataSync"
             android:exported="false" />
+
+        <service
+            android:name=".data.sync.SyncForegroundService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
     </application>
 </manifest>
