@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nendo.argosy.data.platform.PlatformDefinitions
 import com.nendo.argosy.data.preferences.BoxArtBorderStyle
 import com.nendo.argosy.data.preferences.SystemIconPosition
 import com.nendo.argosy.ui.theme.LocalBoxArtStyle
@@ -94,14 +93,13 @@ private class CurvedEarShape(
 
 @Composable
 fun PlatformBadge(
-    platformSlug: String,
+    platformDisplayName: String,
     cardWidthDp: Dp,
     isFocused: Boolean,
     modifier: Modifier = Modifier
 ) {
     val boxArtStyle = LocalBoxArtStyle.current
-    val platform = PlatformDefinitions.getBySlug(platformSlug)
-    val shortName = platform?.shortName ?: platformSlug.uppercase().take(6)
+    val displayText = platformDisplayName.take(8)
 
     val scale = (cardWidthDp / BASE_WIDTH_DP).coerceIn(0.5f, 2f)
     val cornerRadius = boxArtStyle.cornerRadiusDp * scale
@@ -147,7 +145,7 @@ fun PlatformBadge(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = shortName,
+                            text = displayText,
                             fontSize = fontSize,
                             fontWeight = FontWeight.Bold,
                             color = textColor,
@@ -191,7 +189,7 @@ fun PlatformBadge(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = shortName,
+                            text = displayText,
                             fontSize = fontSize,
                             fontWeight = FontWeight.Bold,
                             color = textColor,
@@ -219,7 +217,7 @@ fun PlatformBadge(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = shortName,
+                    text = displayText,
                     fontSize = fontSize,
                     fontWeight = FontWeight.Bold,
                     color = textColor,

@@ -567,6 +567,7 @@ private fun LibraryGameCard(
             title = game.title,
             platformId = game.platformId,
             platformSlug = game.platformSlug,
+            platformDisplayName = game.platformDisplayName,
             coverPath = game.coverPath,
             backgroundPath = null,
             developer = null,

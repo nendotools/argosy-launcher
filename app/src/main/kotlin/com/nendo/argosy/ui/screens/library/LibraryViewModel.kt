@@ -19,6 +19,7 @@ import com.nendo.argosy.data.update.ApkInstallManager
 import com.nendo.argosy.data.local.entity.GameEntity
 import com.nendo.argosy.data.local.entity.GameListItem
 import com.nendo.argosy.data.local.entity.PlatformEntity
+import com.nendo.argosy.data.local.entity.getDisplayName
 import com.nendo.argosy.data.model.GameSource
 import com.nendo.argosy.data.preferences.GridDensity
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
@@ -122,6 +123,7 @@ data class LibraryGameUi(
     val title: String,
     val platformId: Long,
     val platformSlug: String,
+    val platformDisplayName: String,
     val coverPath: String?,
     val source: GameSource,
     val isFavorite: Boolean,
@@ -283,6 +285,8 @@ class LibraryViewModel @Inject constructor(
     private var gamesJob: Job? = null
     private var pendingInitialPlatformId: Long? = null
     private var pendingInitialSourceFilter: SourceFilter? = null
+    private var cachedAmbiguousSlugs: Set<String> = emptySet()
+    private var cachedPlatformDisplayNames: Map<Long, String> = emptyMap()
 
     private val pendingCoverRepairs = mutableSetOf<Long>()
 
@@ -351,7 +355,9 @@ class LibraryViewModel @Inject constructor(
             Log.d(TAG, "loadPlatforms: starting observation")
             platformDao.observeVisiblePlatforms().collect { platforms ->
                 Log.d(TAG, "loadPlatforms: received ${platforms.size} platforms")
-                val platformUis = platforms.map { it.toUi() }
+                cachedAmbiguousSlugs = platformDao.getAmbiguousSlugs().toSet()
+                cachedPlatformDisplayNames = platforms.associate { it.id to it.getDisplayName(cachedAmbiguousSlugs) }
+                val platformUis = platforms.map { it.toUi(cachedAmbiguousSlugs) }
 
                 val pendingPlatformIndex = pendingInitialPlatformId?.let { platformId ->
                     platformUis.indexOfFirst { it.id == platformId }.takeIf { it >= 0 }
@@ -486,7 +492,7 @@ class LibraryViewModel @Inject constructor(
                     _uiState.update { uiState ->
                         val shouldResetFocus = uiState.games.isEmpty()
                         uiState.copy(
-                            games = filteredGames.map { it.toUi() },
+                            games = filteredGames.map { it.toUi(cachedPlatformDisplayNames) },
                             focusedIndex = if (shouldResetFocus) 0 else uiState.focusedIndex.coerceAtMost((filteredGames.size - 1).coerceAtLeast(0))
                         )
                     }
@@ -1066,18 +1072,20 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    private fun PlatformEntity.toUi() = HomePlatformUi(
+    private fun PlatformEntity.toUi(ambiguousSlugs: Set<String>) = HomePlatformUi(
         id = id,
         name = name,
         shortName = shortName,
+        displayName = getDisplayName(ambiguousSlugs),
         logoPath = logoPath
     )
 
-    private fun GameEntity.toUi() = LibraryGameUi(
+    private fun GameEntity.toUi(platformDisplayNames: Map<Long, String> = emptyMap()) = LibraryGameUi(
         id = id,
         title = title,
         platformId = platformId,
         platformSlug = platformSlug,
+        platformDisplayName = platformDisplayNames[platformId] ?: platformSlug,
         coverPath = coverPath,
         source = source,
         isFavorite = isFavorite,
@@ -1089,11 +1097,12 @@ class LibraryViewModel @Inject constructor(
         isHidden = isHidden
     )
 
-    private fun GameListItem.toUi() = LibraryGameUi(
+    private fun GameListItem.toUi(platformDisplayNames: Map<Long, String> = emptyMap()) = LibraryGameUi(
         id = id,
         title = title,
         platformId = platformId,
         platformSlug = platformSlug,
+        platformDisplayName = platformDisplayNames[platformId] ?: platformSlug,
         coverPath = coverPath,
         source = source,
         isFavorite = isFavorite,

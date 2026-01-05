@@ -76,7 +76,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.nendo.argosy.data.platform.PlatformDefinitions
 import java.io.File
 import com.nendo.argosy.data.preferences.BoxArtBorderStyle
 import com.nendo.argosy.data.preferences.BoxArtInnerEffect
@@ -263,10 +262,9 @@ fun GameCard(
         val horizontalPadding = (baseHorizontalPaddingDp + userPadding + borderPadding) * badgeScale
         val verticalPadding = (baseVerticalPaddingDp + userPadding / 2 + borderPadding / 2) * badgeScale
 
-        val platform = if (showPlatformBadge) PlatformDefinitions.getBySlug(game.platformSlug) else null
-        val shortName = platform?.shortName ?: game.platformSlug.uppercase().take(6)
+        val displayName = if (showPlatformBadge) game.platformDisplayName.take(8) else ""
         val fontSizePx = with(density) { (baseFontSizeSp * badgeScale).dp.toPx() }
-        val estimatedTextWidthPx = shortName.length * fontSizePx * 0.7f
+        val estimatedTextWidthPx = displayName.length * fontSizePx * 0.7f
         val badgeWidthPx = with(density) { estimatedTextWidthPx + horizontalPadding.toPx() * 2 }
         val badgeHeightPx = with(density) { fontSizePx + verticalPadding.toPx() * 2 }
         val scaledCornerRadiusPx = with(density) { scaledCornerRadius.toPx() }
@@ -738,7 +736,7 @@ fun GameCard(
             }
 
             PlatformBadge(
-                platformSlug = game.platformSlug,
+                platformDisplayName = game.platformDisplayName,
                 cardWidthDp = maxWidth,
                 isFocused = isFocused,
                 modifier = Modifier.align(badgeAlignment)

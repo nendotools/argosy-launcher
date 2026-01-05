@@ -56,7 +56,7 @@ import com.nendo.argosy.ui.theme.LocalBoxArtStyle
 @Composable
 fun WideGameCard(
     title: String,
-    platformShortName: String,
+    platformDisplayName: String,
     coverPath: String?,
     developer: String?,
     releaseYear: Int?,
@@ -192,7 +192,7 @@ fun WideGameCard(
             }
 
             WideGameCardFooter(
-                platformShortName = platformShortName,
+                platformDisplayName = platformDisplayName,
                 cornerRadius = cornerRadius,
                 isFocused = isFocused,
                 userRating = userRating,
@@ -206,7 +206,7 @@ fun WideGameCard(
 
 @Composable
 private fun WideGameCardFooter(
-    platformShortName: String,
+    platformDisplayName: String,
     cornerRadius: Dp,
     isFocused: Boolean,
     userRating: Int,
@@ -280,7 +280,7 @@ private fun WideGameCardFooter(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = platformShortName,
+                        text = platformDisplayName,
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onPrimary
                     )

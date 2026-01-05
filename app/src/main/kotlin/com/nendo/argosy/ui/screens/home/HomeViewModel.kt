@@ -12,6 +12,7 @@ import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.dao.PlatformDao
 import com.nendo.argosy.data.local.entity.GameEntity
 import com.nendo.argosy.data.local.entity.PlatformEntity
+import com.nendo.argosy.data.local.entity.getDisplayName
 import com.nendo.argosy.data.model.GameSource
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.remote.romm.RomMRepository
@@ -119,6 +120,7 @@ data class HomeGameUi(
     val title: String,
     val platformId: Long,
     val platformSlug: String,
+    val platformDisplayName: String,
     val coverPath: String?,
     val backgroundPath: String?,
     val developer: String?,
@@ -153,6 +155,7 @@ data class HomePlatformUi(
     val id: Long,
     val name: String,
     val shortName: String,
+    val displayName: String,
     val logoPath: String?
 )
 
@@ -341,6 +344,8 @@ class HomeViewModel @Inject constructor(
 
     private val recentGamesCache = AtomicReference(RecentGamesCache(null, 0L))
     private val _pinnedGamesLoading = MutableStateFlow<Set<Long>>(emptySet())
+    private var cachedAmbiguousSlugs: Set<String> = emptySet()
+    private var cachedPlatformDisplayNames: Map<Long, String> = emptyMap()
 
     init {
         modalResetSignal.signal.onEach {
@@ -384,7 +389,7 @@ class HomeViewModel @Inject constructor(
 
     private suspend fun prefetchGamesForPinnedCollection(pinned: PinnedCollection) {
         val games = getGamesForPinnedCollectionUseCase(pinned).first()
-        val gameUis = games.map { it.toUi() }
+        val gameUis = games.map { it.toUi(cachedPlatformDisplayNames) }
         _uiState.update { state ->
             state.copy(
                 pinnedGames = state.pinnedGames + (pinned.id to gameUis),
@@ -421,8 +426,10 @@ class HomeViewModel @Inject constructor(
     private fun observePlatformChanges() {
         viewModelScope.launch {
             platformDao.observePlatformsWithGames().collect { platforms ->
+                cachedAmbiguousSlugs = platformDao.getAmbiguousSlugs().toSet()
+                cachedPlatformDisplayNames = platforms.associate { it.id to it.getDisplayName(cachedAmbiguousSlugs) }
                 val currentPlatforms = _uiState.value.platforms
-                val newPlatformUis = platforms.map { it.toUi() }
+                val newPlatformUis = platforms.map { it.toUi(cachedAmbiguousSlugs) }
 
                 if (currentPlatforms.isEmpty() && newPlatformUis.isNotEmpty()) {
                     _uiState.update { state ->
@@ -556,8 +563,10 @@ class HomeViewModel @Inject constructor(
 
     private fun loadData() {
         viewModelScope.launch {
+            cachedAmbiguousSlugs = platformDao.getAmbiguousSlugs().toSet()
             val allPlatforms = platformDao.getPlatformsWithGames()
             val platforms = allPlatforms.filter { it.id != LocalPlatformIds.STEAM && it.id != LocalPlatformIds.ANDROID }
+            cachedPlatformDisplayNames = allPlatforms.associate { it.id to it.getDisplayName(cachedAmbiguousSlugs) }
             val favorites = gameDao.getFavorites()
             val androidGames = gameDao.getByPlatformSorted(LocalPlatformIds.ANDROID, limit = PLATFORM_GAMES_LIMIT)
             val steamGames = gameDao.getByPlatformSorted(LocalPlatformIds.STEAM, limit = PLATFORM_GAMES_LIMIT)
@@ -573,15 +582,15 @@ class HomeViewModel @Inject constructor(
                     else -> false
                 }
                 if (isPlayable) {
-                    validatedRecent.add(game.toUi())
+                    validatedRecent.add(game.toUi(cachedPlatformDisplayNames))
                 }
             }
             recentGamesCache.set(RecentGamesCache(validatedRecent, recentGamesCache.get().version))
 
-            val platformUis = platforms.map { it.toUi() }
-            val favoriteUis = favorites.map { it.toUi() }
-            val androidGameUis = androidGames.map { it.toUi() }
-            val steamGameUis = steamGames.map { it.toUi() }
+            val platformUis = platforms.map { it.toUi(cachedAmbiguousSlugs) }
+            val favoriteUis = favorites.map { it.toUi(cachedPlatformDisplayNames) }
+            val androidGameUis = androidGames.map { it.toUi(cachedPlatformDisplayNames) }
+            val steamGameUis = steamGames.map { it.toUi(cachedPlatformDisplayNames) }
 
             val startRow = when {
                 validatedRecent.isNotEmpty() -> HomeRow.Continue
@@ -681,7 +690,7 @@ class HomeViewModel @Inject constructor(
                 }
 
                 if (isPlayable) {
-                    validated.add(game.toUi())
+                    validated.add(game.toUi(cachedPlatformDisplayNames))
                 }
             }
 
@@ -711,7 +720,7 @@ class HomeViewModel @Inject constructor(
 
     private suspend fun loadFavorites() {
         val games = gameDao.getFavorites()
-        val gameUis = games.map { it.toUi() }
+        val gameUis = games.map { it.toUi(cachedPlatformDisplayNames) }
         _uiState.update { state ->
             val newState = state.copy(favoriteGames = gameUis)
             if (state.currentRow == HomeRow.Favorites && gameUis.isEmpty()) {
@@ -743,7 +752,7 @@ class HomeViewModel @Inject constructor(
 
             applyPenaltiesToDisplayed(displayedGames.map { it.id })
 
-            val gameUis = displayedGames.map { it.toUi() }
+            val gameUis = displayedGames.map { it.toUi(cachedPlatformDisplayNames) }
             _uiState.update { it.copy(recommendedGames = gameUis) }
         }
     }
@@ -782,7 +791,7 @@ class HomeViewModel @Inject constructor(
 
                 applyPenaltiesToDisplayed(displayedGames.map { it.id })
 
-                val gameUis = displayedGames.map { it.toUi() }
+                val gameUis = displayedGames.map { it.toUi(cachedPlatformDisplayNames) }
                 _uiState.update { it.copy(recommendedGames = gameUis) }
                 notificationManager.showSuccess("Recommendations updated")
             } else {
@@ -793,13 +802,15 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun loadPlatforms() {
+        cachedAmbiguousSlugs = platformDao.getAmbiguousSlugs().toSet()
         val allPlatforms = platformDao.getPlatformsWithGames()
         val platforms = allPlatforms.filter { it.id != LocalPlatformIds.STEAM && it.id != LocalPlatformIds.ANDROID }
-        val platformUis = platforms.map { it.toUi() }
+        cachedPlatformDisplayNames = allPlatforms.associate { it.id to it.getDisplayName(cachedAmbiguousSlugs) }
+        val platformUis = platforms.map { it.toUi(cachedAmbiguousSlugs) }
         val androidGames = gameDao.getByPlatformSorted(LocalPlatformIds.ANDROID, limit = PLATFORM_GAMES_LIMIT)
-        val androidGameUis = androidGames.map { it.toUi() }
+        val androidGameUis = androidGames.map { it.toUi(cachedPlatformDisplayNames) }
         val steamGames = gameDao.getByPlatformSorted(LocalPlatformIds.STEAM, limit = PLATFORM_GAMES_LIMIT)
-        val steamGameUis = steamGames.map { it.toUi() }
+        val steamGameUis = steamGames.map { it.toUi(cachedPlatformDisplayNames) }
         _uiState.update { state ->
             val shouldSwitchRow = platforms.isNotEmpty() &&
                 state.currentRow == HomeRow.Continue &&
@@ -900,7 +911,7 @@ class HomeViewModel @Inject constructor(
             if (ids.isNotEmpty()) {
                 val games = gameDao.getByIds(ids)
                 val orderedGames = ids.mapNotNull { id -> games.find { it.id == id } }
-                _uiState.update { it.copy(recommendedGames = orderedGames.map { g -> g.toUi() }) }
+                _uiState.update { it.copy(recommendedGames = orderedGames.map { g -> g.toUi(cachedPlatformDisplayNames) }) }
             }
         }
     }
@@ -918,7 +929,7 @@ class HomeViewModel @Inject constructor(
     private suspend fun loadGamesForPlatformInternal(platformId: Long, platformIndex: Int) {
         val games = gameDao.getByPlatformSorted(platformId, limit = PLATFORM_GAMES_LIMIT)
         val platform = _uiState.value.platforms.getOrNull(platformIndex)
-        val gameItems: List<HomeRowItem> = games.map { HomeRowItem.Game(it.toUi()) }
+        val gameItems: List<HomeRowItem> = games.map { HomeRowItem.Game(it.toUi(cachedPlatformDisplayNames)) }
         val items: List<HomeRowItem> = if (platform != null) {
             gameItems + HomeRowItem.ViewAll(
                 platformId = platform.id,
@@ -937,7 +948,7 @@ class HomeViewModel @Inject constructor(
     private suspend fun loadGamesForPinnedCollection(pinId: Long) {
         val pinned = _uiState.value.pinnedCollections.find { it.id == pinId } ?: return
         val games = getGamesForPinnedCollectionUseCase(pinned).first()
-        val gameUis = games.map { it.toUi() }
+        val gameUis = games.map { it.toUi(cachedPlatformDisplayNames) }
         _uiState.update { state ->
             state.copy(
                 pinnedGames = state.pinnedGames + (pinId to gameUis),
@@ -1382,7 +1393,7 @@ class HomeViewModel @Inject constructor(
         when (val row = state.currentRow) {
             HomeRow.Favorites -> {
                 val games = gameDao.getFavorites()
-                val gameUis = games.map { it.toUi() }
+                val gameUis = games.map { it.toUi(cachedPlatformDisplayNames) }
                 val newIndex = if (focusedGameId != null) {
                     gameUis.indexOfFirst { it.id == focusedGameId }
                         .takeIf { it >= 0 } ?: state.focusedGameIndex.coerceAtMost(gameUis.lastIndex.coerceAtLeast(0))
@@ -1413,7 +1424,7 @@ class HomeViewModel @Inject constructor(
                         else -> false
                     }
                     if (isPlayable) {
-                        validated.add(game.toUi())
+                        validated.add(game.toUi(cachedPlatformDisplayNames))
                     }
                 }
 
@@ -1438,7 +1449,7 @@ class HomeViewModel @Inject constructor(
             is HomeRow.Platform -> {
                 val platform = state.platforms.getOrNull(row.index) ?: return
                 val games = gameDao.getByPlatformSorted(platform.id, limit = PLATFORM_GAMES_LIMIT)
-                val gameItems: List<HomeRowItem> = games.map { HomeRowItem.Game(it.toUi()) }
+                val gameItems: List<HomeRowItem> = games.map { HomeRowItem.Game(it.toUi(cachedPlatformDisplayNames)) }
                 val items: List<HomeRowItem> = gameItems + HomeRowItem.ViewAll(
                     platformId = platform.id,
                     platformName = platform.name,
@@ -1459,7 +1470,7 @@ class HomeViewModel @Inject constructor(
             }
             HomeRow.Android -> {
                 val games = gameDao.getByPlatformSorted(LocalPlatformIds.ANDROID, limit = PLATFORM_GAMES_LIMIT)
-                val gameUis = games.map { it.toUi() }
+                val gameUis = games.map { it.toUi(cachedPlatformDisplayNames) }
                 val newIndex = if (focusedGameId != null) {
                     gameUis.indexOfFirst { it.id == focusedGameId }
                         .takeIf { it >= 0 } ?: state.focusedGameIndex.coerceAtMost(gameUis.lastIndex.coerceAtLeast(0))
@@ -1475,7 +1486,7 @@ class HomeViewModel @Inject constructor(
             }
             HomeRow.Steam -> {
                 val games = gameDao.getByPlatformSorted(LocalPlatformIds.STEAM, limit = PLATFORM_GAMES_LIMIT)
-                val gameUis = games.map { it.toUi() }
+                val gameUis = games.map { it.toUi(cachedPlatformDisplayNames) }
                 val newIndex = if (focusedGameId != null) {
                     gameUis.indexOfFirst { it.id == focusedGameId }
                         .takeIf { it >= 0 } ?: state.focusedGameIndex.coerceAtMost(gameUis.lastIndex.coerceAtLeast(0))
@@ -1580,14 +1591,15 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun PlatformEntity.toUi() = HomePlatformUi(
+    private fun PlatformEntity.toUi(ambiguousSlugs: Set<String>) = HomePlatformUi(
         id = id,
         name = name,
         shortName = shortName,
+        displayName = getDisplayName(ambiguousSlugs),
         logoPath = logoPath
     )
 
-    private fun GameEntity.toUi(): HomeGameUi {
+    private fun GameEntity.toUi(platformDisplayNames: Map<Long, String> = emptyMap()): HomeGameUi {
         val firstScreenshot = screenshotPaths?.split(",")?.firstOrNull()?.takeIf { it.isNotBlank() }
         val effectiveBackground = backgroundPath ?: firstScreenshot ?: coverPath
         return HomeGameUi(
@@ -1595,6 +1607,7 @@ class HomeViewModel @Inject constructor(
             title = title,
             platformId = platformId,
             platformSlug = platformSlug,
+            platformDisplayName = platformDisplayNames[platformId] ?: platformSlug,
             coverPath = coverPath,
             backgroundPath = effectiveBackground,
             developer = developer,

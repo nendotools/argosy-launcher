@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nendo.argosy.data.local.dao.PlatformDao
 import com.nendo.argosy.data.local.entity.GameEntity
+import com.nendo.argosy.data.local.entity.getDisplayName
 import com.nendo.argosy.domain.usecase.collection.CategoryType
 import com.nendo.argosy.domain.usecase.collection.GetGamesByCategoryUseCase
 import com.nendo.argosy.domain.usecase.collection.IsPinnedUseCase
@@ -78,11 +79,12 @@ class VirtualCategoryViewModel @Inject constructor(
     val uiState: StateFlow<VirtualCategoryUiState> = combine(
         getGamesByCategoryUseCase(categoryType, category),
         platformDao.observeAllPlatforms(),
+        platformDao.observeAmbiguousSlugs(),
         _focusedIndex,
-        _isPinned,
-        _isRefreshing
-    ) { games, platforms, focusedIndex, isPinned, isRefreshing ->
-        val platformMap = platforms.associate { it.id to it.shortName }
+        combine(_isPinned, _isRefreshing) { a, b -> a to b }
+    ) { games, platforms, ambiguousSlugs, focusedIndex, (isPinned, isRefreshing) ->
+        val ambiguousSlugsSet = ambiguousSlugs.toSet()
+        val platformMap = platforms.associate { it.id to it.getDisplayName(ambiguousSlugsSet) }
         val gamesUi = games.map { game ->
             game.toUi(platformMap[game.platformId] ?: "Unknown")
         }
@@ -101,11 +103,11 @@ class VirtualCategoryViewModel @Inject constructor(
         initialValue = VirtualCategoryUiState(type = type, categoryName = category)
     )
 
-    private fun GameEntity.toUi(platformShortName: String) = CollectionGameUi(
+    private fun GameEntity.toUi(platformDisplayName: String) = CollectionGameUi(
         id = id,
         title = title,
         platformId = platformId,
-        platformShortName = platformShortName,
+        platformDisplayName = platformDisplayName,
         coverPath = coverPath,
         developer = developer,
         releaseYear = releaseYear,

@@ -73,4 +73,10 @@ interface PlatformDao {
 
     @Query("SELECT * FROM platforms")
     suspend fun getAllPlatforms(): List<PlatformEntity>
+
+    @Query("SELECT slug FROM platforms GROUP BY slug HAVING COUNT(*) > 1")
+    suspend fun getAmbiguousSlugs(): List<String>
+
+    @Query("SELECT slug FROM platforms GROUP BY slug HAVING COUNT(*) > 1")
+    fun observeAmbiguousSlugs(): Flow<List<String>>
 }

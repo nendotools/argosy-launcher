@@ -123,7 +123,7 @@ fun VirtualCategoryScreen(
                         itemsIndexed(uiState.games, key = { _, g -> g.id }) { index, game ->
                             WideGameCard(
                                 title = game.title,
-                                platformShortName = game.platformShortName,
+                                platformDisplayName = game.platformDisplayName,
                                 coverPath = game.coverPath,
                                 developer = game.developer,
                                 releaseYear = game.releaseYear,

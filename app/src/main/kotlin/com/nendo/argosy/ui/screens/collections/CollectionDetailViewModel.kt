@@ -7,6 +7,7 @@ import com.nendo.argosy.data.local.dao.CollectionDao
 import com.nendo.argosy.data.local.dao.PlatformDao
 import com.nendo.argosy.data.local.entity.CollectionEntity
 import com.nendo.argosy.data.local.entity.GameEntity
+import com.nendo.argosy.data.local.entity.getDisplayName
 import com.nendo.argosy.domain.usecase.collection.IsPinnedUseCase
 import com.nendo.argosy.domain.usecase.collection.PinCollectionUseCase
 import com.nendo.argosy.domain.usecase.collection.RefreshAllCollectionsUseCase
@@ -30,7 +31,7 @@ data class CollectionGameUi(
     val id: Long,
     val title: String,
     val platformId: Long,
-    val platformShortName: String,
+    val platformDisplayName: String,
     val coverPath: String?,
     val developer: String?,
     val releaseYear: Int?,
@@ -113,9 +114,11 @@ class CollectionDetailViewModel @Inject constructor(
             collectionDao.observeCollectionById(collectionId),
             collectionDao.observeGamesInCollection(collectionId),
             platformDao.observeAllPlatforms(),
+            platformDao.observeAmbiguousSlugs(),
             _modalState
-        ) { collection, games, platforms, modalState ->
-            val platformMap = platforms.associate { it.id to it.shortName }
+        ) { collection, games, platforms, ambiguousSlugs, modalState ->
+            val ambiguousSlugsSet = ambiguousSlugs.toSet()
+            val platformMap = platforms.associate { it.id to it.getDisplayName(ambiguousSlugsSet) }
             val gamesUi = games.map { game ->
                 game.toUi(platformMap[game.platformId] ?: "Unknown")
             }
@@ -140,11 +143,11 @@ class CollectionDetailViewModel @Inject constructor(
         initialValue = CollectionDetailUiState()
     )
 
-    private fun GameEntity.toUi(platformShortName: String) = CollectionGameUi(
+    private fun GameEntity.toUi(platformDisplayName: String) = CollectionGameUi(
         id = id,
         title = title,
         platformId = platformId,
-        platformShortName = platformShortName,
+        platformDisplayName = platformDisplayName,
         coverPath = coverPath,
         developer = developer,
         releaseYear = releaseYear,
