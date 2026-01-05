@@ -1,9 +1,15 @@
 package com.nendo.argosy.ui.notification
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -16,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
@@ -35,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -44,7 +52,8 @@ import coil.compose.AsyncImage
 import com.nendo.argosy.ui.theme.LocalLauncherTheme
 import kotlinx.coroutines.delay
 
-private val PERSISTENT_BAR_HEIGHT = 72.dp
+private val PERSISTENT_BAR_HEIGHT = 52.dp
+private val FOOTER_CLEARANCE = 56.dp
 
 @Composable
 fun NotificationHost(
@@ -65,12 +74,19 @@ fun NotificationHost(
     Box(modifier = modifier.fillMaxSize()) {
         AnimatedVisibility(
             visible = current != null,
-            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            enter = slideInHorizontally(initialOffsetX = { it }) +
+                    fadeIn(animationSpec = tween(200)) +
+                    scaleIn(
+                        initialScale = 0.92f,
+                        animationSpec = spring(dampingRatio = 0.7f, stiffness = 400f)
+                    ),
+            exit = slideOutHorizontally(targetOffsetX = { it / 3 }) +
+                   fadeOut(animationSpec = tween(150)) +
+                   scaleOut(targetScale = 0.95f),
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(horizontal = 24.dp)
-                .padding(bottom = if (persistent != null) PERSISTENT_BAR_HEIGHT + 24.dp else 16.dp)
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp)
+                .padding(bottom = if (persistent != null) PERSISTENT_BAR_HEIGHT + FOOTER_CLEARANCE + 8.dp else FOOTER_CLEARANCE)
         ) {
             current?.let { notification ->
                 NotificationBar(notification = notification)
@@ -79,11 +95,13 @@ fun NotificationHost(
 
         AnimatedVisibility(
             visible = persistent != null,
-            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            enter = slideInHorizontally(initialOffsetX = { it }) +
+                    fadeIn(animationSpec = tween(200)),
+            exit = slideOutHorizontally(targetOffsetX = { it / 3 }) +
+                   fadeOut(animationSpec = tween(150)),
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(horizontal = 24.dp, vertical = 16.dp)
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = FOOTER_CLEARANCE)
         ) {
             persistent?.let { notification ->
                 PersistentNotificationBar(notification = notification)
@@ -98,12 +116,16 @@ private fun NotificationBar(
     modifier: Modifier = Modifier
 ) {
     val colors = notificationColors(notification.type)
+    val baseColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.92f)
+    val backgroundColor = colors.tint.copy(alpha = 0.15f).compositeOver(baseColor)
+    val textColor = MaterialTheme.colorScheme.onSurface
 
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(colors.container)
-            .padding(12.dp),
+            .widthIn(max = 280.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(backgroundColor)
+            .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (notification.imagePath != null) {
@@ -112,34 +134,34 @@ private fun NotificationBar(
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(6.dp))
             )
         } else {
             Icon(
                 imageVector = notificationIcon(notification.type),
                 contentDescription = null,
-                tint = colors.content,
-                modifier = Modifier.size(32.dp)
+                tint = colors.icon,
+                modifier = Modifier.size(24.dp)
             )
         }
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(8.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = notification.title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Bold,
-                color = colors.content,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = textColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             notification.subtitle?.let { subtitle ->
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.content.copy(alpha = 0.8f),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = textColor.copy(alpha = 0.7f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -153,42 +175,43 @@ private fun PersistentNotificationBar(
     notification: Notification,
     modifier: Modifier = Modifier
 ) {
-    val containerColor = MaterialTheme.colorScheme.surfaceVariant
-    val contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val accentColor = MaterialTheme.colorScheme.primary
+    val baseColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.92f)
+    val accentColor = MaterialTheme.colorScheme.secondary
+    val backgroundColor = accentColor.copy(alpha = 0.10f).compositeOver(baseColor)
+    val textColor = MaterialTheme.colorScheme.onSurface
 
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(containerColor)
-            .fillMaxWidth()
+            .widthIn(max = 280.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(backgroundColor)
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             CircularProgressIndicator(
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(20.dp),
                 color = accentColor,
-                strokeWidth = 2.5.dp
+                strokeWidth = 2.dp
             )
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = notification.title,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium,
-                    color = contentColor,
+                    color = textColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 notification.subtitle?.let { subtitle ->
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = contentColor.copy(alpha = 0.7f),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = textColor.copy(alpha = 0.7f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -198,7 +221,7 @@ private fun PersistentNotificationBar(
             notification.progress?.let { progress ->
                 Text(
                     text = progress.displayText,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelSmall,
                     color = accentColor
                 )
             }
@@ -209,17 +232,17 @@ private fun PersistentNotificationBar(
                 progress = { progress.fraction },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(3.dp),
+                    .height(2.dp),
                 color = accentColor,
-                trackColor = contentColor.copy(alpha = 0.15f)
+                trackColor = textColor.copy(alpha = 0.12f)
             )
         }
     }
 }
 
 private data class NotificationColors(
-    val container: Color,
-    val content: Color
+    val icon: Color,
+    val tint: Color
 )
 
 @Composable
@@ -227,20 +250,20 @@ private fun notificationColors(type: NotificationType): NotificationColors {
     val semantic = LocalLauncherTheme.current.semanticColors
     return when (type) {
         NotificationType.SUCCESS -> NotificationColors(
-            container = semantic.successContainer,
-            content = semantic.onSuccessContainer
+            icon = semantic.success,
+            tint = semantic.success
         )
         NotificationType.INFO -> NotificationColors(
-            container = semantic.infoContainer,
-            content = semantic.onInfoContainer
+            icon = MaterialTheme.colorScheme.primary,
+            tint = MaterialTheme.colorScheme.primary
         )
         NotificationType.WARNING -> NotificationColors(
-            container = semantic.warningContainer,
-            content = semantic.onWarningContainer
+            icon = semantic.warning,
+            tint = semantic.warning
         )
         NotificationType.ERROR -> NotificationColors(
-            container = MaterialTheme.colorScheme.errorContainer,
-            content = MaterialTheme.colorScheme.onErrorContainer
+            icon = MaterialTheme.colorScheme.error,
+            tint = MaterialTheme.colorScheme.error
         )
     }
 }
