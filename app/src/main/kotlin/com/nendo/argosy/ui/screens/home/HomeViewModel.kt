@@ -16,6 +16,7 @@ import com.nendo.argosy.data.local.entity.getDisplayName
 import com.nendo.argosy.data.model.GameSource
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.remote.romm.RomMRepository
+import com.nendo.argosy.data.repository.GameRepository
 import com.nendo.argosy.data.remote.romm.RomMResult
 import com.nendo.argosy.domain.model.Changelog
 import com.nendo.argosy.domain.model.ChangelogEntry
@@ -327,7 +328,8 @@ class HomeViewModel @Inject constructor(
     private val repairImageCacheUseCase: RepairImageCacheUseCase,
     private val modalResetSignal: ModalResetSignal,
     private val getPinnedCollectionsUseCase: GetPinnedCollectionsUseCase,
-    private val getGamesForPinnedCollectionUseCase: GetGamesForPinnedCollectionUseCase
+    private val getGamesForPinnedCollectionUseCase: GetGamesForPinnedCollectionUseCase,
+    private val gameRepository: GameRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(restoreInitialState())
@@ -359,6 +361,7 @@ class HomeViewModel @Inject constructor(
         observePlatformChanges()
         observeAchievementUpdates()
         observePinnedCollections()
+        observeRecentlyPlayedChanges()
     }
 
     private fun resetMenus() {
@@ -382,6 +385,39 @@ class HomeViewModel @Inject constructor(
 
                 pinnedList.forEach { pinned ->
                     launch { prefetchGamesForPinnedCollection(pinned) }
+                }
+            }
+        }
+    }
+
+    private fun observeRecentlyPlayedChanges() {
+        viewModelScope.launch {
+            gameRepository.awaitStorageReady()
+            gameDao.observeRecentlyPlayed(RECENT_GAMES_CANDIDATE_POOL).collect { candidatePool ->
+                val validated = mutableListOf<HomeGameUi>()
+                for (game in candidatePool) {
+                    if (validated.size >= RECENT_GAMES_LIMIT) break
+                    val isPlayable = when {
+                        game.source == GameSource.STEAM -> true
+                        game.source == GameSource.ANDROID_APP -> true
+                        game.localPath != null -> File(game.localPath).exists()
+                        else -> false
+                    }
+                    if (isPlayable) {
+                        validated.add(game.toUi(cachedPlatformDisplayNames))
+                    }
+                }
+
+                recentGamesCache.set(RecentGamesCache(validated, recentGamesCache.get().version))
+
+                _uiState.update { state ->
+                    val newState = state.copy(recentGames = validated)
+                    if (state.currentRow == HomeRow.Continue && validated.isEmpty()) {
+                        val newRow = newState.availableRows.firstOrNull() ?: HomeRow.Continue
+                        newState.copy(currentRow = newRow, focusedGameIndex = 0)
+                    } else {
+                        newState
+                    }
                 }
             }
         }
@@ -563,6 +599,7 @@ class HomeViewModel @Inject constructor(
 
     private fun loadData() {
         viewModelScope.launch {
+            gameRepository.awaitStorageReady()
             cachedAmbiguousSlugs = platformDao.getAmbiguousSlugs().toSet()
             val allPlatforms = platformDao.getPlatformsWithGames()
             val platforms = allPlatforms.filter { it.id != LocalPlatformIds.STEAM && it.id != LocalPlatformIds.ANDROID }
