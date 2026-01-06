@@ -918,7 +918,9 @@ class RomMRepository @Inject constructor(
         return try {
             val response = currentApi.getRom(romId)
             if (response.isSuccessful) {
-                RomMResult.Success(response.body()!!)
+                val body = response.body()
+                    ?: return RomMResult.Error("Empty response from server")
+                RomMResult.Success(body)
             } else {
                 RomMResult.Error("Failed to fetch ROM", response.code())
             }
@@ -1024,7 +1026,9 @@ class RomMRepository @Inject constructor(
         return try {
             val response = currentApi.getCurrentUser()
             if (response.isSuccessful) {
-                RomMResult.Success(response.body()!!)
+                val body = response.body()
+                    ?: return RomMResult.Error("Empty response from server")
+                RomMResult.Success(body)
             } else {
                 RomMResult.Error("Failed to fetch user", response.code())
             }

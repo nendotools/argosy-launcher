@@ -892,7 +892,8 @@ class SaveSyncRepository @Inject constructor(
             }
 
             if (response.isSuccessful) {
-                val serverSave = response.body()!!
+                val serverSave = response.body()
+                    ?: return@withContext SaveSyncResult.Error("Empty response from server")
                 Logger.debug(TAG, "uploadSave: success, serverSaveId=${serverSave.id}")
                 saveSyncDao.upsert(
                     SaveSyncEntity(
@@ -1026,7 +1027,8 @@ class SaveSyncRepository @Inject constructor(
                     return@withContext SaveSyncResult.Error("Failed to unzip save")
                 }
             } else {
-                targetPath = preDownloadTargetPath!!
+                targetPath = preDownloadTargetPath
+                    ?: return@withContext SaveSyncResult.Error("Cannot determine save path")
 
                 val existingTarget = File(targetPath)
                 if (existingTarget.exists() && !skipBackup) {

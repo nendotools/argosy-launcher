@@ -83,7 +83,8 @@ class SteamRepository @Inject constructor(
                 }
                 Log.d(TAG, "Game already exists: ${existing.title}")
                 updatePlatformGameCount()
-                return@withContext SteamResult.Success(gameDao.getBySteamAppId(steamAppId)!!)
+                val refreshed = gameDao.getBySteamAppId(steamAppId) ?: existing
+                return@withContext SteamResult.Success(refreshed)
             }
 
             Log.d(TAG, "Fetching Steam app details for $steamAppId")
@@ -138,6 +139,7 @@ class SteamRepository @Inject constructor(
 
             val insertedId = gameDao.insert(game)
             val savedGame = gameDao.getById(insertedId)
+                ?: return@withContext SteamResult.Error("Failed to save game")
 
             if (backgroundUrl != null) {
                 imageCacheManager.queueSteamBackgroundCache(backgroundUrl, steamAppId, appData.name)
@@ -146,7 +148,7 @@ class SteamRepository @Inject constructor(
             updatePlatformGameCount()
 
             Log.d(TAG, "Added Steam game: ${appData.name}")
-            SteamResult.Success(savedGame!!)
+            SteamResult.Success(savedGame)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to add Steam game", e)
             SteamResult.Error(e.message ?: "Unknown error")
