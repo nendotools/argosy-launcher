@@ -57,7 +57,9 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.geometry.Offset
+import kotlin.math.cos
+import kotlin.math.sin
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
@@ -247,18 +249,30 @@ fun ActionButtons(
                         Modifier.drawBehind {
                             val strokeWidth = 3.dp.toPx()
                             val cornerRadius = size.height / 2
-                            rotate(rotationAngle) {
-                                drawRoundRect(
-                                    brush = Brush.sweepGradient(
-                                        colors = listOf(
-                                            primaryColor.copy(alpha = 0f),
-                                            primaryColor.copy(alpha = 1f)
-                                        )
+                            val angleRad = Math.toRadians(rotationAngle.toDouble())
+                            val gradientLength = maxOf(size.width, size.height) * 1.5f
+                            val center = Offset(size.width / 2, size.height / 2)
+                            val startOffset = Offset(
+                                center.x - (cos(angleRad) * gradientLength / 2).toFloat(),
+                                center.y - (sin(angleRad) * gradientLength / 2).toFloat()
+                            )
+                            val endOffset = Offset(
+                                center.x + (cos(angleRad) * gradientLength / 2).toFloat(),
+                                center.y + (sin(angleRad) * gradientLength / 2).toFloat()
+                            )
+                            drawRoundRect(
+                                brush = Brush.linearGradient(
+                                    colorStops = arrayOf(
+                                        0f to primaryColor.copy(alpha = 0f),
+                                        0.5f to primaryColor,
+                                        1f to primaryColor.copy(alpha = 0f)
                                     ),
-                                    style = Stroke(width = strokeWidth),
-                                    cornerRadius = CornerRadius(cornerRadius, cornerRadius)
-                                )
-                            }
+                                    start = startOffset,
+                                    end = endOffset
+                                ),
+                                style = Stroke(width = strokeWidth),
+                                cornerRadius = CornerRadius(cornerRadius, cornerRadius)
+                            )
                         }
                     } else Modifier
                 )
