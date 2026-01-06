@@ -415,7 +415,7 @@ class RomMRepository @Inject constructor(
         val platformDef = PlatformDefinitions.getBySlug(remote.slug)
 
         val logoUrl = remote.logoUrl?.let { buildMediaUrl(it) }
-        val normalizedName = platformDef?.name ?: PlatformDefinitions.normalizeDisplayName(remote.name)
+        val normalizedName = remote.displayName ?: remote.name
         val entity = PlatformEntity(
             id = platformId,
             slug = remote.slug,
@@ -437,7 +437,8 @@ class RomMRepository @Inject constructor(
             }
             existingBySlug != null && existingBySlug.id != platformId -> {
                 val isSamePlatform = existingBySlug.name.equals(remote.name, ignoreCase = true) ||
-                    existingBySlug.name.equals(normalizedName, ignoreCase = true)
+                    existingBySlug.name.equals(normalizedName, ignoreCase = true) ||
+                    platformDef?.name?.let { existingBySlug.name.equals(it, ignoreCase = true) } == true
                 if (isSamePlatform) {
                     platformDao.insert(entity)
                     gameDao.migratePlatform(existingBySlug.id, platformId)
@@ -1120,7 +1121,7 @@ class RomMRepository @Inject constructor(
                         ?: platformDao.getBySlug(remote.slug)
                     val platformDef = PlatformDefinitions.getBySlug(remote.slug)
                     val logoUrl = remote.logoUrl?.let { buildMediaUrl(it) }
-                    val normalizedName = platformDef?.name ?: PlatformDefinitions.normalizeDisplayName(remote.name)
+                    val normalizedName = remote.displayName ?: remote.name
                     PlatformEntity(
                         id = remote.id,
                         slug = remote.slug,
