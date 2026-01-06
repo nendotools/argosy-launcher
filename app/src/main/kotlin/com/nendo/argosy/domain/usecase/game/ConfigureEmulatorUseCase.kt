@@ -85,7 +85,20 @@ class ConfigureEmulatorUseCase @Inject constructor(
     }
 
     suspend fun setCoreForGame(gameId: Long, coreId: String?) {
-        emulatorConfigDao.updateCoreNameForGame(gameId, coreId)
+        val existing = emulatorConfigDao.getByGameId(gameId)
+        if (existing != null) {
+            emulatorConfigDao.updateCoreNameForGame(gameId, coreId)
+        } else if (coreId != null) {
+            val config = EmulatorConfigEntity(
+                platformId = null,
+                gameId = gameId,
+                packageName = null,
+                displayName = null,
+                coreName = coreId,
+                isDefault = false
+            )
+            emulatorConfigDao.insert(config)
+        }
     }
 
     suspend fun getConfigForPlatform(platformId: Long): EmulatorConfigEntity? {
