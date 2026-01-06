@@ -170,7 +170,14 @@ class SaveSyncRepository @Inject constructor(
         cachedTitleId: String? = null,
         coreName: String? = null
     ): String? = withContext(Dispatchers.IO) {
-        val config = SavePathRegistry.getConfigIncludingUnsupported(emulatorId) ?: return@withContext null
+        val config = SavePathRegistry.getConfigIncludingUnsupported(emulatorId)
+        if (config == null) {
+            if (emulatorId == "default" || emulatorId.isBlank()) {
+                Logger.warn(TAG, "Unknown emulatorId '$emulatorId', trying RetroArch fallback")
+                return@withContext discoverSavePath("retroarch", gameTitle, platformSlug, romPath, cachedTitleId, coreName)
+            }
+            return@withContext null
+        }
 
         val userConfig = emulatorSaveConfigDao.getByEmulator(emulatorId)
         val isRetroArch = emulatorId == "retroarch" || emulatorId == "retroarch_64"
@@ -995,7 +1002,8 @@ class SaveSyncRepository @Inject constructor(
                 targetPath = if (isSwitchEmulator && config != null) {
                     preDownloadTargetPath
                         ?: resolveSwitchSaveTargetPath(tempZipFile, config)
-                        ?: return@withContext SaveSyncResult.Error("Cannot determine save path from ZIP")
+                        ?: constructFolderSavePath(emulatorId, game.platformSlug, game.localPath)
+                        ?: return@withContext SaveSyncResult.Error("Cannot determine save path from ZIP or ROM")
                 } else {
                     preDownloadTargetPath
                         ?: return@withContext SaveSyncResult.Error("Cannot determine save path")
@@ -1047,6 +1055,14 @@ class SaveSyncRepository @Inject constructor(
                     syncStatus = SaveSyncEntity.STATUS_SYNCED
                 )
             )
+
+            if (isSwitchEmulator && game.titleId == null) {
+                val extractedTitleId = File(targetPath).name
+                if (isValidSwitchHexId(extractedTitleId)) {
+                    gameDao.updateTitleId(gameId, extractedTitleId)
+                    Logger.debug(TAG, "Cached titleId=$extractedTitleId for game $gameId")
+                }
+            }
 
             val effectiveChannelName = channelName ?: syncEntity.channelName
             val romBaseName = game.localPath?.let { File(it).nameWithoutExtension }

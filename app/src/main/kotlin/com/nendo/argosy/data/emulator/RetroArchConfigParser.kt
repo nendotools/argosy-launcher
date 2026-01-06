@@ -106,7 +106,7 @@ class RetroArchConfigParser @Inject constructor() {
         val paths = mutableListOf<String>()
 
         if (basePathOverride == null && config?.savefilesInContentDir == true && contentDirectory != null) {
-            paths.add(contentDirectory)
+            paths.addAll(getBasePathAlternatives(contentDirectory))
             return paths
         }
 
@@ -114,23 +114,48 @@ class RetroArchConfigParser @Inject constructor() {
             ?: config?.savefileDirectory
             ?: "/storage/emulated/0/RetroArch/saves"
 
+        val baseDirs = getBasePathAlternatives(baseDir)
+
+        if (config == null && coreName != null) {
+            for (base in baseDirs) {
+                paths.add("$base/$coreName")
+                paths.add(base)
+            }
+            Log.d(TAG, "resolveSavePaths: config missing, trying ${paths.size} paths (with/without core)")
+            return paths
+        }
+
         val sortByContentDir = config?.sortByContentDirectory == true
         val sortByCore = config?.sortByCore == true
 
-        val path = buildString {
-            append(baseDir)
-            if (sortByContentDir && systemName != null) {
-                append("/").append(systemName)
+        for (base in baseDirs) {
+            val path = buildString {
+                append(base)
+                if (sortByContentDir && systemName != null) {
+                    append("/").append(systemName)
+                }
+                if (sortByCore && coreName != null) {
+                    append("/").append(coreName)
+                }
             }
-            if (sortByCore && coreName != null) {
-                append("/").append(coreName)
-            }
+            paths.add(path)
         }
 
-        paths.add(path)
-
-        Log.d(TAG, "resolveSavePaths: $path (sortByContentDir=$sortByContentDir, sortByCore=$sortByCore)")
+        Log.d(TAG, "resolveSavePaths: ${paths.first()} (sortByContentDir=$sortByContentDir, sortByCore=$sortByCore)")
         return paths
+    }
+
+    private fun getBasePathAlternatives(path: String): List<String> {
+        val alternatives = mutableListOf(path)
+        when {
+            path.contains("/storage/emulated/0/") -> {
+                alternatives.add(path.replace("/storage/emulated/0/", "/Internal/"))
+            }
+            path.contains("/Internal/") -> {
+                alternatives.add(path.replace("/Internal/", "/storage/emulated/0/"))
+            }
+        }
+        return alternatives
     }
 
     fun parseStateConfig(packageName: String): RetroArchStateConfig? {
@@ -185,7 +210,7 @@ class RetroArchConfigParser @Inject constructor() {
         val paths = mutableListOf<String>()
 
         if (basePathOverride == null && config?.savestatesInContentDir == true && contentDirectory != null) {
-            paths.add(contentDirectory)
+            paths.addAll(getBasePathAlternatives(contentDirectory))
             return paths
         }
 
@@ -193,18 +218,30 @@ class RetroArchConfigParser @Inject constructor() {
             ?: config?.savestateDirectory
             ?: "/storage/emulated/0/RetroArch/states"
 
-        val sortByCore = config?.sortByCore == true
+        val baseDirs = getBasePathAlternatives(baseDir)
 
-        val path = buildString {
-            append(baseDir)
-            if (sortByCore && coreName != null) {
-                append("/").append(coreName)
+        if (config == null && coreName != null) {
+            for (base in baseDirs) {
+                paths.add("$base/$coreName")
+                paths.add(base)
             }
+            Log.d(TAG, "resolveStatePaths: config missing, trying ${paths.size} paths (with/without core)")
+            return paths
         }
 
-        paths.add(path)
+        val sortByCore = config?.sortByCore == true
 
-        Log.d(TAG, "resolveStatePaths: $path (sortByCore=$sortByCore)")
+        for (base in baseDirs) {
+            val path = buildString {
+                append(base)
+                if (sortByCore && coreName != null) {
+                    append("/").append(coreName)
+                }
+            }
+            paths.add(path)
+        }
+
+        Log.d(TAG, "resolveStatePaths: ${paths.first()} (sortByCore=$sortByCore)")
         return paths
     }
 }
