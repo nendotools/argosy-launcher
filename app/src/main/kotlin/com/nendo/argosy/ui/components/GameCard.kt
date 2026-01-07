@@ -736,7 +736,7 @@ fun GameCard(
             }
 
             PlatformBadge(
-                platformDisplayName = game.platformDisplayName,
+                platformDisplayName = game.platformSlug,
                 cardWidthDp = maxWidth,
                 isFocused = isFocused,
                 modifier = Modifier.align(badgeAlignment)
