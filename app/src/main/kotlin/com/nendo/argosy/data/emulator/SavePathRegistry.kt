@@ -271,6 +271,14 @@ object SavePathRegistry {
             saveExtensions = listOf("*"),
             usesFolderBasedSaves = true
         ),
+        "cemu_dualscreen" to SavePathConfig(
+            emulatorId = "cemu_dualscreen",
+            defaultPaths = listOf(
+                "/storage/emulated/0/Android/data/info.cemu.cemu/files/mlc01/usr/save/00050000"
+            ),
+            saveExtensions = listOf("*"),
+            usesFolderBasedSaves = true
+        ),
 
         // Dreamcast - uses shared VMU files, not yet supported
         "redream" to SavePathConfig(
