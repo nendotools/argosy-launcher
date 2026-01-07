@@ -28,4 +28,12 @@ class EmulatorResolver @Inject constructor(
     suspend fun getEmulatorIdForGame(gameId: Long, platformId: Long, platformSlug: String): String? {
         return getEmulatorPackageForGame(gameId, platformId, platformSlug)?.let { resolveEmulatorId(it) }
     }
+
+    fun getInstalledForPlatform(platformSlug: String): List<InstalledEmulator> {
+        return emulatorDetector.getInstalledForPlatform(platformSlug)
+    }
+
+    fun getPreferredEmulator(platformSlug: String): InstalledEmulator? {
+        return emulatorDetector.getPreferredEmulator(platformSlug)
+    }
 }

@@ -1,8 +1,9 @@
 package com.nendo.argosy.data.repository
 
 import android.content.Context
-import com.nendo.argosy.data.emulator.EmulatorDetector
+import android.os.StatFs
 import com.nendo.argosy.data.emulator.EmulatorRegistry
+import com.nendo.argosy.data.emulator.EmulatorResolver
 import com.nendo.argosy.util.Logger
 import com.nendo.argosy.data.emulator.RetroArchConfigParser
 import com.nendo.argosy.data.emulator.SavePathConfig
@@ -28,7 +29,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -100,7 +104,7 @@ class SaveSyncRepository @Inject constructor(
     private val pendingSaveSyncDao: PendingSaveSyncDao,
     private val emulatorSaveConfigDao: EmulatorSaveConfigDao,
     private val emulatorConfigDao: EmulatorConfigDao,
-    private val emulatorDetector: EmulatorDetector,
+    private val emulatorResolver: EmulatorResolver,
     private val gameDao: GameDao,
     private val retroArchConfigParser: RetroArchConfigParser,
     private val titleIdExtractor: TitleIdExtractor,
@@ -118,7 +122,7 @@ class SaveSyncRepository @Inject constructor(
     }
 
     private fun updateSyncQueue(transform: (SyncQueueState) -> SyncQueueState) {
-        _syncQueueState.value = transform(_syncQueueState.value)
+        _syncQueueState.update(transform)
     }
 
     private fun addOperation(operation: SyncOperation) {
@@ -311,21 +315,24 @@ class SaveSyncRepository @Inject constructor(
     ): String? {
         val baseDir = File(basePath)
         if (!baseDir.exists()) return null
+        val normalizedTitleId = titleId.uppercase()
 
         when (platformSlug) {
             "vita", "psvita" -> {
-                val saveFolder = File(baseDir, titleId)
-                if (saveFolder.exists() && saveFolder.isDirectory) {
-                    return saveFolder.absolutePath
+                val match = baseDir.listFiles()?.firstOrNull {
+                    it.isDirectory && it.name.equals(titleId, ignoreCase = true)
                 }
+                if (match != null) return match.absolutePath
             }
             "switch" -> {
                 var bestMatch: File? = null
                 var bestModTime = 0L
                 baseDir.listFiles()?.forEach { userFolder ->
                     if (userFolder.isDirectory) {
-                        val saveFolder = File(userFolder, titleId)
-                        if (saveFolder.exists() && saveFolder.isDirectory) {
+                        val saveFolder = userFolder.listFiles()?.firstOrNull {
+                            it.isDirectory && it.name.equals(normalizedTitleId, ignoreCase = true)
+                        }
+                        if (saveFolder != null) {
                             val modTime = findNewestFileTime(saveFolder)
                             if (modTime > bestModTime) {
                                 bestModTime = modTime
@@ -334,8 +341,10 @@ class SaveSyncRepository @Inject constructor(
                         }
                         userFolder.listFiles()?.forEach { profileFolder ->
                             if (profileFolder.isDirectory) {
-                                val nestedSave = File(profileFolder, titleId)
-                                if (nestedSave.exists() && nestedSave.isDirectory) {
+                                val nestedSave = profileFolder.listFiles()?.firstOrNull {
+                                    it.isDirectory && it.name.equals(normalizedTitleId, ignoreCase = true)
+                                }
+                                if (nestedSave != null) {
                                     val modTime = findNewestFileTime(nestedSave)
                                     if (modTime > bestModTime) {
                                         bestModTime = modTime
@@ -356,9 +365,15 @@ class SaveSyncRepository @Inject constructor(
                     if (folder1.isDirectory) {
                         folder1.listFiles()?.forEach { folder2 ->
                             if (folder2.isDirectory) {
-                                val titleFolder = File(folder2, "title/00040000/$titleId/data")
-                                if (titleFolder.exists() && titleFolder.isDirectory) {
-                                    return titleFolder.absolutePath
+                                val titleDir = File(folder2, "title/00040000")
+                                val matchingFolder = titleDir.listFiles()?.firstOrNull {
+                                    it.isDirectory && it.name.equals(titleId, ignoreCase = true)
+                                }
+                                if (matchingFolder != null) {
+                                    val dataDir = File(matchingFolder, "data")
+                                    if (dataDir.exists() && dataDir.isDirectory) {
+                                        return dataDir.absolutePath
+                                    }
                                 }
                             }
                         }
@@ -367,16 +382,16 @@ class SaveSyncRepository @Inject constructor(
             }
             "psp" -> {
                 baseDir.listFiles()?.forEach { folder ->
-                    if (folder.isDirectory && folder.name.startsWith(titleId)) {
+                    if (folder.isDirectory && folder.name.startsWith(titleId, ignoreCase = true)) {
                         return folder.absolutePath
                     }
                 }
             }
             "wiiu" -> {
-                val saveFolder = File(baseDir, titleId)
-                if (saveFolder.exists() && saveFolder.isDirectory) {
-                    return saveFolder.absolutePath
+                val match = baseDir.listFiles()?.firstOrNull {
+                    it.isDirectory && it.name.equals(titleId, ignoreCase = true)
                 }
+                if (match != null) return match.absolutePath
             }
         }
         return null
@@ -742,10 +757,14 @@ class SaveSyncRepository @Inject constructor(
         val response = try {
             api.getSavesByPlatform(platformId)
         } catch (e: Exception) {
+            Logger.error(TAG, "[SaveSync] WORKER | getSavesByPlatform failed | platformId=$platformId", e)
             return@withContext emptyList()
         }
 
-        if (!response.isSuccessful) return@withContext emptyList()
+        if (!response.isSuccessful) {
+            Logger.warn(TAG, "[SaveSync] WORKER | getSavesByPlatform HTTP error | platformId=$platformId, status=${response.code()}")
+            return@withContext emptyList()
+        }
 
         val serverSaves = response.body() ?: return@withContext emptyList()
         val updatedEntities = mutableListOf<SaveSyncEntity>()
@@ -755,7 +774,8 @@ class SaveSyncRepository @Inject constructor(
 
         for (serverSave in serverSaves) {
             val game = downloadedGames.find { it.rommId == serverSave.romId } ?: continue
-            val emulatorId = serverSave.emulator ?: resolveEmulatorForGame(game)
+            val emulatorId = serverSave.emulator?.takeIf { it != "default" && it.isNotBlank() }
+                ?: resolveEmulatorForGame(game)
             if (emulatorId == null) {
                 Logger.warn(TAG, "[SaveSync] WORKER gameId=${game.id} | Skipping save - cannot resolve emulator | serverSaveId=${serverSave.id}, fileName=${serverSave.fileName}")
                 continue
@@ -799,6 +819,12 @@ class SaveSyncRepository @Inject constructor(
         val response = try {
             api.getSavesByRom(rommId)
         } catch (e: Exception) {
+            Logger.error(TAG, "[SaveSync] UPLOAD | getSavesByRom failed | gameId=$gameId, rommId=$rommId", e)
+            return@withContext emptyList()
+        }
+
+        if (!response.isSuccessful) {
+            Logger.warn(TAG, "[SaveSync] UPLOAD | getSavesByRom HTTP error | gameId=$gameId, rommId=$rommId, status=${response.code()}")
             return@withContext emptyList()
         }
 
@@ -827,7 +853,7 @@ class SaveSyncRepository @Inject constructor(
     private suspend fun resolveEmulatorForGame(game: GameEntity): String? {
         val gameConfig = emulatorConfigDao.getByGameId(game.id)
         if (gameConfig?.packageName != null) {
-            val resolved = resolveEmulatorIdFromPackage(gameConfig.packageName)
+            val resolved = emulatorResolver.resolveEmulatorId(gameConfig.packageName)
             if (resolved != null) {
                 Logger.debug(TAG, "[SaveSync] DISCOVER gameId=${game.id} | Resolved emulator from game config | package=${gameConfig.packageName}, emulatorId=$resolved")
                 return resolved
@@ -836,14 +862,14 @@ class SaveSyncRepository @Inject constructor(
 
         val platformConfig = emulatorConfigDao.getDefaultForPlatform(game.platformId)
         if (platformConfig?.packageName != null) {
-            val resolved = resolveEmulatorIdFromPackage(platformConfig.packageName)
+            val resolved = emulatorResolver.resolveEmulatorId(platformConfig.packageName)
             if (resolved != null) {
                 Logger.debug(TAG, "[SaveSync] DISCOVER gameId=${game.id} | Resolved emulator from platform default | package=${platformConfig.packageName}, emulatorId=$resolved")
                 return resolved
             }
         }
 
-        val installedEmulators = emulatorDetector.getInstalledForPlatform(game.platformSlug)
+        val installedEmulators = emulatorResolver.getInstalledForPlatform(game.platformSlug)
         if (installedEmulators.isNotEmpty()) {
             val emulatorId = installedEmulators.first().def.id
             Logger.debug(TAG, "[SaveSync] DISCOVER gameId=${game.id} | Using first installed emulator for platform=${game.platformSlug} | emulatorId=$emulatorId, installed=${installedEmulators.map { it.def.id }}")
@@ -852,12 +878,6 @@ class SaveSyncRepository @Inject constructor(
 
         Logger.warn(TAG, "[SaveSync] DISCOVER gameId=${game.id} | Cannot resolve emulator | platform=${game.platformSlug}, no config and no installed emulators")
         return null
-    }
-
-    private fun resolveEmulatorIdFromPackage(packageName: String): String? {
-        EmulatorRegistry.getByPackage(packageName)?.let { return it.id }
-        EmulatorRegistry.findFamilyForPackage(packageName)?.let { return it.baseId }
-        return emulatorDetector.getByPackage(packageName)?.id
     }
 
     suspend fun uploadSave(
@@ -889,8 +909,18 @@ class SaveSyncRepository @Inject constructor(
             return@withContext SaveSyncResult.NotConfigured
         }
 
+        val resolvedEmulatorId = if (emulatorId == "default" || emulatorId.isBlank()) {
+            resolveEmulatorForGame(game) ?: run {
+                Logger.warn(TAG, "[SaveSync] UPLOAD gameId=$gameId | Cannot resolve emulator from config")
+                return@withContext SaveSyncResult.Error("Cannot determine emulator")
+            }
+        } else {
+            emulatorId
+        }
+        Logger.debug(TAG, "[SaveSync] UPLOAD gameId=$gameId | Using emulator=$resolvedEmulatorId (original=$emulatorId)")
+
         val localPath = syncEntity?.localSavePath
-            ?: discoverSavePath(emulatorId, game.title, game.platformSlug, game.localPath)
+            ?: discoverSavePath(resolvedEmulatorId, game.title, game.platformSlug, game.localPath)
         if (localPath == null) {
             Logger.debug(TAG, "[SaveSync] UPLOAD gameId=$gameId | Could not discover save path | emulator=$emulatorId, platform=${game.platformSlug}")
             return@withContext SaveSyncResult.NoSaveFound
@@ -902,7 +932,7 @@ class SaveSyncRepository @Inject constructor(
             return@withContext SaveSyncResult.NoSaveFound
         }
 
-        val config = SavePathRegistry.getConfigIncludingUnsupported(emulatorId)
+        val config = SavePathRegistry.getConfigIncludingUnsupported(resolvedEmulatorId)
         val isFolderBased = config?.usesFolderBasedSaves == true && saveLocation.isDirectory
         val saveSize = if (saveLocation.isDirectory) saveLocation.walkTopDown().filter { it.isFile }.sumOf { it.length() } else saveLocation.length()
         Logger.debug(TAG, "[SaveSync] UPLOAD gameId=$gameId | Save found | path=$localPath, isFolderBased=$isFolderBased, size=${saveSize}bytes")
@@ -993,14 +1023,14 @@ class SaveSyncRepository @Inject constructor(
             var response = if (serverSaveIdToUpdate != null) {
                 api.updateSave(serverSaveIdToUpdate, filePart)
             } else {
-                api.uploadSave(rommId, emulatorId, filePart)
+                api.uploadSave(rommId, resolvedEmulatorId, filePart)
             }
 
             if (!response.isSuccessful && serverSaveIdToUpdate != null) {
                 Logger.debug(TAG, "[SaveSync] UPLOAD gameId=$gameId | Update failed, retrying as new upload | status=${response.code()}")
                 val retryRequestBody = fileToUpload.asRequestBody("application/octet-stream".toMediaType())
                 val retryFilePart = MultipartBody.Part.createFormData("saveFile", uploadFileName, retryRequestBody)
-                response = api.uploadSave(rommId, emulatorId, retryFilePart)
+                response = api.uploadSave(rommId, resolvedEmulatorId, retryFilePart)
             }
 
             if (response.isSuccessful) {
@@ -1013,7 +1043,7 @@ class SaveSyncRepository @Inject constructor(
                         id = syncEntity?.id ?: 0,
                         gameId = gameId,
                         rommId = rommId,
-                        emulatorId = emulatorId,
+                        emulatorId = resolvedEmulatorId,
                         channelName = channelName,
                         rommSaveId = serverSave.id,
                         localSavePath = localPath,
@@ -1138,7 +1168,14 @@ class SaveSyncRepository @Inject constructor(
             }
 
             Logger.debug(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | HTTP request starting | downloadPath=$downloadPath")
-            val response = api.downloadRaw(downloadPath)
+            val response = try {
+                withRetry(tag = "[SaveSync] DOWNLOAD gameId=$gameId") {
+                    api.downloadRaw(downloadPath)
+                }
+            } catch (e: IOException) {
+                Logger.error(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | HTTP failed after retries", e)
+                return@withContext SaveSyncResult.Error("Download failed: ${e.message}")
+            }
             val contentLength = response.headers()["Content-Length"]?.toLongOrNull() ?: -1
             if (!response.isSuccessful) {
                 Logger.error(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | HTTP failed | status=${response.code()}, message=${response.message()}")
@@ -1149,8 +1186,17 @@ class SaveSyncRepository @Inject constructor(
             val targetPath: String
 
             if (isFolderBased) {
+                if (!hasEnoughDiskSpace(context.cacheDir.absolutePath, contentLength)) {
+                    Logger.error(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | Insufficient cache disk space for zip")
+                    return@withContext SaveSyncResult.Error("Insufficient disk space")
+                }
                 tempZipFile = File(context.cacheDir, serverSave.fileName)
-                response.body()?.byteStream()?.use { input ->
+                val body = response.body()
+                if (body == null) {
+                    Logger.error(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | Response body is null")
+                    return@withContext SaveSyncResult.Error("Empty response body")
+                }
+                body.byteStream().use { input ->
                     tempZipFile.outputStream().use { output ->
                         input.copyTo(output)
                     }
@@ -1180,11 +1226,17 @@ class SaveSyncRepository @Inject constructor(
                         saveCacheManager.get().cacheCurrentSave(gameId, resolvedEmulatorId, targetPath)
                         Logger.debug(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | Cached existing save before overwrite")
                     } catch (e: Exception) {
-                        Logger.warn(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | Failed to cache existing save before download", e)
+                        Logger.error(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | Backup failed, aborting download to prevent data loss", e)
+                        return@withContext SaveSyncResult.Error("Failed to backup existing save before overwrite")
                     }
                 }
 
                 val targetFolder = File(targetPath)
+                val extractedSize = tempZipFile.length() * 3
+                if (!hasEnoughDiskSpace(targetPath, extractedSize)) {
+                    Logger.error(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | Insufficient disk space for extracted save")
+                    return@withContext SaveSyncResult.Error("Insufficient disk space")
+                }
                 targetFolder.mkdirs()
 
                 Logger.debug(TAG, "[SaveSync] ARCHIVE gameId=$gameId | Unzipping to | target=$targetPath")
@@ -1199,19 +1251,30 @@ class SaveSyncRepository @Inject constructor(
                     return@withContext SaveSyncResult.Error("Cannot determine save path")
                 }
 
+                if (!hasEnoughDiskSpace(targetPath, contentLength)) {
+                    Logger.error(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | Insufficient disk space for save file")
+                    return@withContext SaveSyncResult.Error("Insufficient disk space")
+                }
+
                 val existingTarget = File(targetPath)
                 if (existingTarget.exists() && !skipBackup) {
                     try {
                         saveCacheManager.get().cacheCurrentSave(gameId, resolvedEmulatorId, targetPath)
                         Logger.debug(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | Cached existing save before overwrite")
                     } catch (e: Exception) {
-                        Logger.warn(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | Failed to cache existing save before download", e)
+                        Logger.error(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | Backup failed, aborting download to prevent data loss", e)
+                        return@withContext SaveSyncResult.Error("Failed to backup existing save before overwrite")
                     }
                 }
                 val targetFile = File(targetPath)
                 targetFile.parentFile?.mkdirs()
 
-                response.body()?.byteStream()?.use { input ->
+                val body = response.body()
+                if (body == null) {
+                    Logger.error(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | Response body is null for file save")
+                    return@withContext SaveSyncResult.Error("Empty response body")
+                }
+                body.byteStream().use { input ->
                     targetFile.outputStream().use { output ->
                         input.copyTo(output)
                     }
@@ -1299,7 +1362,12 @@ class SaveSyncRepository @Inject constructor(
 
             if (isFolderBased) {
                 tempZipFile = File(context.cacheDir, serverSave.fileName)
-                response.body()?.byteStream()?.use { input ->
+                val body = response.body()
+                if (body == null) {
+                    Logger.error(TAG, "downloadSaveById: response body is null for folder save")
+                    return@withContext false
+                }
+                body.byteStream().use { input ->
                     tempZipFile.outputStream().use { output ->
                         input.copyTo(output)
                     }
@@ -1321,7 +1389,12 @@ class SaveSyncRepository @Inject constructor(
                 val targetFile = File(targetPath)
                 targetFile.parentFile?.mkdirs()
 
-                response.body()?.byteStream()?.use { input ->
+                val body = response.body()
+                if (body == null) {
+                    Logger.error(TAG, "downloadSaveById: response body is null for file save")
+                    return@withContext false
+                }
+                body.byteStream().use { input ->
                     targetFile.outputStream().use { output ->
                         input.copyTo(output)
                     }
@@ -1373,6 +1446,47 @@ class SaveSyncRepository @Inject constructor(
         }
 
         return zeroProfileFolder.absolutePath
+    }
+
+    private suspend fun <T> withRetry(
+        maxAttempts: Int = 3,
+        initialDelayMs: Long = 500,
+        tag: String = "",
+        block: suspend () -> T
+    ): T {
+        var lastException: Exception? = null
+        repeat(maxAttempts) { attempt ->
+            try {
+                return block()
+            } catch (e: IOException) {
+                lastException = e
+                if (attempt < maxAttempts - 1) {
+                    val delayMs = initialDelayMs * (1 shl attempt)
+                    Logger.debug(TAG, "$tag retry ${attempt + 1}/$maxAttempts after ${delayMs}ms: ${e.message}")
+                    delay(delayMs)
+                }
+            }
+        }
+        throw lastException ?: IOException("Retry failed")
+    }
+
+    private fun hasEnoughDiskSpace(targetPath: String, requiredBytes: Long): Boolean {
+        if (requiredBytes <= 0) return true
+        return try {
+            val parentDir = File(targetPath).parentFile ?: File(targetPath)
+            val existingDir = generateSequence(parentDir) { it.parentFile }
+                .firstOrNull { it.exists() } ?: return true
+            val stat = StatFs(existingDir.absolutePath)
+            val availableBytes = stat.availableBytes
+            val hasSpace = availableBytes > requiredBytes * 2
+            if (!hasSpace) {
+                Logger.warn(TAG, "Insufficient disk space: available=${availableBytes}bytes, required=${requiredBytes * 2}bytes")
+            }
+            hasSpace
+        } catch (e: Exception) {
+            Logger.warn(TAG, "Failed to check disk space", e)
+            true
+        }
     }
 
     private fun constructFolderSavePath(

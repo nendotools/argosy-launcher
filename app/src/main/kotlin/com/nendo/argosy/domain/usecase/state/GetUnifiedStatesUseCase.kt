@@ -1,6 +1,7 @@
 package com.nendo.argosy.domain.usecase.state
 
 import com.nendo.argosy.data.emulator.CoreVersionExtractor
+import com.nendo.argosy.data.emulator.EmulatorResolver
 import com.nendo.argosy.data.emulator.StatePathRegistry
 import com.nendo.argosy.data.emulator.VersionValidationResult
 import com.nendo.argosy.data.local.dao.GameDao
@@ -12,7 +13,8 @@ import javax.inject.Inject
 class GetUnifiedStatesUseCase @Inject constructor(
     private val stateCacheManager: StateCacheManager,
     private val gameDao: GameDao,
-    private val coreVersionExtractor: CoreVersionExtractor
+    private val coreVersionExtractor: CoreVersionExtractor,
+    private val emulatorResolver: EmulatorResolver
 ) {
     suspend operator fun invoke(
         gameId: Long,
@@ -23,7 +25,8 @@ class GetUnifiedStatesUseCase @Inject constructor(
     ): List<UnifiedStateEntry> {
         val game = gameDao.getById(gameId) ?: return emptyList()
 
-        val effectiveEmulatorId = emulatorId ?: resolveEmulatorId(game.platformSlug)
+        val effectiveEmulatorId = emulatorId
+            ?: emulatorResolver.getEmulatorIdForGame(gameId, game.platformId, game.platformSlug)
         if (effectiveEmulatorId == null) return emptyList()
 
         val localStates = if (channelName != null) {
@@ -137,8 +140,4 @@ class GetUnifiedStatesUseCase @Inject constructor(
         }
     }
 
-    @Suppress("UNUSED_PARAMETER")
-    private fun resolveEmulatorId(platformSlug: String): String? {
-        return null
-    }
 }

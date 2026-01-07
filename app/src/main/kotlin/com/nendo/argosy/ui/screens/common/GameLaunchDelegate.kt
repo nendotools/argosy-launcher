@@ -185,8 +185,9 @@ class GameLaunchDelegate @Inject constructor(
         val session = playSessionTracker.activeSession.value ?: return
 
         val sessionDuration = playSessionTracker.getSessionDuration()
-        if (sessionDuration != null && sessionDuration.toMinutes() < 1) {
-            android.util.Log.d("GameLaunchDelegate", "handleSessionEnd: skipping, session too short (${sessionDuration.seconds}s)")
+        if (sessionDuration != null && sessionDuration.seconds < 2) {
+            android.util.Log.d("GameLaunchDelegate", "handleSessionEnd: likely failed launch (${sessionDuration.seconds}s), ending without sync")
+            playSessionTracker.endSession()
             return
         }
 
@@ -195,6 +196,8 @@ class GameLaunchDelegate @Inject constructor(
 
         val emulatorId = emulatorResolver.resolveEmulatorId(session.emulatorPackage)
         if (emulatorId == null) {
+            android.util.Log.d("GameLaunchDelegate", "handleSessionEnd: cannot resolve emulatorId, ending session without sync")
+            playSessionTracker.endSession()
             syncMutex.unlock()
             return
         }

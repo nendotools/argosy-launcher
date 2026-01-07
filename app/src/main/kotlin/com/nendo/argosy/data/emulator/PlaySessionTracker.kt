@@ -58,7 +58,8 @@ class PlaySessionTracker @Inject constructor(
     private val romMRepository: dagger.Lazy<RomMRepository>,
     private val preferencesRepository: UserPreferencesRepository,
     private val permissionHelper: PermissionHelper,
-    private val gameUpdateBus: GameUpdateBus
+    private val gameUpdateBus: GameUpdateBus,
+    private val emulatorResolver: EmulatorResolver
 ) {
     companion object {
         private const val TAG = "PlaySessionTracker"
@@ -307,7 +308,7 @@ class PlaySessionTracker @Inject constructor(
         try {
             val game = gameDao.getById(session.gameId) ?: return
 
-            val emulatorId = resolveEmulatorId(session.emulatorPackage)
+            val emulatorId = emulatorResolver.resolveEmulatorId(session.emulatorPackage)
             if (emulatorId == null) {
                 Logger.debug(TAG, "[SaveSync] SESSION gameId=${session.gameId} | Cannot resolve emulator ID | package=${session.emulatorPackage}")
                 return
@@ -343,9 +344,4 @@ class PlaySessionTracker @Inject constructor(
         }
     }
 
-    private fun resolveEmulatorId(packageName: String): String? {
-        EmulatorRegistry.getByPackage(packageName)?.let { return it.id }
-        EmulatorRegistry.findFamilyForPackage(packageName)?.let { return it.baseId }
-        return null
-    }
 }

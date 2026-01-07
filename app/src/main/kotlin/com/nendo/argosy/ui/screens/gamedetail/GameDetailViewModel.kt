@@ -1244,9 +1244,13 @@ class GameDetailViewModel @Inject constructor(
         _uiState.update { it.copy(showMoreOptions = false) }
         viewModelScope.launch {
             val game = gameDao.getById(currentGameId) ?: return@launch
+            val emulatorId = emulatorResolver.getEmulatorIdForGame(currentGameId, game.platformId, game.platformSlug)
+            if (emulatorId == null) {
+                notificationManager.showError("Cannot determine emulator for saves")
+                return@launch
+            }
             val emulatorPackage = emulatorResolver.getEmulatorPackageForGame(currentGameId, game.platformId, game.platformSlug)
-            val emulatorId = emulatorPackage?.let { emulatorResolver.resolveEmulatorId(it) }
-            val savePath = emulatorId?.let { computeEffectiveSavePath(it, game.platformSlug) }
+            val savePath = computeEffectiveSavePath(emulatorId, game.platformSlug)
             saveChannelDelegate.show(
                 scope = viewModelScope,
                 gameId = currentGameId,

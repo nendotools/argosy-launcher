@@ -1,7 +1,6 @@
 package com.nendo.argosy.domain.usecase.save
 
-import com.nendo.argosy.data.emulator.EmulatorDetector
-import com.nendo.argosy.data.emulator.EmulatorRegistry
+import com.nendo.argosy.data.emulator.EmulatorResolver
 import com.nendo.argosy.data.emulator.SavePathRegistry
 import com.nendo.argosy.data.emulator.TitleIdDetector
 import com.nendo.argosy.data.local.dao.EmulatorConfigDao
@@ -20,7 +19,7 @@ class SyncSaveOnSessionEndUseCase @Inject constructor(
     private val saveSyncRepository: SaveSyncRepository,
     private val gameDao: GameDao,
     private val emulatorConfigDao: EmulatorConfigDao,
-    private val emulatorDetector: EmulatorDetector,
+    private val emulatorResolver: EmulatorResolver,
     private val preferencesRepository: UserPreferencesRepository,
     private val romMRepository: RomMRepository,
     private val titleIdDetector: TitleIdDetector
@@ -53,8 +52,8 @@ class SyncSaveOnSessionEndUseCase @Inject constructor(
         val emulatorConfig = emulatorConfigDao.getByGameId(gameId)
             ?: emulatorConfigDao.getDefaultForPlatform(game.platformId)
 
-        val emulatorId = resolveEmulatorId(emulatorConfig?.packageName, emulatorPackage)
-            ?: return false
+        val packageToResolve = emulatorConfig?.packageName ?: emulatorPackage
+        val emulatorId = emulatorResolver.resolveEmulatorId(packageToResolve) ?: return false
 
         return SavePathRegistry.canSyncWithSettings(
             emulatorId,
@@ -94,7 +93,8 @@ class SyncSaveOnSessionEndUseCase @Inject constructor(
         val emulatorConfig = emulatorConfigDao.getByGameId(gameId)
             ?: emulatorConfigDao.getDefaultForPlatform(game.platformId)
 
-        val emulatorId = resolveEmulatorId(emulatorConfig?.packageName, emulatorPackage)
+        val pkgToResolve = emulatorConfig?.packageName ?: emulatorPackage
+        val emulatorId = emulatorResolver.resolveEmulatorId(pkgToResolve)
         if (emulatorId == null) {
             Logger.debug(TAG, "[SaveSync] SESSION gameId=$gameId | Cannot resolve emulator | configPackage=${emulatorConfig?.packageName}, launchPackage=$emulatorPackage")
             return Result.NotConfigured
@@ -179,18 +179,5 @@ class SyncSaveOnSessionEndUseCase @Inject constructor(
                 Result.NotConfigured
             }
         }
-    }
-
-    private fun resolveEmulatorId(configPackage: String?, launchPackage: String): String? {
-        val packageToResolve = configPackage ?: launchPackage
-
-        EmulatorRegistry.getByPackage(packageToResolve)?.let { return it.id }
-
-        val family = EmulatorRegistry.findFamilyForPackage(packageToResolve)
-        if (family != null) {
-            return family.baseId
-        }
-
-        return emulatorDetector.getByPackage(packageToResolve)?.id
     }
 }
