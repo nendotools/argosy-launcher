@@ -274,7 +274,7 @@ fun LibraryScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().blur(modalBlur)) {
             LibraryHeader(
-                platformName = uiState.currentPlatform?.shortName ?: "All Platforms",
+                platformName = uiState.currentPlatform?.displayName ?: "All Platforms",
                 gameCount = uiState.games.size,
                 onPreviousPlatform = { viewModel.previousPlatform() },
                 onNextPlatform = { viewModel.nextPlatform() }
