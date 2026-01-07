@@ -1,5 +1,7 @@
 package com.nendo.argosy.ui
 
+import android.app.Application
+import android.provider.Settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nendo.argosy.data.download.DownloadManager
@@ -8,6 +10,9 @@ import com.nendo.argosy.data.preferences.DefaultView
 import com.nendo.argosy.data.preferences.ThemeMode
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.remote.romm.RomMRepository
+import com.nendo.argosy.ui.components.FanMode
+import com.nendo.argosy.ui.components.PerformanceMode
+import com.nendo.argosy.util.PServerExecutor
 import com.nendo.argosy.data.repository.GameRepository
 import com.nendo.argosy.ui.input.ControllerDetector
 import com.nendo.argosy.ui.input.DetectedIconLayout
@@ -31,7 +36,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 data class ArgosyUiState(
@@ -52,7 +59,12 @@ data class QuickSettingsUiState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val soundEnabled: Boolean = false,
     val hapticEnabled: Boolean = true,
-    val ambientAudioEnabled: Boolean = false
+    val ambientAudioEnabled: Boolean = false,
+    val fanMode: FanMode = FanMode.SMART,
+    val fanSpeed: Int = 25000,
+    val performanceMode: PerformanceMode = PerformanceMode.STANDARD,
+    val deviceSettingsSupported: Boolean = false,
+    val deviceSettingsEnabled: Boolean = false
 )
 
 data class ScreenDimmerPreferences(
@@ -68,6 +80,7 @@ data class DrawerItem(
 
 @HiltViewModel
 class ArgosyViewModel @Inject constructor(
+    private val application: Application,
     private val preferencesRepository: UserPreferencesRepository,
     val gamepadInputHandler: GamepadInputHandler,
     val hapticManager: HapticFeedbackManager,
@@ -81,6 +94,9 @@ class ArgosyViewModel @Inject constructor(
     private val modalResetSignal: ModalResetSignal,
     private val playSessionTracker: PlaySessionTracker
 ) : ViewModel() {
+
+    private val contentResolver get() = application.contentResolver
+    private val fanSpeedFile = File("/sys/class/gpio5_pwm2/speed")
 
     init {
         downloadNotificationObserver.observe(viewModelScope)
@@ -276,20 +292,36 @@ class ArgosyViewModel @Inject constructor(
     private val _quickSettingsFocusIndex = MutableStateFlow(0)
     val quickSettingsFocusIndex: StateFlow<Int> = _quickSettingsFocusIndex.asStateFlow()
 
-    val quickSettingsState: StateFlow<QuickSettingsUiState> = preferencesRepository.userPreferences
-        .map { prefs ->
-            QuickSettingsUiState(
-                themeMode = prefs.themeMode,
-                soundEnabled = prefs.soundEnabled,
-                hapticEnabled = prefs.hapticEnabled,
-                ambientAudioEnabled = prefs.ambientAudioEnabled
-            )
-        }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = QuickSettingsUiState()
+    private data class DeviceSettingsState(
+        val fanMode: FanMode = FanMode.SMART,
+        val fanSpeed: Int = 25000,
+        val performanceMode: PerformanceMode = PerformanceMode.STANDARD,
+        val isSupported: Boolean = false,
+        val hasWritePermission: Boolean = false
+    )
+
+    private val _deviceSettings = MutableStateFlow(DeviceSettingsState())
+
+    val quickSettingsState: StateFlow<QuickSettingsUiState> = combine(
+        preferencesRepository.userPreferences,
+        _deviceSettings
+    ) { prefs, device ->
+        QuickSettingsUiState(
+            themeMode = prefs.themeMode,
+            soundEnabled = prefs.soundEnabled,
+            hapticEnabled = prefs.hapticEnabled,
+            ambientAudioEnabled = prefs.ambientAudioEnabled,
+            fanMode = device.fanMode,
+            fanSpeed = device.fanSpeed,
+            performanceMode = device.performanceMode,
+            deviceSettingsSupported = device.isSupported,
+            deviceSettingsEnabled = device.hasWritePermission
         )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = QuickSettingsUiState()
+    )
 
     val screenDimmerPreferences: StateFlow<ScreenDimmerPreferences> = preferencesRepository.userPreferences
         .map { prefs ->
@@ -317,6 +349,31 @@ class ArgosyViewModel @Inject constructor(
         _isQuickSettingsOpen.value = open
         if (open) {
             _quickSettingsFocusIndex.value = 0
+            loadDeviceSettings()
+        }
+    }
+
+    private fun loadDeviceSettings() {
+        viewModelScope.launch {
+            val isSupported = fanSpeedFile.exists()
+            val pserverAvailable = PServerExecutor.isAvailable
+
+            if (!isSupported) {
+                _deviceSettings.value = DeviceSettingsState(isSupported = false)
+                return@launch
+            }
+
+            val fanModeValue = PServerExecutor.getSystemSetting("fan_mode", 0)
+            val fanSpeedValue = PServerExecutor.getSystemSetting("fan_speed", 25000)
+            val perfModeValue = PServerExecutor.getSystemSetting("performance_mode", 0)
+
+            _deviceSettings.value = DeviceSettingsState(
+                fanMode = FanMode.fromValue(fanModeValue),
+                fanSpeed = fanSpeedValue,
+                performanceMode = PerformanceMode.fromValue(perfModeValue),
+                isSupported = true,
+                hasWritePermission = pserverAvailable
+            )
         }
     }
 
@@ -360,9 +417,96 @@ class ArgosyViewModel @Inject constructor(
         }
     }
 
+    fun cycleFanMode() {
+        val current = _deviceSettings.value.fanMode
+        val cycleOrder = listOf(
+            FanMode.QUIET,
+            FanMode.SMART,
+            FanMode.SPORT,
+            FanMode.CUSTOM
+        )
+        val nextIndex = (cycleOrder.indexOf(current) + 1) % cycleOrder.size
+        setFanMode(cycleOrder[nextIndex])
+    }
+
+    private fun setFanMode(mode: FanMode) {
+        viewModelScope.launch {
+            if (PServerExecutor.setSystemSetting("fan_mode", mode.value)) {
+                _deviceSettings.update { it.copy(fanMode = mode) }
+            }
+        }
+    }
+
+    fun setFanSpeed(speed: Int) {
+        viewModelScope.launch {
+            val clampedSpeed = speed.coerceIn(25000, 35000)
+            if (PServerExecutor.setSystemSetting("fan_speed", clampedSpeed)) {
+                _deviceSettings.update { it.copy(fanSpeed = clampedSpeed) }
+            }
+        }
+    }
+
+    fun cyclePerformanceMode() {
+        val current = _deviceSettings.value.performanceMode
+        val modes = PerformanceMode.entries
+        val nextIndex = (modes.indexOf(current) + 1) % modes.size
+        val next = modes[nextIndex]
+        setPerformanceMode(next)
+    }
+
+    private fun setPerformanceMode(mode: PerformanceMode) {
+        viewModelScope.launch {
+            if (PServerExecutor.setSystemSetting("performance_mode", mode.value)) {
+                delay(100)
+                val fanMode = when (mode) {
+                    PerformanceMode.STANDARD -> FanMode.SMART
+                    PerformanceMode.HIGH -> FanMode.SPORT
+                    PerformanceMode.MAX -> FanMode.CUSTOM
+                }
+                PServerExecutor.setSystemSetting("fan_mode", fanMode.value)
+                delay(100)
+                refreshDeviceSettings()
+            }
+        }
+    }
+
+    private fun refreshDeviceSettings() {
+        val fanModeValue = PServerExecutor.getSystemSetting("fan_mode", 0)
+        val fanSpeedValue = PServerExecutor.getSystemSetting("fan_speed", 25000)
+        val perfModeValue = PServerExecutor.getSystemSetting("performance_mode", 0)
+        _deviceSettings.update {
+            it.copy(
+                fanMode = FanMode.fromValue(fanModeValue),
+                fanSpeed = fanSpeedValue,
+                performanceMode = PerformanceMode.fromValue(perfModeValue)
+            )
+        }
+    }
+
     fun createQuickSettingsInputHandler(
         onDismiss: () -> Unit
     ): InputHandler = object : InputHandler {
+        private fun hasSlider(): Boolean {
+            val device = _deviceSettings.value
+            return device.isSupported && device.hasWritePermission && device.fanMode == FanMode.CUSTOM
+        }
+
+        private fun getMaxIndex(): Int {
+            val baseItems = 4
+            val deviceItems = when {
+                !_deviceSettings.value.isSupported -> 0
+                hasSlider() -> 3
+                else -> 2
+            }
+            return baseItems + deviceItems - 1
+        }
+
+        private fun getDeviceOffset(): Int = when {
+            !_deviceSettings.value.isSupported -> 0
+            hasSlider() -> 3
+            else -> 2
+        }
+
         override fun onUp(): InputResult {
             return if (_quickSettingsFocusIndex.value > 0) {
                 _quickSettingsFocusIndex.update { it - 1 }
@@ -373,7 +517,7 @@ class ArgosyViewModel @Inject constructor(
         }
 
         override fun onDown(): InputResult {
-            return if (_quickSettingsFocusIndex.value < 3) {
+            return if (_quickSettingsFocusIndex.value < getMaxIndex()) {
                 _quickSettingsFocusIndex.update { it + 1 }
                 InputResult.HANDLED
             } else {
@@ -381,15 +525,48 @@ class ArgosyViewModel @Inject constructor(
             }
         }
 
-        override fun onLeft(): InputResult = InputResult.UNHANDLED
-        override fun onRight(): InputResult = InputResult.UNHANDLED
+        override fun onLeft(): InputResult {
+            if (hasSlider() && _quickSettingsFocusIndex.value == 2) {
+                val currentSpeed = _deviceSettings.value.fanSpeed
+                val newSpeed = (currentSpeed - 1000).coerceAtLeast(25000)
+                setFanSpeed(newSpeed)
+                return InputResult.HANDLED
+            }
+            return InputResult.UNHANDLED
+        }
+
+        override fun onRight(): InputResult {
+            if (hasSlider() && _quickSettingsFocusIndex.value == 2) {
+                val currentSpeed = _deviceSettings.value.fanSpeed
+                val newSpeed = (currentSpeed + 1000).coerceAtMost(35000)
+                setFanSpeed(newSpeed)
+                return InputResult.HANDLED
+            }
+            return InputResult.UNHANDLED
+        }
 
         override fun onConfirm(): InputResult {
-            when (_quickSettingsFocusIndex.value) {
-                0 -> cycleTheme()
-                1 -> toggleHaptic()
-                2 -> toggleSound()
-                3 -> toggleAmbientAudio()
+            val offset = getDeviceOffset()
+            val index = _quickSettingsFocusIndex.value
+            val device = _deviceSettings.value
+
+            if (device.isSupported) {
+                when (index) {
+                    0 -> if (device.hasWritePermission) cyclePerformanceMode()
+                    1 -> if (device.hasWritePermission) cycleFanMode()
+                    2 -> if (hasSlider()) { /* slider - no action on confirm */ }
+                    offset -> cycleTheme()
+                    offset + 1 -> toggleHaptic()
+                    offset + 2 -> toggleSound()
+                    offset + 3 -> toggleAmbientAudio()
+                }
+            } else {
+                when (index) {
+                    0 -> cycleTheme()
+                    1 -> toggleHaptic()
+                    2 -> toggleSound()
+                    3 -> toggleAmbientAudio()
+                }
             }
             return InputResult.HANDLED
         }

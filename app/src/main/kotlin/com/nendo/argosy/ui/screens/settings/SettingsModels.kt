@@ -329,11 +329,19 @@ data class UpdateCheckState(
 data class PermissionsState(
     val hasStorageAccess: Boolean = false,
     val hasUsageStats: Boolean = false,
-    val hasNotificationPermission: Boolean = false
+    val hasNotificationPermission: Boolean = false,
+    val hasWriteSettings: Boolean = false,
+    val isWriteSettingsRelevant: Boolean = false
 ) {
-    val allGranted: Boolean get() = hasStorageAccess && hasUsageStats && hasNotificationPermission
-    val grantedCount: Int get() = listOf(hasStorageAccess, hasUsageStats, hasNotificationPermission).count { it }
-    val totalCount: Int get() = 3
+    val allGranted: Boolean get() = hasStorageAccess && hasUsageStats && hasNotificationPermission &&
+        (!isWriteSettingsRelevant || hasWriteSettings)
+    val grantedCount: Int get() = listOf(
+        hasStorageAccess,
+        hasUsageStats,
+        hasNotificationPermission,
+        if (isWriteSettingsRelevant) hasWriteSettings else null
+    ).count { it == true }
+    val totalCount: Int get() = if (isWriteSettingsRelevant) 4 else 3
 }
 
 data class BiosFirmwareItem(

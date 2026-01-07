@@ -24,6 +24,8 @@ class PermissionsSettingsDelegate @Inject constructor(
     private val _state = MutableStateFlow(PermissionsState())
     val state: StateFlow<PermissionsState> = _state.asStateFlow()
 
+    private val fanSpeedFile = java.io.File("/sys/class/gpio5_pwm2/speed")
+
     fun refreshPermissions() {
         val hasStorage = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             Environment.isExternalStorageManager()
@@ -39,12 +41,16 @@ class PermissionsSettingsDelegate @Inject constructor(
         } else {
             true
         }
+        val hasWriteSettings = Settings.System.canWrite(application)
+        val isDeviceWithFanControl = fanSpeedFile.exists()
 
         _state.update {
             it.copy(
                 hasStorageAccess = hasStorage,
                 hasUsageStats = hasUsageStats,
-                hasNotificationPermission = hasNotification
+                hasNotificationPermission = hasNotification,
+                hasWriteSettings = hasWriteSettings,
+                isWriteSettingsRelevant = isDeviceWithFanControl
             )
         }
     }
@@ -70,4 +76,16 @@ class PermissionsSettingsDelegate @Inject constructor(
         }
         application.startActivity(intent)
     }
+
+    fun openWriteSettings() {
+        val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+            data = Uri.parse("package:${application.packageName}")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        application.startActivity(intent)
+    }
+
+    fun hasWriteSettingsPermission(): Boolean = Settings.System.canWrite(application)
+
+    fun isDeviceSettingsSupported(): Boolean = fanSpeedFile.exists()
 }

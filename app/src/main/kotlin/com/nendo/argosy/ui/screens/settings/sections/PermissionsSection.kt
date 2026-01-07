@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -40,8 +41,10 @@ import com.nendo.argosy.ui.theme.Motion
 fun PermissionsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
     val listState = rememberLazyListState()
 
+    val maxIndex = if (uiState.permissions.isWriteSettingsRelevant) 3 else 2
+
     LaunchedEffect(uiState.focusedIndex) {
-        if (uiState.focusedIndex in 0..2) {
+        if (uiState.focusedIndex in 0..maxIndex) {
             val viewportHeight = listState.layoutInfo.viewportSize.height
             val itemHeight = listState.layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 0
             val centerOffset = if (itemHeight > 0) (viewportHeight - itemHeight) / 2 else 0
@@ -95,6 +98,19 @@ fun PermissionsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 isFocused = uiState.focusedIndex == 2,
                 onClick = { viewModel.openNotificationSettings() }
             )
+        }
+
+        if (uiState.permissions.isWriteSettingsRelevant) {
+            item {
+                PermissionCard(
+                    icon = Icons.Default.Tune,
+                    title = "System Settings Access",
+                    description = "Allows control of device performance mode and fan settings from the Quick Settings panel.",
+                    isGranted = uiState.permissions.hasWriteSettings,
+                    isFocused = uiState.focusedIndex == 3,
+                    onClick = { viewModel.openWriteSettings() }
+                )
+            }
         }
 
         item {

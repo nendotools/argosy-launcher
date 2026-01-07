@@ -883,7 +883,7 @@ class SettingsViewModel @Inject constructor(
                     } else 0
                     (1 + platformCount + expandedItems).coerceAtLeast(1)
                 }
-                SettingsSection.PERMISSIONS -> 2
+                SettingsSection.PERMISSIONS -> if (state.permissions.isWriteSettingsRelevant) 3 else 2
                 SettingsSection.ABOUT -> if (state.fileLoggingPath != null) 4 else 3
             }
             val newIndex = if (state.currentSection == SettingsSection.SERVER && state.server.rommConfiguring) {
@@ -1193,6 +1193,10 @@ class SettingsViewModel @Inject constructor(
 
     fun openNotificationSettings() {
         permissionsDelegate.openNotificationSettings()
+    }
+
+    fun openWriteSettings() {
+        permissionsDelegate.openWriteSettings()
     }
 
     fun refreshPermissions() {
@@ -2093,6 +2097,7 @@ class SettingsViewModel @Inject constructor(
                     0 -> openStorageSettings()
                     1 -> openUsageStatsSettings()
                     2 -> openNotificationSettings()
+                    3 -> openWriteSettings()
                 }
                 InputResult.HANDLED
             }

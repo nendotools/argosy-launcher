@@ -373,13 +373,21 @@ fun ArgosyApp(
                     themeMode = quickSettingsUiState.themeMode,
                     soundEnabled = quickSettingsUiState.soundEnabled,
                     hapticEnabled = quickSettingsUiState.hapticEnabled,
-                    ambientAudioEnabled = quickSettingsUiState.ambientAudioEnabled
+                    ambientAudioEnabled = quickSettingsUiState.ambientAudioEnabled,
+                    fanMode = quickSettingsUiState.fanMode,
+                    fanSpeed = quickSettingsUiState.fanSpeed,
+                    performanceMode = quickSettingsUiState.performanceMode,
+                    deviceSettingsSupported = quickSettingsUiState.deviceSettingsSupported,
+                    deviceSettingsEnabled = quickSettingsUiState.deviceSettingsEnabled
                 ),
                 focusedIndex = quickSettingsFocusIndex,
                 onThemeCycle = { viewModel.cycleTheme() },
                 onSoundToggle = { viewModel.toggleSound() },
                 onHapticToggle = { viewModel.toggleHaptic() },
                 onAmbientToggle = { viewModel.toggleAmbientAudio() },
+                onFanModeCycle = { viewModel.cycleFanMode() },
+                onFanSpeedChange = { viewModel.setFanSpeed(it) },
+                onPerformanceModeCycle = { viewModel.cyclePerformanceMode() },
                 onDismiss = closeQuickSettings
             )
             }
