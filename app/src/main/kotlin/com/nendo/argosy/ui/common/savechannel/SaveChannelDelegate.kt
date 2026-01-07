@@ -296,28 +296,55 @@ class SaveChannelDelegate @Inject constructor(
         val targetChannel = entry.channelName
         val targetTimestamp = entry.timestamp.toEpochMilli()
         val emulatorPackage = state.emulatorPackage
+        val isRestoringLatest = entry.isLatest
 
         scope.launch {
+            val game = gameDao.getById(currentGameId)
+
             if (emulatorPackage != null && state.supportsStates) {
-                val stateResult = restoreCachedStatesUseCase(
-                    gameId = currentGameId,
-                    channelName = targetChannel,
-                    emulatorPackage = emulatorPackage,
-                    coreId = state.currentCoreId
-                )
-                android.util.Log.d("SaveChannelDelegate", "Timeline state restore result: $stateResult")
+                if (isRestoringLatest) {
+                    val stateResult = restoreCachedStatesUseCase(
+                        gameId = currentGameId,
+                        channelName = targetChannel,
+                        emulatorPackage = emulatorPackage,
+                        coreId = state.currentCoreId,
+                        skipAutoState = false
+                    )
+                    android.util.Log.d("SaveChannelDelegate", "Timeline state restore (latest): $stateResult")
+                } else {
+                    val stateResult = restoreCachedStatesUseCase(
+                        gameId = currentGameId,
+                        channelName = targetChannel,
+                        emulatorPackage = emulatorPackage,
+                        coreId = state.currentCoreId,
+                        skipAutoState = true
+                    )
+                    android.util.Log.d("SaveChannelDelegate", "Timeline state restore (non-latest, skipped auto): $stateResult")
+
+                    if (game?.localPath != null) {
+                        val deleted = stateCacheManager.deleteAutoStateFromDisk(
+                            emulatorId = emulatorId,
+                            romPath = game.localPath,
+                            platformSlug = game.platformSlug,
+                            emulatorPackage = emulatorPackage,
+                            coreId = state.currentCoreId
+                        )
+                        android.util.Log.d("SaveChannelDelegate", "Deleted auto-state from disk: $deleted")
+                    }
+                }
             }
 
-            gameDao.updateActiveSaveTimestamp(currentGameId, targetTimestamp)
+            val newTimestamp = if (isRestoringLatest) null else targetTimestamp
+            gameDao.updateActiveSaveTimestamp(currentGameId, newTimestamp)
             _state.update {
                 it.copy(
                     showRestoreConfirmation = false,
                     isVisible = false,
                     activeChannel = targetChannel,
-                    activeSaveTimestamp = targetTimestamp
+                    activeSaveTimestamp = newTimestamp
                 )
             }
-            onSaveStatusChanged(SaveStatusEvent(channelName = targetChannel, timestamp = targetTimestamp))
+            onSaveStatusChanged(SaveStatusEvent(channelName = targetChannel, timestamp = newTimestamp))
 
             when (val result = restoreCachedSaveUseCase(entry, currentGameId, emulatorId, syncToServer)) {
                 is RestoreCachedSaveUseCase.Result.Restored -> {
@@ -523,6 +550,19 @@ class SaveChannelDelegate @Inject constructor(
 
     fun confirmReset(scope: CoroutineScope, onSaveStatusChanged: (SaveStatusEvent) -> Unit) {
         scope.launch {
+            val state = _state.value
+
+            if (state.emulatorPackage != null && state.supportsStates) {
+                val stateResult = restoreCachedStatesUseCase(
+                    gameId = currentGameId,
+                    channelName = null,
+                    emulatorPackage = state.emulatorPackage,
+                    coreId = state.currentCoreId,
+                    skipAutoState = false
+                )
+                android.util.Log.d("SaveChannelDelegate", "Reset to latest - restored states: $stateResult")
+            }
+
             gameDao.updateActiveSaveChannel(currentGameId, null)
             gameDao.updateActiveSaveTimestamp(currentGameId, null)
             _state.update {

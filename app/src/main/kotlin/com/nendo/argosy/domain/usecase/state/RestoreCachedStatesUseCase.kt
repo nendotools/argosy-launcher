@@ -32,7 +32,8 @@ class RestoreCachedStatesUseCase @Inject constructor(
         gameId: Long,
         channelName: String?,
         emulatorPackage: String,
-        coreId: String? = null
+        coreId: String? = null,
+        skipAutoState: Boolean = false
     ): RestoreCachedStatesResult {
         val game = gameDao.getById(gameId)
         if (game == null) {
@@ -81,9 +82,13 @@ class RestoreCachedStatesUseCase @Inject constructor(
         }
 
         val cachedStates = stateCacheDao.getByChannelAndCore(gameId, channelName, effectiveCoreId)
+            .let { states ->
+                if (skipAutoState) states.filter { it.slotNumber != -1 } else states
+            }
 
         if (cachedStates.isEmpty()) {
-            Log.d(TAG, "No cached states for channel ${channelName ?: "default"} core ${effectiveCoreId ?: "unknown"}")
+            Log.d(TAG, "No cached states for channel ${channelName ?: "default"} core ${effectiveCoreId ?: "unknown"}" +
+                if (skipAutoState) " (auto-state skipped)" else "")
         }
 
         try {

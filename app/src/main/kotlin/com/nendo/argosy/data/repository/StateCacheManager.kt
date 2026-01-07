@@ -398,6 +398,48 @@ class StateCacheManager @Inject constructor(
     suspend fun getStatesForChannelAndCore(gameId: Long, channelName: String?, coreId: String?): List<StateCacheEntity> =
         stateCacheDao.getByChannelAndCore(gameId, channelName, coreId)
 
+    suspend fun deleteAutoStateFromDisk(
+        emulatorId: String,
+        romPath: String,
+        platformSlug: String,
+        emulatorPackage: String?,
+        coreId: String?
+    ): Boolean = withContext(Dispatchers.IO) {
+        val config = StatePathRegistry.getConfig(emulatorId)
+        if (config == null) {
+            Log.d(TAG, "deleteAutoStateFromDisk: No state config for emulator: $emulatorId")
+            return@withContext false
+        }
+
+        val romFile = File(romPath)
+        val romBaseName = romFile.nameWithoutExtension
+
+        val statePaths = if (emulatorId.startsWith("retroarch") && emulatorPackage != null) {
+            val contentDir = romFile.parentFile?.absolutePath
+            retroArchConfigParser.resolveStatePaths(emulatorPackage, coreId, contentDir)
+        } else {
+            StatePathRegistry.resolvePath(config, platformSlug)
+        }
+
+        val autoFileName = config.slotPattern.buildFileName(romBaseName, -1)
+
+        for (path in statePaths) {
+            val stateDir = File(path)
+            if (!stateDir.exists()) continue
+
+            val autoStateFile = File(stateDir, autoFileName)
+            if (autoStateFile.exists()) {
+                autoStateFile.delete()
+                File("${autoStateFile.absolutePath}.png").takeIf { it.exists() }?.delete()
+                Log.d(TAG, "Deleted auto-state from disk: ${autoStateFile.absolutePath}")
+                return@withContext true
+            }
+        }
+
+        Log.d(TAG, "deleteAutoStateFromDisk: No auto-state found for $romBaseName")
+        false
+    }
+
     suspend fun clearAllCache() = withContext(Dispatchers.IO) {
         if (cacheBaseDir.exists()) {
             cacheBaseDir.deleteRecursively()
