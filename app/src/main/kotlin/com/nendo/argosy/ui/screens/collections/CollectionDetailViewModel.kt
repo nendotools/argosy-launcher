@@ -367,7 +367,7 @@ class CollectionDetailViewModel @Inject constructor(
             return InputResult.HANDLED
         }
 
-        override fun onMenu(): InputResult {
+        override fun onSelect(): InputResult {
             showOptionsModal()
             return InputResult.HANDLED
         }

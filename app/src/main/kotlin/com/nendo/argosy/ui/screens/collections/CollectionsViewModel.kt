@@ -407,13 +407,14 @@ class CollectionsViewModel @Inject constructor(
             return InputResult.HANDLED
         }
 
-        override fun onMenu(): InputResult {
+        override fun onSelect(): InputResult {
             val state = uiState.value
             if (state.showOptionsModal) return InputResult.HANDLED
             if (state.focusedSection == CollectionSection.MY_COLLECTIONS && state.focusedCollection != null) {
                 showOptionsModal()
+                return InputResult.HANDLED
             }
-            return InputResult.HANDLED
+            return InputResult.UNHANDLED
         }
     }
 }

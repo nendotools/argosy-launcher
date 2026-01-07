@@ -158,7 +158,7 @@ fun CollectionDetailScreen(
             emptyList()
         }
         val optionsHint = if (uiState.collection != null) {
-            listOf(InputButton.START to "Options")
+            listOf(InputButton.SELECT to "Options")
         } else {
             emptyList()
         }

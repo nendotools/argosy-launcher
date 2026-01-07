@@ -204,7 +204,7 @@ fun CollectionsScreen(
             val contextHints = if (uiState.focusedSection == CollectionSection.MY_COLLECTIONS && uiState.focusedCollection != null) {
                 listOf(
                     InputButton.NORTH to if (uiState.isFocusedCollectionPinned) "Unpin" else "Pin",
-                    InputButton.START to "Options"
+                    InputButton.SELECT to "Options"
                 )
             } else {
                 emptyList()
