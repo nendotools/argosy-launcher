@@ -912,7 +912,8 @@ class SaveSyncRepository @Inject constructor(
                 )
                 SaveSyncResult.Success
             } else {
-                Logger.error(TAG, "uploadSave failed: ${response.code()}")
+                val errorBody = response.errorBody()?.string()
+                Logger.error(TAG, "uploadSave failed: ${response.code()} - $errorBody")
                 SaveSyncResult.Error("Upload failed: ${response.code()}")
             }
         } catch (e: Exception) {
