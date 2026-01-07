@@ -55,6 +55,11 @@ class GamepadInputHandler @Inject constructor(
 
     private val lastInputTimes = mutableMapOf<GamepadEvent, Long>()
     private val inputDebounceMs = 80L
+    private var inputBlockedUntil = 0L
+
+    fun blockInputFor(durationMs: Long) {
+        inputBlockedUntil = System.currentTimeMillis() + durationMs
+    }
 
     fun handleKeyEvent(event: KeyEvent): Boolean {
         if (event.action != KeyEvent.ACTION_DOWN) return false
@@ -62,6 +67,8 @@ class GamepadInputHandler @Inject constructor(
         val gamepadEvent = mapKeyToEvent(event.keyCode) ?: return false
 
         val currentTime = System.currentTimeMillis()
+        if (currentTime < inputBlockedUntil) return true
+
         val lastTime = lastInputTimes[gamepadEvent] ?: 0L
         if (currentTime - lastTime < inputDebounceMs) return true
         lastInputTimes[gamepadEvent] = currentTime

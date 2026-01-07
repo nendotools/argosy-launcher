@@ -137,6 +137,7 @@ class MainActivity : ComponentActivity() {
             window.decorView.requestFocus()
             launchRetryTracker.onFocusGained()
             ambientAudioManager.fadeIn()
+            gamepadInputHandler.blockInputFor(200)
         } else {
             launchRetryTracker.onFocusLost()
             ambientAudioManager.fadeOut()
