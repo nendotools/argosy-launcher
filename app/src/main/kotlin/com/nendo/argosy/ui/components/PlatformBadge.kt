@@ -99,7 +99,7 @@ fun PlatformBadge(
     modifier: Modifier = Modifier
 ) {
     val boxArtStyle = LocalBoxArtStyle.current
-    val displayText = platformDisplayName.take(8)
+    val displayText = platformDisplayName.take(8).uppercase()
 
     val scale = (cardWidthDp / BASE_WIDTH_DP).coerceIn(0.5f, 2f)
     val cornerRadius = boxArtStyle.cornerRadiusDp * scale
