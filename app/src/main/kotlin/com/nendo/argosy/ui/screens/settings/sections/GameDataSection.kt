@@ -166,12 +166,16 @@ private fun GameDataContent(
                 )
             }
             item {
+                val enabledCount = uiState.syncSettings.enabledPlatformCount
+                val totalCount = uiState.syncSettings.totalPlatforms
+                val platformText = if (totalCount > 0) "$enabledCount/$totalCount platforms" else ""
                 val lastSyncText = uiState.server.lastRommSync?.let { instant ->
                     val formatter = DateTimeFormatter
                         .ofPattern("MMM d, h:mm a")
                         .withZone(ZoneId.systemDefault())
-                    "Last: ${formatter.format(instant)}"
-                } ?: "Never synced"
+                    if (platformText.isNotEmpty()) "$platformText - ${formatter.format(instant)}"
+                    else "Last: ${formatter.format(instant)}"
+                } ?: if (platformText.isNotEmpty()) platformText else "Never synced"
                 ActionPreference(
                     icon = Icons.AutoMirrored.Filled.LibraryBooks,
                     title = "Sync Library",
@@ -214,34 +218,45 @@ private fun GameDataContent(
             }
         }
 
-        // === SAVE GAMES === (only if connected + save sync enabled)
-        if (isConnected && saveSyncEnabled) {
+        // === SAVES === (only if connected)
+        if (isConnected) {
             item {
                 Spacer(modifier = Modifier.height(Dimens.spacingSm))
-                SectionHeader("SAVE GAMES")
+                SectionHeader("SAVES")
             }
             item {
-                CyclePreference(
-                    title = "Local Save Cache",
-                    value = "${uiState.syncSettings.saveCacheLimit} saves per game",
+                SwitchPreference(
+                    title = "Save Sync",
+                    subtitle = "Sync game saves with server",
+                    isEnabled = saveSyncEnabled,
                     isFocused = uiState.focusedIndex == 4,
-                    onClick = { viewModel.cycleSaveCacheLimit() }
+                    onToggle = { viewModel.toggleSaveSync() }
                 )
             }
-            item {
-                val pendingText = if (uiState.syncSettings.pendingUploadsCount > 0) {
-                    "${uiState.syncSettings.pendingUploadsCount} pending"
-                } else {
-                    "Up to date"
+            if (saveSyncEnabled) {
+                item {
+                    CyclePreference(
+                        title = "Local Save Cache",
+                        value = "${uiState.syncSettings.saveCacheLimit} saves per game",
+                        isFocused = uiState.focusedIndex == 5,
+                        onClick = { viewModel.cycleSaveCacheLimit() }
+                    )
                 }
-                ActionPreference(
-                    icon = Icons.Default.Sync,
-                    title = "Sync Saves",
-                    subtitle = pendingText,
-                    isFocused = uiState.focusedIndex == 5,
-                    isEnabled = isOnline,
-                    onClick = { viewModel.runSaveSyncNow() }
-                )
+                item {
+                    val pendingText = if (uiState.syncSettings.pendingUploadsCount > 0) {
+                        "${uiState.syncSettings.pendingUploadsCount} pending"
+                    } else {
+                        "Up to date"
+                    }
+                    ActionPreference(
+                        icon = Icons.Default.Sync,
+                        title = "Sync Saves",
+                        subtitle = pendingText,
+                        isFocused = uiState.focusedIndex == 6,
+                        isEnabled = isOnline,
+                        onClick = { viewModel.runSaveSyncNow() }
+                    )
+                }
             }
         }
 
@@ -417,8 +432,8 @@ private fun calculateMaxIndex(isConnected: Boolean, saveSyncEnabled: Boolean, la
 
 private fun calculateAndroidBaseIndex(isConnected: Boolean, saveSyncEnabled: Boolean): Int {
     return when {
-        isConnected && saveSyncEnabled -> 6  // Rom Manager(0), Sync Settings(1), Sync Library(2), Accurate Play Time(3), Save Cache(4), Sync Saves(5), Android at 6
-        isConnected -> 4                      // Rom Manager(0), Sync Settings(1), Sync Library(2), Accurate Play Time(3), Android at 4
+        isConnected && saveSyncEnabled -> 7  // Rom Manager(0), Sync Settings(1), Sync Library(2), Accurate Play Time(3), Save Sync(4), Save Cache(5), Sync Saves(6), Android at 7
+        isConnected -> 5                      // Rom Manager(0), Sync Settings(1), Sync Library(2), Accurate Play Time(3), Save Sync(4), Android at 5
         else -> 1                             // Rom Manager(0), Android at 1
     }
 }
@@ -429,8 +444,8 @@ private fun calculateSteamBaseIndex(isConnected: Boolean, saveSyncEnabled: Boole
 
 private fun calculateSteamHeaderScrollIndex(isConnected: Boolean, saveSyncEnabled: Boolean): Int {
     return when {
-        isConnected && saveSyncEnabled -> 12  // SERVER(0), RomM(1), LIBRARY(2), SyncSet(3), SyncLib(4), TRACKING(5), PlayTime(6), SAVES(7), Cache(8), SyncSaves(9), ANDROID(10), ScanAndroid(11), STEAM(12)
-        isConnected -> 9                       // SERVER(0), RomM(1), LIBRARY(2), SyncSet(3), SyncLib(4), TRACKING(5), PlayTime(6), ANDROID(7), ScanAndroid(8), STEAM(9)
+        isConnected && saveSyncEnabled -> 14  // SERVER(0), RomM(1), LIBRARY(2), SyncSet(3), SyncLib(4), TRACKING(5), PlayTime(6), SAVES(7), SaveSync(8), Cache(9), SyncSaves(10), ANDROID(11), ScanAndroid(12), STEAM(13)
+        isConnected -> 11                      // SERVER(0), RomM(1), LIBRARY(2), SyncSet(3), SyncLib(4), TRACKING(5), PlayTime(6), SAVES(7), SaveSync(8), ANDROID(9), ScanAndroid(10), STEAM(11)
         else -> 4                              // SERVER(0), RomM(1), ANDROID(2), ScanAndroid(3), STEAM(4)
     }
 }
@@ -441,7 +456,6 @@ private fun calculateScrollIndex(
     saveSyncEnabled: Boolean
 ): Int {
     val androidBaseIndex = calculateAndroidBaseIndex(isConnected, saveSyncEnabled)
-    val steamBaseIndex = calculateSteamBaseIndex(isConnected, saveSyncEnabled)
 
     return when {
         !isConnected -> {
@@ -453,21 +467,22 @@ private fun calculateScrollIndex(
         }
         !saveSyncEnabled -> {
             when {
-                focusedIndex == 0 -> 1                      // Rom Manager (after SERVER header)
-                focusedIndex in 1..2 -> focusedIndex + 2    // Sync Settings, Sync Library (after LIBRARY header)
-                focusedIndex == 3 -> focusedIndex + 3       // Accurate Play Time (after TRACKING header)
-                focusedIndex == androidBaseIndex -> focusedIndex + 4  // Scan Android (after ANDROID header)
-                else -> focusedIndex + 5                    // Steam items (after STEAM header)
+                focusedIndex == 0 -> 1                      // Rom Manager
+                focusedIndex in 1..2 -> focusedIndex + 2    // Sync Settings, Sync Library
+                focusedIndex == 3 -> focusedIndex + 3       // Accurate Play Time
+                focusedIndex == 4 -> focusedIndex + 4       // Save Sync toggle
+                focusedIndex == androidBaseIndex -> focusedIndex + 5  // Scan Android
+                else -> focusedIndex + 6                    // Steam items
             }
         }
         else -> {
             when {
                 focusedIndex == 0 -> 1                      // Rom Manager
                 focusedIndex in 1..2 -> focusedIndex + 2    // Sync Settings, Sync Library
-                focusedIndex == 3 -> focusedIndex + 3       // Accurate Play Time (after TRACKING header)
-                focusedIndex in 4..5 -> focusedIndex + 4    // Save Cache, Sync Saves (after SAVES header)
-                focusedIndex == androidBaseIndex -> focusedIndex + 5  // Scan Android (after ANDROID header)
-                else -> focusedIndex + 6                    // Steam items (after STEAM header)
+                focusedIndex == 3 -> focusedIndex + 3       // Accurate Play Time
+                focusedIndex in 4..6 -> focusedIndex + 4    // Save Sync, Save Cache, Sync Saves
+                focusedIndex == androidBaseIndex -> focusedIndex + 5  // Scan Android
+                else -> focusedIndex + 6                    // Steam items
             }
         }
     }

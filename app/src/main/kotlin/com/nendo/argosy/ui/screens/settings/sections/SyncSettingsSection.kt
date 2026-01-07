@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -33,6 +34,7 @@ import com.nendo.argosy.ui.components.ImageCachePreference
 import com.nendo.argosy.ui.components.SwitchPreference
 import com.nendo.argosy.ui.screens.settings.SettingsUiState
 import com.nendo.argosy.ui.screens.settings.SettingsViewModel
+import com.nendo.argosy.ui.screens.settings.components.PlatformFiltersModal
 import com.nendo.argosy.ui.screens.settings.components.SectionHeader
 import com.nendo.argosy.ui.screens.settings.components.SyncFiltersModal
 import com.nendo.argosy.ui.theme.Dimens
@@ -45,22 +47,26 @@ fun SyncSettingsSection(
     imageCacheProgress: ImageCacheProgress
 ) {
     val listState = rememberLazyListState()
-    val saveSyncItemCount = if (uiState.syncSettings.saveSyncEnabled) 2 else 1
-    val maxIndex = 1 + saveSyncItemCount + 1
+    val maxIndex = 3
 
+    val hasAnyModal = uiState.syncSettings.showSyncFiltersModal || uiState.syncSettings.showPlatformFiltersModal
     val modalBlur by animateDpAsState(
-        targetValue = if (uiState.syncSettings.showSyncFiltersModal) Motion.blurRadiusModal else 0.dp,
+        targetValue = if (hasAnyModal) Motion.blurRadiusModal else 0.dp,
         animationSpec = Motion.focusSpringDp,
         label = "syncFiltersModalBlur"
     )
 
     LaunchedEffect(uiState.focusedIndex) {
         if (uiState.focusedIndex in 0..maxIndex) {
-            val viewportHeight = listState.layoutInfo.viewportSize.height
-            val itemHeight = listState.layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 0
-            val centerOffset = if (itemHeight > 0) (viewportHeight - itemHeight) / 2 else 0
-            val paddingBuffer = (itemHeight * Motion.scrollPaddingPercent).toInt()
-            listState.animateScrollToItem(uiState.focusedIndex, -centerOffset + paddingBuffer)
+            if (uiState.focusedIndex in 2..3) {
+                listState.animateScrollToItem(2, 0)
+            } else {
+                val viewportHeight = listState.layoutInfo.viewportSize.height
+                val itemHeight = listState.layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 0
+                val centerOffset = if (itemHeight > 0) (viewportHeight - itemHeight) / 2 else 0
+                val paddingBuffer = (itemHeight * Motion.scrollPaddingPercent).toInt()
+                listState.animateScrollToItem(uiState.focusedIndex, -centerOffset + paddingBuffer)
+            }
         }
     }
 
@@ -71,88 +77,76 @@ fun SyncSettingsSection(
             verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
         ) {
             item {
+                val enabledCount = uiState.syncSettings.enabledPlatformCount
+                val totalCount = uiState.syncSettings.totalPlatforms
+                val subtitle = if (totalCount > 0) "$enabledCount/$totalCount platforms" else "Select platforms to sync"
+                ActionPreference(
+                    icon = Icons.Default.FilterList,
+                    title = "Platform Filters",
+                    subtitle = subtitle,
+                    isFocused = uiState.focusedIndex == 0,
+                    onClick = { viewModel.showPlatformFiltersModal() }
+                )
+            }
+            item {
                 val filtersSubtitle = buildFiltersSubtitle(uiState.syncSettings.syncFilters)
                 ActionPreference(
                     icon = Icons.Default.Tune,
                     title = "Metadata Filters",
                     subtitle = filtersSubtitle,
-                    isFocused = uiState.focusedIndex == 0,
+                    isFocused = uiState.focusedIndex == 1,
                     onClick = { viewModel.showSyncFiltersModal() }
                 )
             }
 
-        item {
-            Spacer(modifier = Modifier.height(Dimens.spacingMd))
-            SectionHeader("MEDIA")
-        }
-        item {
-            SwitchPreference(
-                title = "Cache Screenshots",
-                subtitle = "Boxart and backgrounds are always cached",
-                isEnabled = uiState.server.syncScreenshotsEnabled,
-                isFocused = uiState.focusedIndex == 1,
-                onToggle = { viewModel.toggleSyncScreenshots() }
-            )
-        }
-        item {
-            val cachePath = uiState.syncSettings.imageCachePath
-            val displayPath = if (cachePath != null) {
-                "${cachePath.substringAfterLast("/")}/argosy_images"
-            } else {
-                "Internal (default)"
-            }
-            ImageCachePreference(
-                title = "Image Cache Location",
-                displayPath = displayPath,
-                hasCustomPath = cachePath != null,
-                isFocused = uiState.focusedIndex == 2,
-                actionIndex = uiState.syncSettings.imageCacheActionIndex,
-                isMigrating = uiState.syncSettings.isImageCacheMigrating,
-                onChange = { viewModel.openImageCachePicker() },
-                onReset = { viewModel.resetImageCacheToDefault() }
-            )
-        }
-
-        item {
-            Spacer(modifier = Modifier.height(Dimens.spacingMd))
-            SectionHeader("SAVES")
-        }
-        item {
-            if (uiState.syncSettings.saveSyncEnabled) {
-                SwitchPreference(
-                    title = "Save Sync",
-                    subtitle = "Sync game saves with server",
-                    isEnabled = true,
-                    isFocused = uiState.focusedIndex == 3,
-                    onToggle = { viewModel.toggleSaveSync() }
-                )
-            } else {
-                ActionPreference(
-                    title = "Enable Save Sync",
-                    subtitle = "Sync game saves with server",
-                    isFocused = uiState.focusedIndex == 3,
-                    onClick = { viewModel.enableSaveSync() }
-                )
-            }
-        }
-        if (uiState.syncSettings.saveSyncEnabled) {
-            item {
-                SwitchPreference(
-                    title = "Experimental Folder Saves",
-                    subtitle = "Sync folder-based saves (3DS, Switch, PSP, Vita)",
-                    isEnabled = uiState.syncSettings.experimentalFolderSaveSync,
-                    isFocused = uiState.focusedIndex == 4,
-                    onToggle = { viewModel.toggleExperimentalFolderSaveSync() }
-                )
-            }
-        }
-
-        if (imageCacheProgress.isProcessing) {
             item {
                 Spacer(modifier = Modifier.height(Dimens.spacingMd))
-                ImageCacheProgressItem(imageCacheProgress)
+                SectionHeader("MEDIA")
+            }
+            item {
+                SwitchPreference(
+                    title = "Cache Screenshots",
+                    subtitle = "Boxart and backgrounds are always cached",
+                    isEnabled = uiState.server.syncScreenshotsEnabled,
+                    isFocused = uiState.focusedIndex == 2,
+                    onToggle = { viewModel.toggleSyncScreenshots() }
+                )
+            }
+            item {
+                val cachePath = uiState.syncSettings.imageCachePath
+                val displayPath = if (cachePath != null) {
+                    "${cachePath.substringAfterLast("/")}/argosy_images"
+                } else {
+                    "Internal (default)"
+                }
+                ImageCachePreference(
+                    title = "Image Cache Location",
+                    displayPath = displayPath,
+                    hasCustomPath = cachePath != null,
+                    isFocused = uiState.focusedIndex == 3,
+                    actionIndex = uiState.syncSettings.imageCacheActionIndex,
+                    isMigrating = uiState.syncSettings.isImageCacheMigrating,
+                    onChange = { viewModel.openImageCachePicker() },
+                    onReset = { viewModel.resetImageCacheToDefault() }
+                )
+            }
+
+            if (imageCacheProgress.isProcessing) {
+                item {
+                    Spacer(modifier = Modifier.height(Dimens.spacingMd))
+                    ImageCacheProgressItem(imageCacheProgress)
+                }
             }
         }
+
+        if (uiState.syncSettings.showPlatformFiltersModal) {
+            PlatformFiltersModal(
+                platforms = uiState.syncSettings.platformFiltersList,
+                focusIndex = uiState.syncSettings.platformFiltersModalFocusIndex,
+                isLoading = uiState.syncSettings.isLoadingPlatforms,
+                onTogglePlatform = { viewModel.togglePlatformSyncEnabled(it) },
+                onDismiss = { viewModel.dismissPlatformFiltersModal() }
+            )
         }
 
         if (uiState.syncSettings.showSyncFiltersModal) {

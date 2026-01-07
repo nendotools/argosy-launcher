@@ -780,6 +780,10 @@ class SettingsViewModel @Inject constructor(
                 dismissRegionPicker()
                 true
             }
+            state.syncSettings.showPlatformFiltersModal -> {
+                dismissPlatformFiltersModal()
+                true
+            }
             state.syncSettings.showSyncFiltersModal -> {
                 dismissSyncFiltersModal()
                 true
@@ -858,7 +862,7 @@ class SettingsViewModel @Inject constructor(
                     val launcherCount = state.steam.installedLaunchers.size
                     if (launcherCount > 0) steamBaseIndex + launcherCount else steamBaseIndex
                 }
-                SettingsSection.SYNC_SETTINGS -> if (state.syncSettings.saveSyncEnabled) 4 else 3
+                SettingsSection.SYNC_SETTINGS -> 3
                 SettingsSection.STEAM_SETTINGS -> 2 + state.steam.installedLaunchers.size
                 SettingsSection.STORAGE -> {
                     val baseItemCount = 6
@@ -1249,6 +1253,28 @@ class SettingsViewModel @Inject constructor(
         syncDelegate.confirmSyncFiltersModalSelection(viewModelScope)
     }
 
+    fun showPlatformFiltersModal() {
+        syncDelegate.showPlatformFiltersModal(viewModelScope)
+        soundManager.play(SoundType.OPEN_MODAL)
+    }
+
+    fun dismissPlatformFiltersModal() {
+        syncDelegate.dismissPlatformFiltersModal()
+        soundManager.play(SoundType.CLOSE_MODAL)
+    }
+
+    fun movePlatformFiltersModalFocus(delta: Int) {
+        syncDelegate.movePlatformFiltersModalFocus(delta)
+    }
+
+    fun confirmPlatformFiltersModalSelection() {
+        syncDelegate.confirmPlatformFiltersModalSelection(viewModelScope)
+    }
+
+    fun togglePlatformSyncEnabled(platformId: Long) {
+        syncDelegate.togglePlatformSyncEnabled(viewModelScope, platformId)
+    }
+
     fun showRegionPicker() {
         syncDelegate.showRegionPicker()
         soundManager.play(SoundType.OPEN_MODAL)
@@ -1305,10 +1331,6 @@ class SettingsViewModel @Inject constructor(
 
     fun toggleSaveSync() {
         syncDelegate.toggleSaveSync(viewModelScope)
-    }
-
-    fun toggleExperimentalFolderSaveSync() {
-        syncDelegate.toggleExperimentalFolderSaveSync(viewModelScope)
     }
 
     fun cycleSaveCacheLimit() {
@@ -1839,8 +1861,8 @@ class SettingsViewModel @Inject constructor(
                     }
                 } else {
                     val androidBaseIndex = when {
-                        isConnected && state.syncSettings.saveSyncEnabled -> 6
-                        isConnected -> 4
+                        isConnected && state.syncSettings.saveSyncEnabled -> 7
+                        isConnected -> 5
                         else -> 1
                     }
                     val steamBaseIndex = androidBaseIndex + 1
@@ -1859,8 +1881,12 @@ class SettingsViewModel @Inject constructor(
                             }
                             return InputResult.handled(SoundType.TOGGLE)
                         }
-                        state.focusedIndex == 4 && isConnected && state.syncSettings.saveSyncEnabled -> cycleSaveCacheLimit()
-                        state.focusedIndex == 5 && isConnected && state.syncSettings.saveSyncEnabled && isOnline -> runSaveSyncNow()
+                        state.focusedIndex == 4 && isConnected -> {
+                            toggleSaveSync()
+                            return InputResult.handled(SoundType.TOGGLE)
+                        }
+                        state.focusedIndex == 5 && isConnected && state.syncSettings.saveSyncEnabled -> cycleSaveCacheLimit()
+                        state.focusedIndex == 6 && isConnected && state.syncSettings.saveSyncEnabled && isOnline -> runSaveSyncNow()
                         state.focusedIndex == androidBaseIndex -> scanForAndroidGames()
                         state.focusedIndex >= steamBaseIndex && state.focusedIndex < refreshIndex -> {
                             if (state.steam.hasStoragePermission && !state.steam.isSyncing) {
@@ -1891,9 +1917,10 @@ class SettingsViewModel @Inject constructor(
             }
             SettingsSection.SYNC_SETTINGS -> {
                 when (state.focusedIndex) {
-                    0 -> showSyncFiltersModal()
-                    1 -> { toggleSyncScreenshots(); return InputResult.handled(SoundType.TOGGLE) }
-                    2 -> {
+                    0 -> showPlatformFiltersModal()
+                    1 -> showSyncFiltersModal()
+                    2 -> { toggleSyncScreenshots(); return InputResult.handled(SoundType.TOGGLE) }
+                    3 -> {
                         if (!state.syncSettings.isImageCacheMigrating) {
                             val actionIndex = state.syncSettings.imageCacheActionIndex
                             if (actionIndex == 0) {
@@ -1901,20 +1928,6 @@ class SettingsViewModel @Inject constructor(
                             } else {
                                 resetImageCacheToDefault()
                             }
-                        }
-                    }
-                    3 -> {
-                        if (state.syncSettings.saveSyncEnabled) {
-                            toggleSaveSync()
-                            return InputResult.handled(SoundType.TOGGLE)
-                        } else {
-                            enableSaveSync()
-                        }
-                    }
-                    4 -> {
-                        if (state.syncSettings.saveSyncEnabled) {
-                            toggleExperimentalFolderSaveSync()
-                            return InputResult.handled(SoundType.TOGGLE)
                         }
                     }
                 }

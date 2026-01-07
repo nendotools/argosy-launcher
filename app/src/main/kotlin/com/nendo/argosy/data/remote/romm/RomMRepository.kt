@@ -244,6 +244,23 @@ class RomMRepository @Inject constructor(
         }
     }
 
+    suspend fun syncPlatformsOnly(): Result<Int> = withContext(Dispatchers.IO) {
+        val currentApi = api ?: return@withContext Result.failure(Exception("Not connected to server"))
+        try {
+            val response = currentApi.getPlatforms()
+            if (!response.isSuccessful) {
+                return@withContext Result.failure(Exception("Failed to fetch platforms: ${response.code()}"))
+            }
+            val platforms = response.body() ?: emptyList()
+            for (platform in platforms) {
+                syncPlatformMetadata(platform)
+            }
+            Result.success(platforms.size)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     private suspend fun doSyncPlatform(platformId: Long): SyncResult {
         val currentApi = api ?: return SyncResult(0, 0, 0, 0, listOf("Not connected"))
 

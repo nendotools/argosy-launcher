@@ -511,6 +511,9 @@ class UserPreferencesRepository @Inject constructor(
     suspend fun setSaveSyncEnabled(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[Keys.SAVE_SYNC_ENABLED] = enabled
+            if (enabled) {
+                prefs[Keys.EXPERIMENTAL_FOLDER_SAVE_SYNC] = true
+            }
         }
     }
 

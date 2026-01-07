@@ -265,12 +265,25 @@ data class ServerState(
     val syncScreenshotsEnabled: Boolean = false
 )
 
+data class PlatformFilterItem(
+    val id: Long,
+    val name: String,
+    val slug: String,
+    val romCount: Int,
+    val syncEnabled: Boolean
+)
+
 data class SyncSettingsState(
     val syncFilters: SyncFilterPreferences = SyncFilterPreferences(),
     val showSyncFiltersModal: Boolean = false,
     val syncFiltersModalFocusIndex: Int = 0,
     val showRegionPicker: Boolean = false,
     val regionPickerFocusIndex: Int = 0,
+    val showPlatformFiltersModal: Boolean = false,
+    val platformFiltersModalFocusIndex: Int = 0,
+    val platformFiltersList: List<PlatformFilterItem> = emptyList(),
+    val isLoadingPlatforms: Boolean = false,
+    val enabledPlatformCount: Int = 0,
     val totalGames: Int = 0,
     val totalPlatforms: Int = 0,
     val saveSyncEnabled: Boolean = false,

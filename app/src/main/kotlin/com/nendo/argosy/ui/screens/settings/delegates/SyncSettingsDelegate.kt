@@ -4,14 +4,17 @@ import android.os.Build
 import android.os.Environment
 import com.nendo.argosy.data.cache.ImageCacheManager
 import com.nendo.argosy.data.local.dao.PendingSaveSyncDao
+import com.nendo.argosy.data.local.dao.PlatformDao
 import com.nendo.argosy.data.local.dao.SaveSyncDao
 import com.nendo.argosy.data.local.entity.SaveSyncEntity
 import com.nendo.argosy.data.preferences.RegionFilterMode
 import com.nendo.argosy.data.preferences.SyncFilterPreferences
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
+import com.nendo.argosy.data.remote.romm.RomMRepository
 import com.nendo.argosy.data.repository.SaveSyncRepository
 import com.nendo.argosy.ui.notification.NotificationManager
 import com.nendo.argosy.ui.notification.showError
+import com.nendo.argosy.ui.screens.settings.PlatformFilterItem
 import com.nendo.argosy.ui.screens.settings.SyncSettingsState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -30,6 +33,8 @@ class SyncSettingsDelegate @Inject constructor(
     private val saveSyncRepository: SaveSyncRepository,
     private val pendingSaveSyncDao: PendingSaveSyncDao,
     private val saveSyncDao: SaveSyncDao,
+    private val platformDao: PlatformDao,
+    private val rommRepository: RomMRepository,
     private val imageCacheManager: ImageCacheManager,
     private val notificationManager: NotificationManager
 ) {
@@ -56,6 +61,8 @@ class SyncSettingsDelegate @Inject constructor(
             val pendingUploads = pendingSaveSyncDao.getCount()
             val pendingDownloads = saveSyncDao.countByStatus(SaveSyncEntity.STATUS_SERVER_NEWER)
             val totalPending = pendingUploads + pendingDownloads
+            val enabledPlatformCount = platformDao.getEnabledPlatformCount()
+            val totalPlatformCount = platformDao.getTotalPlatformCount()
             _state.update {
                 it.copy(
                     syncFilters = prefs.syncFilters,
@@ -65,7 +72,9 @@ class SyncSettingsDelegate @Inject constructor(
                     hasStoragePermission = hasPermission,
                     pendingUploadsCount = totalPending,
                     imageCachePath = prefs.imageCachePath,
-                    defaultImageCachePath = imageCacheManager.getDefaultCachePath()
+                    defaultImageCachePath = imageCacheManager.getDefaultCachePath(),
+                    enabledPlatformCount = enabledPlatformCount,
+                    totalPlatforms = totalPlatformCount
                 )
             }
             imageCacheManager.setCustomCachePath(prefs.imageCachePath)
@@ -239,16 +248,6 @@ class SyncSettingsDelegate @Inject constructor(
         }
     }
 
-    fun toggleExperimentalFolderSaveSync(scope: CoroutineScope) {
-        scope.launch {
-            val currentState = _state.value
-            val newValue = !currentState.experimentalFolderSaveSync
-
-            preferencesRepository.setExperimentalFolderSaveSync(newValue)
-            _state.update { it.copy(experimentalFolderSaveSync = newValue) }
-        }
-    }
-
     fun cycleSaveCacheLimit(scope: CoroutineScope) {
         scope.launch {
             val currentLimit = _state.value.saveCacheLimit
@@ -374,6 +373,74 @@ class SyncSettingsDelegate @Inject constructor(
                 } finally {
                     _state.update { it.copy(isImageCacheMigrating = false) }
                 }
+            }
+        }
+    }
+
+    fun showPlatformFiltersModal(scope: CoroutineScope) {
+        scope.launch {
+            _state.update { it.copy(showPlatformFiltersModal = true, isLoadingPlatforms = true) }
+
+            val result = rommRepository.syncPlatformsOnly()
+            if (result.isFailure) {
+                notificationManager.showError("Failed to fetch platforms: ${result.exceptionOrNull()?.message}")
+            }
+
+            val platforms = platformDao.getAllPlatformsOrdered().map { entity ->
+                PlatformFilterItem(
+                    id = entity.id,
+                    name = entity.name,
+                    slug = entity.slug,
+                    romCount = entity.gameCount,
+                    syncEnabled = entity.syncEnabled
+                )
+            }
+            val enabledCount = platforms.count { it.syncEnabled }
+            _state.update {
+                it.copy(
+                    platformFiltersList = platforms,
+                    isLoadingPlatforms = false,
+                    platformFiltersModalFocusIndex = 0,
+                    enabledPlatformCount = enabledCount,
+                    totalPlatforms = platforms.size
+                )
+            }
+        }
+    }
+
+    fun dismissPlatformFiltersModal() {
+        _state.update { it.copy(showPlatformFiltersModal = false) }
+    }
+
+    fun movePlatformFiltersModalFocus(delta: Int) {
+        _state.update { state ->
+            val maxIndex = (state.platformFiltersList.size - 1).coerceAtLeast(0)
+            val newIndex = (state.platformFiltersModalFocusIndex + delta).coerceIn(0, maxIndex)
+            state.copy(platformFiltersModalFocusIndex = newIndex)
+        }
+    }
+
+    fun confirmPlatformFiltersModalSelection(scope: CoroutineScope) {
+        val state = _state.value
+        val platform = state.platformFiltersList.getOrNull(state.platformFiltersModalFocusIndex) ?: return
+        togglePlatformSyncEnabled(scope, platform.id)
+    }
+
+    fun togglePlatformSyncEnabled(scope: CoroutineScope, platformId: Long) {
+        scope.launch {
+            val platform = platformDao.getById(platformId) ?: return@launch
+            val newEnabled = !platform.syncEnabled
+            platformDao.updateSyncEnabled(platformId, newEnabled)
+
+            _state.update { state ->
+                val updatedList = state.platformFiltersList.map { item ->
+                    if (item.id == platformId) item.copy(syncEnabled = newEnabled) else item
+                }
+                val enabledCount = updatedList.count { it.syncEnabled }
+                state.copy(
+                    platformFiltersList = updatedList,
+                    enabledPlatformCount = enabledCount
+                )
             }
         }
     }

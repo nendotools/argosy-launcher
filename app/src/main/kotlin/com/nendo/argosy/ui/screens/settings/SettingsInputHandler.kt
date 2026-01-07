@@ -33,6 +33,10 @@ class SettingsInputHandler(
             viewModel.moveRegionPickerFocus(-1)
             return InputResult.HANDLED
         }
+        if (state.syncSettings.showPlatformFiltersModal) {
+            viewModel.movePlatformFiltersModalFocus(-1)
+            return InputResult.HANDLED
+        }
         if (state.syncSettings.showSyncFiltersModal) {
             viewModel.moveSyncFiltersModalFocus(-1)
             return InputResult.HANDLED
@@ -75,6 +79,10 @@ class SettingsInputHandler(
             viewModel.moveRegionPickerFocus(1)
             return InputResult.HANDLED
         }
+        if (state.syncSettings.showPlatformFiltersModal) {
+            viewModel.movePlatformFiltersModalFocus(1)
+            return InputResult.HANDLED
+        }
         if (state.syncSettings.showSyncFiltersModal) {
             viewModel.moveSyncFiltersModalFocus(1)
             return InputResult.HANDLED
@@ -114,6 +122,7 @@ class SettingsInputHandler(
         }
         if (state.sounds.showSoundPicker ||
             state.syncSettings.showRegionPicker ||
+            state.syncSettings.showPlatformFiltersModal ||
             state.syncSettings.showSyncFiltersModal ||
             state.emulators.showEmulatorPicker) {
             return InputResult.HANDLED
@@ -236,7 +245,7 @@ class SettingsInputHandler(
             }
         }
 
-        if (state.currentSection == SettingsSection.SYNC_SETTINGS && state.focusedIndex == 2) {
+        if (state.currentSection == SettingsSection.SYNC_SETTINGS && state.focusedIndex == 3) {
             viewModel.moveImageCacheActionFocus(-1)
             return InputResult.HANDLED
         }
@@ -274,6 +283,7 @@ class SettingsInputHandler(
         }
         if (state.sounds.showSoundPicker ||
             state.syncSettings.showRegionPicker ||
+            state.syncSettings.showPlatformFiltersModal ||
             state.syncSettings.showSyncFiltersModal ||
             state.emulators.showEmulatorPicker) {
             return InputResult.HANDLED
@@ -396,7 +406,7 @@ class SettingsInputHandler(
             }
         }
 
-        if (state.currentSection == SettingsSection.SYNC_SETTINGS && state.focusedIndex == 2) {
+        if (state.currentSection == SettingsSection.SYNC_SETTINGS && state.focusedIndex == 3) {
             viewModel.moveImageCacheActionFocus(1)
             return InputResult.HANDLED
         }
@@ -438,6 +448,11 @@ class SettingsInputHandler(
 
         if (state.syncSettings.showSyncFiltersModal) {
             viewModel.confirmSyncFiltersModalSelection()
+            return InputResult.handled(SoundType.TOGGLE)
+        }
+
+        if (state.syncSettings.showPlatformFiltersModal) {
+            viewModel.confirmPlatformFiltersModalSelection()
             return InputResult.handled(SoundType.TOGGLE)
         }
 
@@ -491,6 +506,7 @@ class SettingsInputHandler(
 
         if (state.emulators.showSavePathModal ||
             state.storage.platformSettingsModalId != null ||
+            state.syncSettings.showPlatformFiltersModal ||
             state.syncSettings.showSyncFiltersModal ||
             state.syncSettings.showRegionPicker ||
             state.emulators.showEmulatorPicker) {

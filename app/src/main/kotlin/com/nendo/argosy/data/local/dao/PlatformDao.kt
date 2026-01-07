@@ -74,6 +74,15 @@ interface PlatformDao {
     @Query("SELECT * FROM platforms")
     suspend fun getAllPlatforms(): List<PlatformEntity>
 
+    @Query("SELECT * FROM platforms ORDER BY sortOrder ASC, name ASC")
+    suspend fun getAllPlatformsOrdered(): List<PlatformEntity>
+
+    @Query("SELECT COUNT(*) FROM platforms WHERE syncEnabled = 1")
+    suspend fun getEnabledPlatformCount(): Int
+
+    @Query("SELECT COUNT(*) FROM platforms")
+    suspend fun getTotalPlatformCount(): Int
+
     @Query("SELECT slug FROM platforms GROUP BY slug HAVING COUNT(*) > 1")
     suspend fun getAmbiguousSlugs(): List<String>
 
