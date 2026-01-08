@@ -400,6 +400,8 @@ class SettingsViewModel @Inject constructor(
                 boxArtInnerEffectThickness = prefs.boxArtInnerEffectThickness,
                 systemIconPosition = prefs.systemIconPosition,
                 systemIconPadding = prefs.systemIconPadding,
+                gradientVibrance = prefs.gradientVibrance,
+                vibranceMinDistance = prefs.vibranceMinDistance,
                 defaultView = prefs.defaultView
             ))
 
@@ -872,17 +874,23 @@ class SettingsViewModel @Inject constructor(
                 SettingsSection.DISPLAY -> 9
                 SettingsSection.HOME_SCREEN -> if (state.display.useGameBackground) 4 else 5
                 SettingsSection.BOX_ART -> {
-                    val showGlassTint = state.display.boxArtBorderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GLASS
+                    val borderStyle = state.display.boxArtBorderStyle
+                    val showGlassTint = borderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GLASS
+                    val showVibrance = borderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GLASS ||
+                        borderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GRADIENT
+                    val showMinDistance = showVibrance && state.display.gradientVibrance
                     val showIconPadding = state.display.systemIconPosition != com.nendo.argosy.data.preferences.SystemIconPosition.OFF
                     val showOuterThickness = state.display.boxArtOuterEffect != com.nendo.argosy.data.preferences.BoxArtOuterEffect.OFF
                     val showInnerThickness = state.display.boxArtInnerEffect != com.nendo.argosy.data.preferences.BoxArtInnerEffect.OFF
                     var idx = 3
                     if (showGlassTint) idx++
-                    idx++
+                    if (showVibrance) idx++
+                    if (showMinDistance) idx++
+                    idx++ // IconPos
                     if (showIconPadding) idx++
-                    idx++
+                    idx++ // OuterEffect
                     if (showOuterThickness) idx++
-                    idx++
+                    idx++ // InnerEffect
                     if (showInnerThickness) idx++
                     idx - 1
                 }
@@ -1071,6 +1079,24 @@ class SettingsViewModel @Inject constructor(
 
     fun cycleDefaultView() {
         displayDelegate.cycleDefaultView(viewModelScope)
+    }
+
+    fun setGradientVibrance(enabled: Boolean) {
+        displayDelegate.setGradientVibrance(viewModelScope, enabled)
+    }
+
+    fun adjustVibranceMinDistance(delta: Int) {
+        displayDelegate.adjustVibranceMinDistance(viewModelScope, delta)
+    }
+
+    fun cycleVibranceMinDistance(direction: Int = 1) {
+        val current = _uiState.value.display.vibranceMinDistance
+        val delta = if (direction > 0) {
+            if (current >= 50) -50 else 10
+        } else {
+            if (current <= 0) 50 else -10
+        }
+        adjustVibranceMinDistance(delta)
     }
 
     fun cyclePrevPreviewRatio() {
@@ -2003,31 +2029,40 @@ class SettingsViewModel @Inject constructor(
                 InputResult.HANDLED
             }
             SettingsSection.BOX_ART -> {
-                val showGlassTint = state.display.boxArtBorderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GLASS
+                val borderStyle = state.display.boxArtBorderStyle
+                val showGlassTint = borderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GLASS
+                val showVibrance = borderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GLASS ||
+                    borderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GRADIENT
+                val showMinDistance = showVibrance && state.display.gradientVibrance
                 val showIconPadding = state.display.systemIconPosition != com.nendo.argosy.data.preferences.SystemIconPosition.OFF
                 val showOuterThickness = state.display.boxArtOuterEffect != com.nendo.argosy.data.preferences.BoxArtOuterEffect.OFF
                 val showInnerThickness = state.display.boxArtInnerEffect != com.nendo.argosy.data.preferences.BoxArtInnerEffect.OFF
                 var idx = 3
                 val glassTintIdx = if (showGlassTint) idx++ else -1
+                val vibranceIdx = if (showVibrance) idx++ else -1
+                val minDistanceIdx = if (showMinDistance) idx++ else -1
                 val iconPosIdx = idx++
                 val iconPadIdx = if (showIconPadding) idx++ else -1
                 val outerEffectIdx = idx++
                 val outerThicknessIdx = if (showOuterThickness) idx++ else -1
                 val innerEffectIdx = idx++
                 val innerThicknessIdx = if (showInnerThickness) idx++ else -1
-                when (state.focusedIndex) {
-                    0 -> cycleBoxArtCornerRadius()
-                    1 -> cycleBoxArtBorderThickness()
-                    2 -> cycleBoxArtBorderStyle()
-                    glassTintIdx -> cycleGlassBorderTint()
-                    iconPosIdx -> cycleSystemIconPosition()
-                    iconPadIdx -> cycleSystemIconPadding()
-                    outerEffectIdx -> cycleBoxArtOuterEffect()
-                    outerThicknessIdx -> cycleBoxArtOuterEffectThickness()
-                    innerEffectIdx -> cycleBoxArtInnerEffect()
-                    innerThicknessIdx -> cycleBoxArtInnerEffectThickness()
+                val isToggle = when (state.focusedIndex) {
+                    0 -> { cycleBoxArtCornerRadius(); false }
+                    1 -> { cycleBoxArtBorderThickness(); false }
+                    2 -> { cycleBoxArtBorderStyle(); false }
+                    glassTintIdx -> { cycleGlassBorderTint(); false }
+                    vibranceIdx -> { setGradientVibrance(!state.display.gradientVibrance); true }
+                    minDistanceIdx -> { cycleVibranceMinDistance(); false }
+                    iconPosIdx -> { cycleSystemIconPosition(); false }
+                    iconPadIdx -> { cycleSystemIconPadding(); false }
+                    outerEffectIdx -> { cycleBoxArtOuterEffect(); false }
+                    outerThicknessIdx -> { cycleBoxArtOuterEffectThickness(); false }
+                    innerEffectIdx -> { cycleBoxArtInnerEffect(); false }
+                    innerThicknessIdx -> { cycleBoxArtInnerEffectThickness(); false }
+                    else -> false
                 }
-                InputResult.HANDLED
+                if (isToggle) InputResult.handled(SoundType.TOGGLE) else InputResult.HANDLED
             }
             SettingsSection.CONTROLS -> {
                 val isToggle = if (state.controls.hapticEnabled) {

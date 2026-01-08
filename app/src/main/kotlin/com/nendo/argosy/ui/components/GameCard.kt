@@ -2,6 +2,7 @@ package com.nendo.argosy.ui.components
 
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
+import android.util.Log
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -31,6 +32,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -87,6 +89,166 @@ import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.LocalBoxArtStyle
 import com.nendo.argosy.ui.theme.LocalLauncherTheme
 import com.nendo.argosy.ui.theme.Motion
+import android.graphics.Color as AndroidColor
+
+private fun hslToColor(h: Float, s: Float, l: Float): Color {
+    val c = (1f - kotlin.math.abs(2f * l - 1f)) * s
+    val x = c * (1f - kotlin.math.abs((h / 60f) % 2f - 1f))
+    val m = l - c / 2f
+
+    val (r1, g1, b1) = when {
+        h < 60f -> Triple(c, x, 0f)
+        h < 120f -> Triple(x, c, 0f)
+        h < 180f -> Triple(0f, c, x)
+        h < 240f -> Triple(0f, x, c)
+        h < 300f -> Triple(x, 0f, c)
+        else -> Triple(c, 0f, x)
+    }
+
+    return Color(r1 + m, g1 + m, b1 + m)
+}
+
+private fun extractVibrantColors(
+    bitmap: Bitmap,
+    minDistancePercent: Int,
+    isDarkTheme: Boolean,
+    gameTitle: String = ""
+): Pair<Color, Color>? {
+    // Sample top and bottom halves for spatial coherence
+    val halfHeight = (bitmap.height / 2).coerceAtLeast(1)
+    val topBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, halfHeight)
+    val bottomBitmap = Bitmap.createBitmap(bitmap, 0, halfHeight, bitmap.width, bitmap.height - halfHeight)
+
+    val topPalette = Palette.from(topBitmap).generate()
+    val bottomPalette = Palette.from(bottomBitmap).generate()
+
+    // Get candidate swatches from each half, prioritizing vibrant colors
+    fun Palette.getSwatchesByPriority(): List<Palette.Swatch> = listOfNotNull(
+        vibrantSwatch,
+        lightVibrantSwatch,
+        darkVibrantSwatch,
+        dominantSwatch,
+        mutedSwatch,
+        lightMutedSwatch,
+        darkMutedSwatch
+    )
+
+    fun Palette.Swatch.getHue(): Float {
+        val hsv = FloatArray(3)
+        AndroidColor.colorToHSV(rgb, hsv)
+        return hsv[0]
+    }
+
+    fun Palette.Swatch.getSaturation(): Float {
+        val hsv = FloatArray(3)
+        AndroidColor.colorToHSV(rgb, hsv)
+        return hsv[1]
+    }
+
+    fun hueDistance(h1: Float, h2: Float): Float {
+        val diff = kotlin.math.abs(h1 - h2)
+        return kotlin.math.min(diff, 360f - diff)
+    }
+
+    fun hueToName(hue: Float): String = when {
+        hue < 15 || hue >= 345 -> "Red"
+        hue < 45 -> "Orange"
+        hue < 75 -> "Yellow"
+        hue < 150 -> "Green"
+        hue < 210 -> "Cyan"
+        hue < 270 -> "Blue"
+        hue < 315 -> "Purple"
+        else -> "Magenta"
+    }
+
+    val topSwatches = topPalette.getSwatchesByPriority()
+    val bottomSwatches = bottomPalette.getSwatchesByPriority()
+
+    if (topSwatches.isEmpty() || bottomSwatches.isEmpty()) return null
+
+    // Min distance in degrees (0-100% maps to 0-180 degrees)
+    val minDistanceDegrees = minDistancePercent * 1.8f
+
+    // Score swatches by population * saturation (large colorful areas win)
+    fun Palette.Swatch.getScore(): Float {
+        val sat = getSaturation()
+        // Require minimum saturation AND population to be considered "colorful"
+        // 40% sat ensures only truly vibrant colors qualify
+        if (sat < 0.40f) return 0f
+        if (population < 100) return 0f
+        return population * sat
+    }
+
+    // Filter to only swatches that meet our quality threshold
+    val validTopSwatches = topSwatches.filter { it.getScore() > 0 }
+    val validBottomSwatches = bottomSwatches.filter { it.getScore() > 0 }
+
+    Log.d("VibrantColors", "[$gameTitle] Valid swatches: top=${validTopSwatches.size}/${topSwatches.size}, bottom=${validBottomSwatches.size}/${bottomSwatches.size}")
+
+    if (validTopSwatches.isEmpty() || validBottomSwatches.isEmpty()) {
+        Log.d("VibrantColors", "[$gameTitle] Not enough valid swatches, returning null")
+        return null
+    }
+
+    // Find best pair: top swatch + bottom swatch with sufficient hue distance
+    // Prefer swatches with higher score (population * saturation)
+    var bestTopSwatch: Palette.Swatch? = null
+    var bestBottomSwatch: Palette.Swatch? = null
+    var bestScore = -1f
+
+    for (topSwatch in validTopSwatches) {
+        for (bottomSwatch in validBottomSwatches) {
+            val distance = hueDistance(topSwatch.getHue(), bottomSwatch.getHue())
+            if (distance >= minDistanceDegrees) {
+                val score = topSwatch.getScore() + bottomSwatch.getScore()
+                if (score > bestScore) {
+                    bestScore = score
+                    bestTopSwatch = topSwatch
+                    bestBottomSwatch = bottomSwatch
+                }
+            }
+        }
+    }
+
+    // If no pair meets distance requirement, use highest-scoring from each
+    if (bestTopSwatch == null || bestBottomSwatch == null) {
+        bestTopSwatch = validTopSwatches.maxByOrNull { it.getScore() }
+        bestBottomSwatch = validBottomSwatches.maxByOrNull { it.getScore() }
+        Log.d("VibrantColors", "[$gameTitle] No pair met distance, using fallback")
+    }
+
+    if (bestTopSwatch == null || bestBottomSwatch == null) return null
+
+    // Apply our vibrant HSL treatment
+    // L=50% is peak saturation; we use 50-55% for top, 40-45% for bottom
+    val lightLightness = if (isDarkTheme) 0.55f else 0.50f
+    val darkLightness = if (isDarkTheme) 0.45f else 0.40f
+
+    val topHue = bestTopSwatch.getHue()
+    val bottomHue = bestBottomSwatch.getHue()
+
+    Log.d("VibrantColors", "[$gameTitle] Top: ${hueToName(topHue)} (${topHue.toInt()}°, sat=${(bestTopSwatch.getSaturation()*100).toInt()}%, pop=${bestTopSwatch.population}) | Bottom: ${hueToName(bottomHue)} (${bottomHue.toInt()}°, sat=${(bestBottomSwatch.getSaturation()*100).toInt()}%, pop=${bestBottomSwatch.population})")
+
+    val topColor = hslToColor(topHue, 1f, lightLightness)
+    val bottomColor = hslToColor(bottomHue, 1f, darkLightness)
+
+    return Pair(topColor, bottomColor)
+}
+
+private fun extractPositionalColors(bitmap: Bitmap): Pair<Color?, Color?> {
+    val sampleHeight = (bitmap.height / 4).coerceAtLeast(1)
+    val topBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, sampleHeight)
+    val bottomBitmap = Bitmap.createBitmap(
+        bitmap, 0, bitmap.height - sampleHeight, bitmap.width, sampleHeight
+    )
+    val topPalette = Palette.from(topBitmap).generate()
+    val bottomPalette = Palette.from(bottomBitmap).generate()
+    val topColor = topPalette.dominantSwatch?.let { Color(it.rgb) }
+        ?: topPalette.vibrantSwatch?.let { Color(it.rgb) }
+    val bottomColor = bottomPalette.dominantSwatch?.let { Color(it.rgb) }
+        ?: bottomPalette.vibrantSwatch?.let { Color(it.rgb) }
+    return Pair(topColor, bottomColor)
+}
 
 @Composable
 fun GameCard(
@@ -102,6 +264,7 @@ fun GameCard(
 ) {
     val themeConfig = LocalLauncherTheme.current
     val boxArtStyle = LocalBoxArtStyle.current
+    val isDarkTheme = isSystemInDarkTheme()
     val effectiveCoverPath = coverPathOverride ?: game.coverPath
 
     val scale by animateFloatAsState(
@@ -310,17 +473,21 @@ fun GameCard(
                                 srcBitmap
                             }
                             if (bitmap != null) {
-                                val sampleHeight = (bitmap.height / 4).coerceAtLeast(1)
-                                val topBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, sampleHeight)
-                                val bottomBitmap = Bitmap.createBitmap(
-                                    bitmap, 0, bitmap.height - sampleHeight, bitmap.width, sampleHeight
-                                )
-                                val topPalette = Palette.from(topBitmap).generate()
-                                val bottomPalette = Palette.from(bottomBitmap).generate()
-                                extractedTopColor = topPalette.dominantSwatch?.let { Color(it.rgb) }
-                                    ?: topPalette.vibrantSwatch?.let { Color(it.rgb) }
-                                extractedBottomColor = bottomPalette.dominantSwatch?.let { Color(it.rgb) }
-                                    ?: bottomPalette.vibrantSwatch?.let { Color(it.rgb) }
+                                if (boxArtStyle.gradientVibrance) {
+                                    val vibrantResult = extractVibrantColors(bitmap, boxArtStyle.vibranceMinDistance, isDarkTheme, game.title)
+                                    if (vibrantResult != null) {
+                                        extractedTopColor = vibrantResult.first
+                                        extractedBottomColor = vibrantResult.second
+                                    } else {
+                                        val positional = extractPositionalColors(bitmap)
+                                        extractedTopColor = positional.first
+                                        extractedBottomColor = positional.second
+                                    }
+                                } else {
+                                    val positional = extractPositionalColors(bitmap)
+                                    extractedTopColor = positional.first
+                                    extractedBottomColor = positional.second
+                                }
                             }
                         }
                     }
@@ -334,7 +501,13 @@ fun GameCard(
 
             if (useGlassBorder) {
                 val glassTintAlpha = boxArtStyle.glassBorderTintAlpha
-                val glassColorFilter = if (glassTintAlpha > 0f) {
+                val glassColorFilter = if (boxArtStyle.gradientVibrance && hasExtractedColors) {
+                    val tintColor = lerp(Color.White, extractedTopColor!!, (glassTintAlpha * 2).coerceIn(0f, 1f))
+                    ColorFilter.lighting(
+                        multiply = tintColor,
+                        add = Color.Black
+                    )
+                } else if (glassTintAlpha > 0f) {
                     val tintColor = lerp(Color.White, borderColor, glassTintAlpha)
                     ColorFilter.lighting(
                         multiply = tintColor,

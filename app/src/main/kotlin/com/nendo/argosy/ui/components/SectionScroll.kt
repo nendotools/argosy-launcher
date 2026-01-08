@@ -55,15 +55,19 @@ fun SectionFocusedScroll(
 
         val listIndex = focusToListIndex(focusedIndex)
 
-        if (sectionHeight <= viewportHeight) {
-            if (sectionChanged || sectionSizeChanged) {
-                listState.animateScrollToItem(currentSection.listStartIndex)
-            }
+        if (sectionChanged || sectionSizeChanged) {
+            // Scroll to show focused item when entering section or when section size changes
+            val itemHeight = visibleItems.firstOrNull()?.size ?: 60
+            val centerOffset = (viewportHeight - itemHeight) / 2
+            listState.animateScrollToItem(listIndex, -centerOffset)
         } else {
-            if (sectionChanged || sectionSizeChanged) {
-                listState.animateScrollToItem(currentSection.listStartIndex)
-            } else {
-                val targetItem = visibleItems.find { it.index == listIndex }
+            // Lazy-center within section: only scroll if item not fully visible
+            val targetItem = visibleItems.find { it.index == listIndex }
+            val isFullyVisible = targetItem != null &&
+                targetItem.offset >= 0 &&
+                targetItem.offset + targetItem.size <= viewportHeight
+
+            if (!isFullyVisible) {
                 val itemHeight = targetItem?.size ?: visibleItems.firstOrNull()?.size ?: 60
                 val centerOffset = (viewportHeight - itemHeight) / 2
                 listState.animateScrollToItem(listIndex, -centerOffset)

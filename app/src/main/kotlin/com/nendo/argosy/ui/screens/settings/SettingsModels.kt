@@ -122,6 +122,8 @@ data class DisplayState(
     val boxArtInnerEffectThickness: BoxArtInnerEffectThickness = BoxArtInnerEffectThickness.MEDIUM,
     val systemIconPosition: SystemIconPosition = SystemIconPosition.TOP_LEFT,
     val systemIconPadding: SystemIconPadding = SystemIconPadding.MEDIUM,
+    val gradientVibrance: Boolean = false,
+    val vibranceMinDistance: Int = 20,
     val defaultView: DefaultView = DefaultView.SHOWCASE
 )
 

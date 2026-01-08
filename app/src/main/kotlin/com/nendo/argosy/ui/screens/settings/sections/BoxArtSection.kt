@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -34,13 +35,90 @@ import com.nendo.argosy.data.preferences.BoxArtOuterEffectThickness
 import com.nendo.argosy.data.preferences.SystemIconPadding
 import com.nendo.argosy.data.preferences.SystemIconPosition
 import com.nendo.argosy.ui.components.CyclePreference
+import com.nendo.argosy.ui.components.SliderPreference
+import com.nendo.argosy.ui.components.SwitchPreference
 import com.nendo.argosy.ui.components.GameCard
 import com.nendo.argosy.ui.screens.home.HomeGameUi
+import com.nendo.argosy.ui.screens.settings.DisplayState
 import com.nendo.argosy.ui.screens.settings.SettingsUiState
 import com.nendo.argosy.ui.screens.settings.SettingsViewModel
 import com.nendo.argosy.ui.theme.BoxArtStyleConfig
 import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.LocalBoxArtStyle
+
+private sealed class BoxArtItem(val key: String, val section: String) {
+    val isFocusable: Boolean get() = this !is StylingHeader && this !is IconHeader && this !is OuterHeader && this !is InnerHeader
+
+    data object StylingHeader : BoxArtItem("stylingHeader", "styling")
+    data object CornerRadius : BoxArtItem("cornerRadius", "styling")
+    data object BorderThickness : BoxArtItem("borderThickness", "styling")
+    data object BorderStyle : BoxArtItem("borderStyle", "styling")
+    data object GlassTint : BoxArtItem("glassTint", "styling")
+    data object Vibrance : BoxArtItem("vibrance", "styling")
+    data object MinDistance : BoxArtItem("minDistance", "styling")
+
+    data object IconHeader : BoxArtItem("iconHeader", "icon")
+    data object IconPos : BoxArtItem("iconPos", "icon")
+    data object IconPad : BoxArtItem("iconPad", "icon")
+
+    data object OuterHeader : BoxArtItem("outerHeader", "outer")
+    data object OuterEffect : BoxArtItem("outerEffect", "outer")
+    data object OuterThickness : BoxArtItem("outerThickness", "outer")
+
+    data object InnerHeader : BoxArtItem("innerHeader", "inner")
+    data object InnerEffect : BoxArtItem("innerEffect", "inner")
+    data object InnerThickness : BoxArtItem("innerThickness", "inner")
+}
+
+private fun buildVisibleItems(display: DisplayState): List<BoxArtItem> = buildList {
+    add(BoxArtItem.StylingHeader)
+    add(BoxArtItem.CornerRadius)
+    add(BoxArtItem.BorderThickness)
+    add(BoxArtItem.BorderStyle)
+    if (display.boxArtBorderStyle == BoxArtBorderStyle.GLASS) {
+        add(BoxArtItem.GlassTint)
+    }
+    if (display.boxArtBorderStyle == BoxArtBorderStyle.GLASS || display.boxArtBorderStyle == BoxArtBorderStyle.GRADIENT) {
+        add(BoxArtItem.Vibrance)
+        if (display.gradientVibrance) {
+            add(BoxArtItem.MinDistance)
+        }
+    }
+
+    add(BoxArtItem.IconHeader)
+    add(BoxArtItem.IconPos)
+    if (display.systemIconPosition != SystemIconPosition.OFF) {
+        add(BoxArtItem.IconPad)
+    }
+
+    add(BoxArtItem.OuterHeader)
+    add(BoxArtItem.OuterEffect)
+    if (display.boxArtOuterEffect != BoxArtOuterEffect.OFF) {
+        add(BoxArtItem.OuterThickness)
+    }
+
+    add(BoxArtItem.InnerHeader)
+    add(BoxArtItem.InnerEffect)
+    if (display.boxArtInnerEffect != BoxArtInnerEffect.OFF) {
+        add(BoxArtItem.InnerThickness)
+    }
+}
+
+private fun buildSections(visibleItems: List<BoxArtItem>, focusableItems: List<BoxArtItem>): List<ListSection> {
+    val sectionNames = listOf("styling", "icon", "outer", "inner")
+    return sectionNames.mapNotNull { sectionName ->
+        val sectionItems = visibleItems.filter { it.section == sectionName }
+        val sectionFocusable = focusableItems.filter { it.section == sectionName }
+        if (sectionItems.isEmpty() || sectionFocusable.isEmpty()) return@mapNotNull null
+
+        ListSection(
+            listStartIndex = visibleItems.indexOf(sectionItems.first()),
+            listEndIndex = visibleItems.indexOf(sectionItems.last()),
+            focusStartIndex = focusableItems.indexOf(sectionFocusable.first()),
+            focusEndIndex = focusableItems.indexOf(sectionFocusable.last())
+        )
+    }
+}
 
 @Composable
 fun BoxArtSection(
@@ -50,53 +128,22 @@ fun BoxArtSection(
     val previewRatio = uiState.boxArtPreviewRatio
     val listState = rememberLazyListState()
     val display = uiState.display
-    val showIconPadding = display.systemIconPosition != SystemIconPosition.OFF
-    val showOuterThickness = display.boxArtOuterEffect != BoxArtOuterEffect.OFF
-    val showInnerThickness = display.boxArtInnerEffect != BoxArtInnerEffect.OFF
-    val showGlassTint = display.boxArtBorderStyle == BoxArtBorderStyle.GLASS
 
-    var focusIdx = 3
-    val glassTintIndex = if (showGlassTint) focusIdx++ else -1
-    val iconPosIndex = focusIdx++
-    val iconPadIndex = if (showIconPadding) focusIdx++ else -1
-    val outerEffectIndex = focusIdx++
-    val outerThicknessIndex = if (showOuterThickness) focusIdx++ else -1
-    val innerEffectIndex = focusIdx++
-    val innerThicknessIndex = if (showInnerThickness) focusIdx++ else -1
+    val visibleItems = remember(display) { buildVisibleItems(display) }
+    val focusableItems = remember(visibleItems) { visibleItems.filter { it.isFocusable } }
+    val sections = remember(visibleItems, focusableItems) { buildSections(visibleItems, focusableItems) }
 
-    val stylingListEnd = 3 + (if (showGlassTint) 1 else 0)
-    val iconListStart = stylingListEnd + 1
-    val iconListEnd = iconListStart + 1 + (if (showIconPadding) 1 else 0)
-    val outerListStart = iconListEnd + 1
-    val outerListEnd = outerListStart + 1 + (if (showOuterThickness) 1 else 0)
-    val innerListStart = outerListEnd + 1
-    val innerListEnd = innerListStart + 1 + (if (showInnerThickness) 1 else 0)
-
-    val sections = listOf(
-        ListSection(listStartIndex = 0, listEndIndex = stylingListEnd, focusStartIndex = 0, focusEndIndex = if (showGlassTint) 3 else 2),
-        ListSection(listStartIndex = iconListStart, listEndIndex = iconListEnd, focusStartIndex = iconPosIndex, focusEndIndex = if (showIconPadding) iconPadIndex else iconPosIndex),
-        ListSection(listStartIndex = outerListStart, listEndIndex = outerListEnd, focusStartIndex = outerEffectIndex, focusEndIndex = if (showOuterThickness) outerThicknessIndex else outerEffectIndex),
-        ListSection(listStartIndex = innerListStart, listEndIndex = innerListEnd, focusStartIndex = innerEffectIndex, focusEndIndex = if (showInnerThickness) innerThicknessIndex else innerEffectIndex)
-    )
-
-    val focusToListIndex: (Int) -> Int = { focus ->
-        when {
-            focus <= 2 -> focus + 1
-            focus == glassTintIndex -> 4
-            focus == iconPosIndex -> 4 + (if (showGlassTint) 1 else 0) + 1
-            focus == iconPadIndex -> 4 + (if (showGlassTint) 1 else 0) + 2
-            focus == outerEffectIndex -> iconListEnd + 2
-            focus == outerThicknessIndex -> iconListEnd + 3
-            focus == innerEffectIndex -> outerListEnd + 2
-            focus == innerThicknessIndex -> outerListEnd + 3
-            else -> focus + 1
-        }
+    fun itemToFocusIndex(item: BoxArtItem): Int = focusableItems.indexOf(item)
+    fun isFocused(item: BoxArtItem): Boolean = uiState.focusedIndex == itemToFocusIndex(item)
+    fun focusToListIndex(focusIndex: Int): Int {
+        val item = focusableItems.getOrNull(focusIndex) ?: return focusIndex
+        return visibleItems.indexOf(item)
     }
 
     SectionFocusedScroll(
         listState = listState,
         focusedIndex = uiState.focusedIndex,
-        focusToListIndex = focusToListIndex,
+        focusToListIndex = ::focusToListIndex,
         sections = sections
     )
 
@@ -113,102 +160,95 @@ fun BoxArtSection(
                 .fillMaxHeight(),
             verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
         ) {
-            item {
-                BoxArtSectionHeader("Styling")
-            }
-            item {
-                CyclePreference(
-                    title = "Corner Radius",
-                    value = display.boxArtCornerRadius.displayName(),
-                    isFocused = uiState.focusedIndex == 0,
-                    onClick = { viewModel.cycleBoxArtCornerRadius() }
-                )
-            }
-            item {
-                CyclePreference(
-                    title = "Border Thickness",
-                    value = display.boxArtBorderThickness.displayName(),
-                    isFocused = uiState.focusedIndex == 1,
-                    onClick = { viewModel.cycleBoxArtBorderThickness() }
-                )
-            }
-            item {
-                CyclePreference(
-                    title = "Border Style",
-                    value = display.boxArtBorderStyle.displayName(),
-                    isFocused = uiState.focusedIndex == 2,
-                    onClick = { viewModel.cycleBoxArtBorderStyle() }
-                )
-            }
-            if (showGlassTint) {
-                item {
-                    CyclePreference(
+            items(visibleItems, key = { it.key }) { item ->
+                when (item) {
+                    BoxArtItem.StylingHeader -> BoxArtSectionHeader("Styling")
+                    BoxArtItem.IconHeader -> BoxArtSectionHeader("System Icon")
+                    BoxArtItem.OuterHeader -> BoxArtSectionHeader("Outer Effect")
+                    BoxArtItem.InnerHeader -> BoxArtSectionHeader("Inner Effect")
+
+                    BoxArtItem.CornerRadius -> CyclePreference(
+                        title = "Corner Radius",
+                        value = display.boxArtCornerRadius.displayName(),
+                        isFocused = isFocused(item),
+                        onClick = { viewModel.cycleBoxArtCornerRadius() }
+                    )
+                    BoxArtItem.BorderThickness -> CyclePreference(
+                        title = "Border Thickness",
+                        value = display.boxArtBorderThickness.displayName(),
+                        isFocused = isFocused(item),
+                        onClick = { viewModel.cycleBoxArtBorderThickness() }
+                    )
+                    BoxArtItem.BorderStyle -> CyclePreference(
+                        title = "Border Style",
+                        value = display.boxArtBorderStyle.displayName(),
+                        isFocused = isFocused(item),
+                        onClick = { viewModel.cycleBoxArtBorderStyle() }
+                    )
+                    BoxArtItem.GlassTint -> CyclePreference(
                         title = "Glass Tint",
                         value = display.glassBorderTint.displayName(),
-                        isFocused = uiState.focusedIndex == glassTintIndex,
+                        isFocused = isFocused(item),
                         onClick = { viewModel.cycleGlassBorderTint() }
                     )
-                }
-            }
-            item {
-                BoxArtSectionHeader("System Icon")
-            }
-            item {
-                CyclePreference(
-                    title = "Position",
-                    value = display.systemIconPosition.displayName(),
-                    isFocused = uiState.focusedIndex == iconPosIndex,
-                    onClick = { viewModel.cycleSystemIconPosition() }
-                )
-            }
-            if (showIconPadding) {
-                item {
-                    CyclePreference(
+                    BoxArtItem.Vibrance -> SwitchPreference(
+                        title = "Vibrant Colors",
+                        subtitle = "High-contrast colors from artwork",
+                        isEnabled = display.gradientVibrance,
+                        isFocused = isFocused(item),
+                        onToggle = { viewModel.setGradientVibrance(it) }
+                    )
+                    BoxArtItem.MinDistance -> {
+                        val distanceValue = (display.vibranceMinDistance / 10).coerceIn(0, 5) + 1
+                        SliderPreference(
+                            title = "Min Hue Distance",
+                            value = distanceValue,
+                            minValue = 1,
+                            maxValue = 6,
+                            isFocused = isFocused(item),
+                            onClick = {
+                                val delta = if (display.vibranceMinDistance >= 50) -50 else 10
+                                viewModel.adjustVibranceMinDistance(delta)
+                            }
+                        )
+                    }
+
+                    BoxArtItem.IconPos -> CyclePreference(
+                        title = "Position",
+                        value = display.systemIconPosition.displayName(),
+                        isFocused = isFocused(item),
+                        onClick = { viewModel.cycleSystemIconPosition() }
+                    )
+                    BoxArtItem.IconPad -> CyclePreference(
                         title = "Padding",
                         value = display.systemIconPadding.displayName(),
-                        isFocused = uiState.focusedIndex == iconPadIndex,
+                        isFocused = isFocused(item),
                         onClick = { viewModel.cycleSystemIconPadding() }
                     )
-                }
-            }
-            item {
-                BoxArtSectionHeader("Outer Effect")
-            }
-            item {
-                CyclePreference(
-                    title = "Effect",
-                    value = display.boxArtOuterEffect.displayName(),
-                    isFocused = uiState.focusedIndex == outerEffectIndex,
-                    onClick = { viewModel.cycleBoxArtOuterEffect() }
-                )
-            }
-            if (showOuterThickness) {
-                item {
-                    CyclePreference(
+
+                    BoxArtItem.OuterEffect -> CyclePreference(
+                        title = "Effect",
+                        value = display.boxArtOuterEffect.displayName(),
+                        isFocused = isFocused(item),
+                        onClick = { viewModel.cycleBoxArtOuterEffect() }
+                    )
+                    BoxArtItem.OuterThickness -> CyclePreference(
                         title = "Thickness",
                         value = display.boxArtOuterEffectThickness.displayName(),
-                        isFocused = uiState.focusedIndex == outerThicknessIndex,
+                        isFocused = isFocused(item),
                         onClick = { viewModel.cycleBoxArtOuterEffectThickness() }
                     )
-                }
-            }
-            item {
-                BoxArtSectionHeader("Inner Effect")
-            }
-            item {
-                CyclePreference(
-                    title = "Effect",
-                    value = display.boxArtInnerEffect.displayName(),
-                    isFocused = uiState.focusedIndex == innerEffectIndex,
-                    onClick = { viewModel.cycleBoxArtInnerEffect() }
-                )
-            }
-            if (showInnerThickness) {
-                item {
-                    CyclePreference(
+
+                    BoxArtItem.InnerEffect -> CyclePreference(
+                        title = "Effect",
+                        value = display.boxArtInnerEffect.displayName(),
+                        isFocused = isFocused(item),
+                        onClick = { viewModel.cycleBoxArtInnerEffect() }
+                    )
+                    BoxArtItem.InnerThickness -> CyclePreference(
                         title = "Thickness",
                         value = display.boxArtInnerEffectThickness.displayName(),
-                        isFocused = uiState.focusedIndex == innerThicknessIndex,
+                        isFocused = isFocused(item),
                         onClick = { viewModel.cycleBoxArtInnerEffectThickness() }
                     )
                 }
@@ -234,7 +274,9 @@ fun BoxArtSection(
                 innerEffect = display.boxArtInnerEffect,
                 innerEffectThicknessPx = display.boxArtInnerEffectThickness.px,
                 systemIconPosition = display.systemIconPosition,
-                systemIconPaddingDp = display.systemIconPadding.dp.dp
+                systemIconPaddingDp = display.systemIconPadding.dp.dp,
+                gradientVibrance = display.gradientVibrance,
+                vibranceMinDistance = display.vibranceMinDistance
             )
 
             val previewGame = uiState.previewGame?.let { game ->
