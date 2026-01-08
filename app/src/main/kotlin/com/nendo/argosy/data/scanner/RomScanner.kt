@@ -116,7 +116,7 @@ class RomScanner @Inject constructor(
         errors: MutableList<String>,
         onRomFound: suspend (sortTitle: String, platformSlug: String, localPath: String) -> Unit
     ) {
-        val files = directory.listFiles() ?: return
+        val files = directory.listFiles()?.filter { !it.name.startsWith("._") } ?: return
 
         for (file in files) {
             _progress.value = _progress.value.copy(

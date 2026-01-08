@@ -690,8 +690,10 @@ class GameLauncher @Inject constructor(
             emptyList()
         }
 
-        // Find launchable disc files in the folder
-        val discFiles = siblingFiles.filter { it.extension.lowercase() in setOf("cue", "gdi", "chd", "iso", "bin", "img") }
+        // Find launchable disc files in the folder (excluding macOS resource forks)
+        val discFiles = siblingFiles.filter {
+            !it.name.startsWith("._") && it.extension.lowercase() in setOf("cue", "gdi", "chd", "iso", "bin", "img")
+        }
         val cueGdiFiles = discFiles.filter { it.extension.lowercase() in setOf("cue", "gdi") }
         val chdFiles = discFiles.filter { it.extension.lowercase() == "chd" }
 

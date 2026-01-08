@@ -31,7 +31,9 @@ data class ExtractedFolderRom(
 
             // 4. Search allFiles for disc files (handles zips with files in subfolders)
             val discExtensions = setOf("bin", "cue", "chd", "iso", "img", "mdf", "gdi", "cdi")
-            val allDiscFiles = allFiles.filter { it.extension.lowercase() in discExtensions }
+            val allDiscFiles = allFiles.filter {
+                it.extension.lowercase() in discExtensions && !it.name.startsWith("._")
+            }
             val nestedCueGdi = allDiscFiles.find { it.extension.lowercase() in setOf("cue", "gdi") }
             if (nestedCueGdi != null) return nestedCueGdi.absolutePath
             val nestedChd = allDiscFiles.find { it.extension.lowercase() == "chd" }
@@ -223,7 +225,7 @@ object ZipExtractor {
         val updateExtensions = config?.updateExtensions ?: NSW_UPDATE_EXTENSIONS
 
         return updatesFolder.listFiles()
-            ?.filter { it.isFile && it.extension.lowercase() in updateExtensions }
+            ?.filter { it.isFile && !it.name.startsWith("._") && it.extension.lowercase() in updateExtensions }
             ?.sortedBy { it.name }
             ?: emptyList()
     }
@@ -233,7 +235,7 @@ object ZipExtractor {
         val dlcFolder = getDlcFolder(localPath, platformSlug) ?: return emptyList()
 
         return dlcFolder.listFiles()
-            ?.filter { it.isFile && it.extension.lowercase() in config.dlcExtensions }
+            ?.filter { it.isFile && !it.name.startsWith("._") && it.extension.lowercase() in config.dlcExtensions }
             ?.sortedBy { it.name }
             ?: emptyList()
     }
@@ -316,7 +318,9 @@ object ZipExtractor {
 
                 allFiles.add(targetFile)
 
+                val isMacOsResourceFork = fileName.startsWith("._")
                 when {
+                    isMacOsResourceFork -> { /* Skip macOS resource fork files for selection */ }
                     extension == "m3u" && isRootFile -> existingM3u = targetFile
                     extension in DISC_EXTENSIONS && isRootFile -> rootDiscFiles.add(targetFile)
                     primaryFile == null && isGameFile(extension) && isRootFile -> primaryFile = targetFile
