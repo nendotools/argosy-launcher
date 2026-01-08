@@ -214,14 +214,13 @@ private fun WideGameCardFooter(
     achievementCount: Int,
     playTimeMinutes: Int
 ) {
-    val boxArtStyle = LocalBoxArtStyle.current
     val primaryColor = MaterialTheme.colorScheme.primary
     val platformShape = RoundedCornerShape(
         bottomStart = cornerRadius,
         topEnd = cornerRadius
     )
 
-    val borderOffset = if (isFocused) boxArtStyle.borderThicknessDp else 0.dp
+    val borderOffset = if (isFocused) 3.dp else 0.dp
     val earSize = cornerRadius
 
     Column(
