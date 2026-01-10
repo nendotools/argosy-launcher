@@ -130,6 +130,7 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     var isProgrammaticScroll by remember { mutableStateOf(false) }
     var skipNextProgrammaticScroll by remember { mutableStateOf(false) }
+    var suppressVideoPreview by remember { mutableStateOf(false) }
     val swipeThreshold = with(LocalDensity.current) { 50.dp.toPx() }
 
     val currentOnDrawerToggle by rememberUpdatedState(onDrawerToggle)
@@ -261,14 +262,23 @@ fun HomeScreen(
         val videoId = uiState.focusedGame?.youtubeVideoId
         if (videoId != null && !uiState.showGameMenu) {
             delay(VIDEO_PREVIEW_DELAY_MS)
-            viewModel.startVideoPreviewLoading(videoId)
+            if (!suppressVideoPreview) {
+                viewModel.startVideoPreviewLoading(videoId)
+            }
+            suppressVideoPreview = false
         }
     }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_PAUSE) {
-                viewModel.deactivateVideoPreview()
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> {
+                    viewModel.deactivateVideoPreview()
+                }
+                Lifecycle.Event.ON_RESUME -> {
+                    suppressVideoPreview = true
+                }
+                else -> {}
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
