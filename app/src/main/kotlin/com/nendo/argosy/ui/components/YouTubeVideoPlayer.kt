@@ -40,7 +40,6 @@ fun YouTubeVideoPlayer(
                 }
                 Lifecycle.Event.ON_RESUME -> {
                     webView?.onResume()
-                    webView?.evaluateJavascript("if(player && player.playVideo) player.playVideo();", null)
                 }
                 else -> {}
             }
