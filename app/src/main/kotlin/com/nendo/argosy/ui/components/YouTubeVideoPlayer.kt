@@ -15,10 +15,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ProcessLifecycleOwner
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -29,24 +29,24 @@ fun YouTubeVideoPlayer(
     modifier: Modifier = Modifier
 ) {
     var webView by remember { mutableStateOf<WebView?>(null) }
-    val lifecycleOwner = LocalLifecycleOwner.current
+    val processLifecycle = ProcessLifecycleOwner.get().lifecycle
 
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(Unit) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_PAUSE -> {
-                    webView?.evaluateJavascript("if(player && player.pauseVideo) player.pauseVideo();", null)
+                Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> {
+                    webView?.evaluateJavascript("if(player && player.stopVideo) player.stopVideo();", null)
                     webView?.onPause()
                 }
-                Lifecycle.Event.ON_RESUME -> {
+                Lifecycle.Event.ON_RESUME, Lifecycle.Event.ON_START -> {
                     webView?.onResume()
                 }
                 else -> {}
             }
         }
-        lifecycleOwner.lifecycle.addObserver(observer)
+        processLifecycle.addObserver(observer)
         onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
+            processLifecycle.removeObserver(observer)
             webView?.evaluateJavascript("if(player && player.destroy) player.destroy();", null)
             webView?.destroy()
         }

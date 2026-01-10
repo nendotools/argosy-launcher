@@ -257,15 +257,18 @@ fun HomeScreen(
         }
     }
 
+    LaunchedEffect(uiState.focusedGameIndex, uiState.currentRow) {
+        suppressVideoPreview = false
+    }
+
     LaunchedEffect(uiState.focusedGameIndex, uiState.focusedGame?.youtubeVideoId) {
         viewModel.deactivateVideoPreview()
         val videoId = uiState.focusedGame?.youtubeVideoId
-        if (videoId != null && !uiState.showGameMenu) {
+        if (videoId != null && !uiState.showGameMenu && !suppressVideoPreview) {
             delay(VIDEO_PREVIEW_DELAY_MS)
             if (!suppressVideoPreview) {
                 viewModel.startVideoPreviewLoading(videoId)
             }
-            suppressVideoPreview = false
         }
     }
 
