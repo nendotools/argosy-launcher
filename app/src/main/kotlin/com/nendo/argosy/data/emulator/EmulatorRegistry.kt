@@ -95,7 +95,7 @@ object EmulatorRegistry {
                 "msx", "msx2",
                 "wonderswan", "wonderswancolor",
                 "arcade",
-                "c64"
+                "c64", "vic20"
             ),
             launchAction = Intent.ACTION_MAIN,
             launchConfig = LaunchConfig.RetroArch(),
@@ -115,7 +115,7 @@ object EmulatorRegistry {
                 "msx", "msx2",
                 "wonderswan", "wonderswancolor",
                 "arcade",
-                "c64"
+                "c64", "vic20"
             ),
             launchAction = Intent.ACTION_MAIN,
             launchConfig = LaunchConfig.RetroArch(),
@@ -565,7 +565,8 @@ object EmulatorRegistry {
         "wonderswan" to listOf("retroarch", "retroarch_64"),
         "wonderswancolor" to listOf("retroarch", "retroarch_64"),
         "steam" to listOf("gamehub", "gamehub_lite", "gamenative"),
-        "c64" to listOf("retroarch", "retroarch_64")
+        "c64" to listOf("retroarch", "retroarch_64"),
+        "vic20" to listOf("retroarch", "retroarch_64")
     )
 
     fun getPreferredCore(platformId: String): String? {
@@ -610,7 +611,8 @@ object EmulatorRegistry {
         "msx2" to "bluemsx",
         "wonderswan" to "mednafen_wswan",
         "wonderswancolor" to "mednafen_wswan",
-        "c64" to "vice_x64"
+        "c64" to "vice_x64",
+        "vic20" to "vice_xvic"
     )
 
     fun getRetroArchCorePatterns(): Map<String, List<String>> = mapOf(
@@ -650,7 +652,8 @@ object EmulatorRegistry {
         "msx2" to listOf("bluemsx", "fmsx"),
         "wonderswan" to listOf("mednafen_wswan"),
         "wonderswancolor" to listOf("mednafen_wswan"),
-        "c64" to listOf("vice_x64", "vice_x64sc")
+        "c64" to listOf("vice_x64", "vice_x64sc"),
+        "vic20" to listOf("vice_xvic")
     )
 
     private val platformCores: Map<String, List<RetroArchCore>> = mapOf(
@@ -802,6 +805,9 @@ object EmulatorRegistry {
         "c64" to listOf(
             RetroArchCore("vice_x64", "VICE x64"),
             RetroArchCore("vice_x64sc", "VICE x64 (Accurate)")
+        ),
+        "vic20" to listOf(
+            RetroArchCore("vice_xvic", "VICE VIC-20")
         )
     )
 
@@ -980,7 +986,7 @@ object EmulatorRegistry {
                 "msx", "msx2",
                 "wonderswan", "wonderswancolor",
                 "arcade",
-                "c64"
+                "c64", "vic20"
             ),
             launchAction = Intent.ACTION_MAIN,
             launchConfig = LaunchConfig.RetroArch(),

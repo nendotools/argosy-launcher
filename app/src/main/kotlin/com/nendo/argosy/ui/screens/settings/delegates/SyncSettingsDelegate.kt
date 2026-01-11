@@ -253,7 +253,7 @@ class SyncSettingsDelegate @Inject constructor(
             val currentLimit = _state.value.saveCacheLimit
             val values = listOf(5, 7, 10, 15, 20)
             val currentIndex = values.indexOf(currentLimit).takeIf { it >= 0 } ?: 2
-            val newLimit = values[(currentIndex + 1) % values.size]
+            val newLimit = values[(currentIndex + 1).mod(values.size)]
 
             preferencesRepository.setSaveCacheLimit(newLimit)
             _state.update { it.copy(saveCacheLimit = newLimit) }

@@ -28,12 +28,12 @@ enum class CompletionStatus(
 
         fun cycleNext(current: String?): String {
             val currentStatus = fromApiValue(current) ?: INCOMPLETE
-            return entries[(currentStatus.ordinal + 1) % entries.size].apiValue
+            return entries[(currentStatus.ordinal + 1).mod(entries.size)].apiValue
         }
 
         fun cyclePrev(current: String?): String {
             val currentStatus = fromApiValue(current) ?: INCOMPLETE
-            return entries[(currentStatus.ordinal - 1 + entries.size) % entries.size].apiValue
+            return entries[(currentStatus.ordinal - 1).mod(entries.size)].apiValue
         }
     }
 }

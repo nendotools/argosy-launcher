@@ -238,8 +238,15 @@ fun SwitchPreference(
             modifier = Modifier
                 .weight(1f)
                 .then(
-                    if (onLabelClick != null) Modifier.clickable(onClick = onLabelClick)
-                    else Modifier.clickable { onToggle(!isEnabled) }
+                    if (onLabelClick != null) Modifier.clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() },
+                        onClick = onLabelClick
+                    )
+                    else Modifier.clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { onToggle(!isEnabled) }
                 ),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -471,7 +478,10 @@ fun ColorPickerPreference(
         ) {
             presetColors.forEachIndexed { index, (color, _) ->
                 Box(
-                    modifier = Modifier.clickable { onColorSelect(color) },
+                    modifier = Modifier.clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { onColorSelect(color) },
                     contentAlignment = Alignment.Center
                 ) {
                     colorCircleContent(

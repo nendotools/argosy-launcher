@@ -6,6 +6,7 @@ import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -315,7 +317,11 @@ private fun SteamLauncherPreference(
                     modifier = Modifier
                         .clip(RoundedCornerShape(Dimens.radiusSm))
                         .background(scanBgColor)
-                        .clickable(enabled = isEnabled) { onScan() }
+                        .clickable(
+                            enabled = isEnabled,
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) { onScan() }
                         .padding(horizontal = Dimens.spacingMd, vertical = Dimens.spacingXs)
                 ) {
                     Text(
@@ -341,7 +347,11 @@ private fun SteamLauncherPreference(
                 modifier = Modifier
                     .clip(RoundedCornerShape(Dimens.radiusSm))
                     .background(addBgColor)
-                    .clickable(enabled = isEnabled) { onAdd() }
+                    .clickable(
+                        enabled = isEnabled,
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { onAdd() }
                     .padding(horizontal = Dimens.spacingMd, vertical = Dimens.spacingXs)
             ) {
                 Text(

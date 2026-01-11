@@ -102,7 +102,7 @@ fun SoundsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                     maxValue = 5,
                     isFocused = uiState.focusedIndex == 1,
                     onClick = {
-                        val nextIndex = (currentIndex + 1) % volumeLevels.size
+                        val nextIndex = (currentIndex + 1).mod(volumeLevels.size)
                         viewModel.setAmbientAudioVolume(volumeLevels[nextIndex])
                     }
                 )
@@ -147,7 +147,7 @@ fun SoundsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                     maxValue = 5,
                     isFocused = uiState.focusedIndex == uiSoundsToggleIndex + 1,
                     onClick = {
-                        val nextIndex = (currentIndex + 1) % volumeLevels.size
+                        val nextIndex = (currentIndex + 1).mod(volumeLevels.size)
                         viewModel.setSoundVolume(volumeLevels[nextIndex])
                     }
                 )

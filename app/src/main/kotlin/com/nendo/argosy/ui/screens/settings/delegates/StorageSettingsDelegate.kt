@@ -116,7 +116,7 @@ class StorageSettingsDelegate @Inject constructor(
             val thresholds = listOf(50, 100, 250, 500)
             val current = _state.value.instantDownloadThresholdMb
             val currentIndex = thresholds.indexOf(current).coerceAtLeast(0)
-            val next = thresholds[(currentIndex + 1) % thresholds.size]
+            val next = thresholds[(currentIndex + 1).mod(thresholds.size)]
             preferencesRepository.setInstantDownloadThresholdMb(next)
             _state.update { it.copy(instantDownloadThresholdMb = next) }
         }
@@ -597,7 +597,7 @@ class StorageSettingsDelegate @Inject constructor(
             val levels = listOf(40, 50, 60, 70)
             val current = _state.value.screenDimmerLevel
             val currentIndex = levels.indexOf(current).coerceAtLeast(0)
-            val next = levels[(currentIndex + 1) % levels.size]
+            val next = levels[(currentIndex + 1).mod(levels.size)]
             preferencesRepository.setScreenDimmerLevel(next)
             _state.update { it.copy(screenDimmerLevel = next) }
         }

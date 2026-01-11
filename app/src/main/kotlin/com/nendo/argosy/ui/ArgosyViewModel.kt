@@ -441,7 +441,7 @@ class ArgosyViewModel @Inject constructor(
             FanMode.SPORT,
             FanMode.CUSTOM
         )
-        val nextIndex = (cycleOrder.indexOf(current) + 1) % cycleOrder.size
+        val nextIndex = (cycleOrder.indexOf(current) + 1).mod(cycleOrder.size)
         setFanMode(cycleOrder[nextIndex])
     }
 
@@ -465,7 +465,7 @@ class ArgosyViewModel @Inject constructor(
     fun cyclePerformanceMode() {
         val current = _deviceSettings.value.performanceMode
         val modes = PerformanceMode.entries
-        val nextIndex = (modes.indexOf(current) + 1) % modes.size
+        val nextIndex = (modes.indexOf(current) + 1).mod(modes.size)
         val next = modes[nextIndex]
         setPerformanceMode(next)
     }

@@ -3,6 +3,7 @@ package com.nendo.argosy.ui.screens.gamedetail.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -444,7 +445,10 @@ fun ScreenshotsSection(
                                 Modifier.border(3.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
                             else Modifier
                         )
-                        .clickable { onScreenshotTap(index) }
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) { onScreenshotTap(index) }
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     if (useRemote) {

@@ -289,7 +289,10 @@ fun AppsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.6f))
-                    .clickable { viewModel.dismissContextMenu() },
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { viewModel.dismissContextMenu() },
                 contentAlignment = Alignment.Center
             ) {
                 Surface(

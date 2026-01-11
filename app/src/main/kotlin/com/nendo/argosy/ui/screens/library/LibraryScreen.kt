@@ -858,7 +858,10 @@ private fun FilterMenuOverlay(
                                     if (isFocused) Modifier.background(MaterialTheme.colorScheme.primaryContainer)
                                     else Modifier
                                 )
-                                .clickable { onOptionSelect(index) }
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) { onOptionSelect(index) }
                                 .padding(horizontal = Dimens.spacingMd, vertical = Dimens.spacingSm),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
