@@ -38,8 +38,6 @@ data class ThemeState(
     val boxArtInnerEffectThickness: BoxArtInnerEffectThickness = BoxArtInnerEffectThickness.MEDIUM,
     val systemIconPosition: SystemIconPosition = SystemIconPosition.TOP_LEFT,
     val systemIconPadding: SystemIconPadding = SystemIconPadding.MEDIUM,
-    val gradientVibrance: Boolean = false,
-    val vibranceMinDistance: Int = 20,
     val useAccentColorFooter: Boolean = false
 )
 
@@ -66,8 +64,6 @@ class ThemeViewModel @Inject constructor(
                 boxArtInnerEffectThickness = prefs.boxArtInnerEffectThickness,
                 systemIconPosition = prefs.systemIconPosition,
                 systemIconPadding = prefs.systemIconPadding,
-                gradientVibrance = prefs.gradientVibrance,
-                vibranceMinDistance = prefs.vibranceMinDistance,
                 useAccentColorFooter = prefs.useAccentColorFooter
             )
         }

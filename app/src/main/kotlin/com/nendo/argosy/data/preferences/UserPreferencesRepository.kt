@@ -87,8 +87,6 @@ class UserPreferencesRepository @Inject constructor(
         val BOX_ART_INNER_EFFECT_THICKNESS = stringPreferencesKey("box_art_inner_effect_thickness")
         val SYSTEM_ICON_POSITION = stringPreferencesKey("system_icon_position")
         val SYSTEM_ICON_PADDING = stringPreferencesKey("system_icon_padding")
-        val GRADIENT_VIBRANCE = booleanPreferencesKey("gradient_vibrance")
-        val VIBRANCE_MIN_DISTANCE = intPreferencesKey("vibrance_min_distance")
         val DEFAULT_VIEW = stringPreferencesKey("default_view")
         val RECOMMENDED_GAME_IDS = stringPreferencesKey("recommended_game_ids")
         val LAST_RECOMMENDATION_GENERATION = stringPreferencesKey("last_recommendation_generation")
@@ -190,8 +188,6 @@ class UserPreferencesRepository @Inject constructor(
             boxArtInnerEffectThickness = BoxArtInnerEffectThickness.fromString(prefs[Keys.BOX_ART_INNER_EFFECT_THICKNESS]),
             systemIconPosition = SystemIconPosition.fromString(prefs[Keys.SYSTEM_ICON_POSITION]),
             systemIconPadding = SystemIconPadding.fromString(prefs[Keys.SYSTEM_ICON_PADDING]),
-            gradientVibrance = prefs[Keys.GRADIENT_VIBRANCE] ?: false,
-            vibranceMinDistance = prefs[Keys.VIBRANCE_MIN_DISTANCE] ?: 20,
             defaultView = DefaultView.fromString(prefs[Keys.DEFAULT_VIEW]),
             recommendedGameIds = prefs[Keys.RECOMMENDED_GAME_IDS]
                 ?.split(",")
@@ -655,18 +651,6 @@ class UserPreferencesRepository @Inject constructor(
         }
     }
 
-    suspend fun setGradientVibrance(enabled: Boolean) {
-        dataStore.edit { prefs ->
-            prefs[Keys.GRADIENT_VIBRANCE] = enabled
-        }
-    }
-
-    suspend fun setVibranceMinDistance(distance: Int) {
-        dataStore.edit { prefs ->
-            prefs[Keys.VIBRANCE_MIN_DISTANCE] = distance.coerceIn(0, 50)
-        }
-    }
-
     suspend fun setDefaultView(view: DefaultView) {
         dataStore.edit { prefs ->
             prefs[Keys.DEFAULT_VIEW] = view.name
@@ -837,8 +821,6 @@ data class UserPreferences(
     val boxArtInnerEffectThickness: BoxArtInnerEffectThickness = BoxArtInnerEffectThickness.THICK,
     val systemIconPosition: SystemIconPosition = SystemIconPosition.TOP_LEFT,
     val systemIconPadding: SystemIconPadding = SystemIconPadding.MEDIUM,
-    val gradientVibrance: Boolean = false,
-    val vibranceMinDistance: Int = 20,
     val defaultView: DefaultView = DefaultView.SHOWCASE,
     val recommendedGameIds: List<Long> = emptyList(),
     val lastRecommendationGeneration: Instant? = null,

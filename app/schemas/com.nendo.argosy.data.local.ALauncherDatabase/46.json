@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 46,
-    "identityHash": "4b8ea80279e973fec741c8ea82cda522",
+    "identityHash": "a89cb64821e19cc04a6d39a8e4d56dee",
     "entities": [
       {
         "tableName": "platforms",
@@ -92,7 +92,7 @@
       },
       {
         "tableName": "games",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `platformId` INTEGER NOT NULL, `platformSlug` TEXT NOT NULL, `title` TEXT NOT NULL, `sortTitle` TEXT NOT NULL, `localPath` TEXT, `rommId` INTEGER, `igdbId` INTEGER, `steamAppId` INTEGER, `steamLauncher` TEXT, `packageName` TEXT, `launcherSetManually` INTEGER NOT NULL, `source` TEXT NOT NULL, `coverPath` TEXT, `backgroundPath` TEXT, `screenshotPaths` TEXT, `cachedScreenshotPaths` TEXT, `developer` TEXT, `publisher` TEXT, `releaseYear` INTEGER, `genre` TEXT, `description` TEXT, `players` TEXT, `rating` REAL, `regions` TEXT, `languages` TEXT, `gameModes` TEXT, `franchises` TEXT, `userRating` INTEGER NOT NULL, `userDifficulty` INTEGER NOT NULL, `completion` INTEGER NOT NULL, `status` TEXT, `backlogged` INTEGER NOT NULL, `nowPlaying` INTEGER NOT NULL, `isFavorite` INTEGER NOT NULL, `isHidden` INTEGER NOT NULL, `playCount` INTEGER NOT NULL, `playTimeMinutes` INTEGER NOT NULL, `lastPlayed` INTEGER, `addedAt` INTEGER NOT NULL, `isMultiDisc` INTEGER NOT NULL, `lastPlayedDiscId` INTEGER, `m3uPath` TEXT, `achievementCount` INTEGER NOT NULL, `earnedAchievementCount` INTEGER NOT NULL, `activeSaveChannel` TEXT, `activeSaveTimestamp` INTEGER, `titleId` TEXT, `youtubeVideoId` TEXT, FOREIGN KEY(`platformId`) REFERENCES `platforms`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `platformId` INTEGER NOT NULL, `platformSlug` TEXT NOT NULL, `title` TEXT NOT NULL, `sortTitle` TEXT NOT NULL, `localPath` TEXT, `rommId` INTEGER, `igdbId` INTEGER, `steamAppId` INTEGER, `steamLauncher` TEXT, `packageName` TEXT, `launcherSetManually` INTEGER NOT NULL, `source` TEXT NOT NULL, `coverPath` TEXT, `gradientColors` TEXT, `backgroundPath` TEXT, `screenshotPaths` TEXT, `cachedScreenshotPaths` TEXT, `developer` TEXT, `publisher` TEXT, `releaseYear` INTEGER, `genre` TEXT, `description` TEXT, `players` TEXT, `rating` REAL, `regions` TEXT, `languages` TEXT, `gameModes` TEXT, `franchises` TEXT, `userRating` INTEGER NOT NULL, `userDifficulty` INTEGER NOT NULL, `completion` INTEGER NOT NULL, `status` TEXT, `backlogged` INTEGER NOT NULL, `nowPlaying` INTEGER NOT NULL, `isFavorite` INTEGER NOT NULL, `isHidden` INTEGER NOT NULL, `playCount` INTEGER NOT NULL, `playTimeMinutes` INTEGER NOT NULL, `lastPlayed` INTEGER, `addedAt` INTEGER NOT NULL, `isMultiDisc` INTEGER NOT NULL, `lastPlayedDiscId` INTEGER, `m3uPath` TEXT, `achievementCount` INTEGER NOT NULL, `earnedAchievementCount` INTEGER NOT NULL, `activeSaveChannel` TEXT, `activeSaveTimestamp` INTEGER, `titleId` TEXT, `youtubeVideoId` TEXT, FOREIGN KEY(`platformId`) REFERENCES `platforms`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -175,6 +175,12 @@
           {
             "fieldPath": "coverPath",
             "columnName": "coverPath",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "gradientColors",
+            "columnName": "gradientColors",
             "affinity": "TEXT",
             "notNull": false
           },
@@ -663,7 +669,7 @@
       },
       {
         "tableName": "download_queue",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `gameId` INTEGER NOT NULL, `rommId` INTEGER NOT NULL, `discId` INTEGER, `discNumber` INTEGER, `gameFileId` INTEGER, `fileCategory` TEXT, `fileName` TEXT NOT NULL, `gameTitle` TEXT NOT NULL, `platformSlug` TEXT NOT NULL, `coverPath` TEXT, `bytesDownloaded` INTEGER NOT NULL, `totalBytes` INTEGER NOT NULL, `state` TEXT NOT NULL, `errorReason` TEXT, `tempFilePath` TEXT, `createdAt` INTEGER NOT NULL, `forceExtract` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `gameId` INTEGER NOT NULL, `rommId` INTEGER NOT NULL, `discId` INTEGER, `discNumber` INTEGER, `gameFileId` INTEGER, `fileCategory` TEXT, `fileName` TEXT NOT NULL, `gameTitle` TEXT NOT NULL, `platformSlug` TEXT NOT NULL, `coverPath` TEXT, `bytesDownloaded` INTEGER NOT NULL, `totalBytes` INTEGER NOT NULL, `state` TEXT NOT NULL, `errorReason` TEXT, `tempFilePath` TEXT, `createdAt` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -764,12 +770,6 @@
           {
             "fieldPath": "createdAt",
             "columnName": "createdAt",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "forceExtract",
-            "columnName": "forceExtract",
             "affinity": "INTEGER",
             "notNull": true
           }
@@ -2058,7 +2058,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '4b8ea80279e973fec741c8ea82cda522')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a89cb64821e19cc04a6d39a8e4d56dee')"
     ]
   }
 }

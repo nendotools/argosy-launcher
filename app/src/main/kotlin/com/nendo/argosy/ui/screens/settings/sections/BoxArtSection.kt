@@ -35,8 +35,6 @@ import com.nendo.argosy.data.preferences.BoxArtOuterEffectThickness
 import com.nendo.argosy.data.preferences.SystemIconPadding
 import com.nendo.argosy.data.preferences.SystemIconPosition
 import com.nendo.argosy.ui.components.CyclePreference
-import com.nendo.argosy.ui.components.SliderPreference
-import com.nendo.argosy.ui.components.SwitchPreference
 import com.nendo.argosy.ui.components.GameCard
 import com.nendo.argosy.ui.screens.home.HomeGameUi
 import com.nendo.argosy.ui.screens.settings.DisplayState
@@ -54,8 +52,6 @@ private sealed class BoxArtItem(val key: String, val section: String) {
     data object BorderThickness : BoxArtItem("borderThickness", "styling")
     data object BorderStyle : BoxArtItem("borderStyle", "styling")
     data object GlassTint : BoxArtItem("glassTint", "styling")
-    data object Vibrance : BoxArtItem("vibrance", "styling")
-    data object MinDistance : BoxArtItem("minDistance", "styling")
 
     data object IconHeader : BoxArtItem("iconHeader", "icon")
     data object IconPos : BoxArtItem("iconPos", "icon")
@@ -77,12 +73,6 @@ private fun buildVisibleItems(display: DisplayState): List<BoxArtItem> = buildLi
     add(BoxArtItem.BorderStyle)
     if (display.boxArtBorderStyle == BoxArtBorderStyle.GLASS) {
         add(BoxArtItem.GlassTint)
-    }
-    if (display.boxArtBorderStyle == BoxArtBorderStyle.GLASS || display.boxArtBorderStyle == BoxArtBorderStyle.GRADIENT) {
-        add(BoxArtItem.Vibrance)
-        if (display.gradientVibrance) {
-            add(BoxArtItem.MinDistance)
-        }
     }
 
     add(BoxArtItem.IconHeader)
@@ -191,27 +181,6 @@ fun BoxArtSection(
                         isFocused = isFocused(item),
                         onClick = { viewModel.cycleGlassBorderTint() }
                     )
-                    BoxArtItem.Vibrance -> SwitchPreference(
-                        title = "Vibrant Colors",
-                        subtitle = "High-contrast colors from artwork",
-                        isEnabled = display.gradientVibrance,
-                        isFocused = isFocused(item),
-                        onToggle = { viewModel.setGradientVibrance(it) }
-                    )
-                    BoxArtItem.MinDistance -> {
-                        val distanceValue = (display.vibranceMinDistance / 10).coerceIn(0, 5) + 1
-                        SliderPreference(
-                            title = "Min Hue Distance",
-                            value = distanceValue,
-                            minValue = 1,
-                            maxValue = 6,
-                            isFocused = isFocused(item),
-                            onClick = {
-                                val delta = if (display.vibranceMinDistance >= 50) -50 else 10
-                                viewModel.adjustVibranceMinDistance(delta)
-                            }
-                        )
-                    }
 
                     BoxArtItem.IconPos -> CyclePreference(
                         title = "Position",
@@ -274,9 +243,7 @@ fun BoxArtSection(
                 innerEffect = display.boxArtInnerEffect,
                 innerEffectThicknessPx = display.boxArtInnerEffectThickness.px,
                 systemIconPosition = display.systemIconPosition,
-                systemIconPaddingDp = display.systemIconPadding.dp.dp,
-                gradientVibrance = display.gradientVibrance,
-                vibranceMinDistance = display.vibranceMinDistance
+                systemIconPaddingDp = display.systemIconPadding.dp.dp
             )
 
             val previewGame = uiState.previewGame?.let { game ->

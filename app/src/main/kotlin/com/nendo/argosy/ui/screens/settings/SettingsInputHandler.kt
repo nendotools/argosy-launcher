@@ -155,16 +155,11 @@ class SettingsInputHandler(
         if (state.currentSection == SettingsSection.BOX_ART) {
             val borderStyle = state.display.boxArtBorderStyle
             val showGlassTint = borderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GLASS
-            val showVibrance = borderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GLASS ||
-                borderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GRADIENT
-            val showMinDistance = showVibrance && state.display.gradientVibrance
             val showIconPadding = state.display.systemIconPosition != com.nendo.argosy.data.preferences.SystemIconPosition.OFF
             val showOuterThickness = state.display.boxArtOuterEffect != com.nendo.argosy.data.preferences.BoxArtOuterEffect.OFF
             val showInnerThickness = state.display.boxArtInnerEffect != com.nendo.argosy.data.preferences.BoxArtInnerEffect.OFF
             var idx = 3
             val glassTintIdx = if (showGlassTint) idx++ else -1
-            val vibranceIdx = if (showVibrance) idx++ else -1
-            val minDistanceIdx = if (showMinDistance) idx++ else -1
             val iconPosIdx = idx++
             val iconPadIdx = if (showIconPadding) idx++ else -1
             val outerEffectIdx = idx++
@@ -176,8 +171,6 @@ class SettingsInputHandler(
                 1 -> viewModel.cycleBoxArtBorderThickness(-1)
                 2 -> viewModel.cycleBoxArtBorderStyle(-1)
                 glassTintIdx -> viewModel.cycleGlassBorderTint(-1)
-                vibranceIdx -> viewModel.setGradientVibrance(!state.display.gradientVibrance)
-                minDistanceIdx -> viewModel.cycleVibranceMinDistance(-1)
                 iconPosIdx -> viewModel.cycleSystemIconPosition(-1)
                 iconPadIdx -> viewModel.cycleSystemIconPadding(-1)
                 outerEffectIdx -> viewModel.cycleBoxArtOuterEffect(-1)
@@ -325,16 +318,11 @@ class SettingsInputHandler(
         if (state.currentSection == SettingsSection.BOX_ART) {
             val borderStyle = state.display.boxArtBorderStyle
             val showGlassTint = borderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GLASS
-            val showVibrance = borderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GLASS ||
-                borderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GRADIENT
-            val showMinDistance = showVibrance && state.display.gradientVibrance
             val showIconPadding = state.display.systemIconPosition != com.nendo.argosy.data.preferences.SystemIconPosition.OFF
             val showOuterThickness = state.display.boxArtOuterEffect != com.nendo.argosy.data.preferences.BoxArtOuterEffect.OFF
             val showInnerThickness = state.display.boxArtInnerEffect != com.nendo.argosy.data.preferences.BoxArtInnerEffect.OFF
             var idx = 3
             val glassTintIdx = if (showGlassTint) idx++ else -1
-            val vibranceIdx = if (showVibrance) idx++ else -1
-            val minDistanceIdx = if (showMinDistance) idx++ else -1
             val iconPosIdx = idx++
             val iconPadIdx = if (showIconPadding) idx++ else -1
             val outerEffectIdx = idx++
@@ -346,8 +334,6 @@ class SettingsInputHandler(
                 1 -> viewModel.cycleBoxArtBorderThickness(1)
                 2 -> viewModel.cycleBoxArtBorderStyle(1)
                 glassTintIdx -> viewModel.cycleGlassBorderTint(1)
-                vibranceIdx -> viewModel.setGradientVibrance(!state.display.gradientVibrance)
-                minDistanceIdx -> viewModel.cycleVibranceMinDistance(1)
                 iconPosIdx -> viewModel.cycleSystemIconPosition(1)
                 iconPadIdx -> viewModel.cycleSystemIconPadding(1)
                 outerEffectIdx -> viewModel.cycleBoxArtOuterEffect(1)

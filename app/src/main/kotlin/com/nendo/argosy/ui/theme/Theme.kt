@@ -192,9 +192,7 @@ data class BoxArtStyleConfig(
     val innerEffect: BoxArtInnerEffect = BoxArtInnerEffect.SHADOW,
     val innerEffectThicknessPx: Float = 4f,
     val systemIconPosition: SystemIconPosition = SystemIconPosition.TOP_LEFT,
-    val systemIconPaddingDp: Dp = 8.dp,
-    val gradientVibrance: Boolean = false,
-    val vibranceMinDistance: Int = 20
+    val systemIconPaddingDp: Dp = 8.dp
 )
 
 val LocalBoxArtStyle = staticCompositionLocalOf { BoxArtStyleConfig() }
@@ -253,9 +251,7 @@ fun ALauncherTheme(
         innerEffect = themeState.boxArtInnerEffect,
         innerEffectThicknessPx = themeState.boxArtInnerEffectThickness.px,
         systemIconPosition = themeState.systemIconPosition,
-        systemIconPaddingDp = themeState.systemIconPadding.dp.dp,
-        gradientVibrance = themeState.gradientVibrance,
-        vibranceMinDistance = themeState.vibranceMinDistance
+        systemIconPaddingDp = themeState.systemIconPadding.dp.dp
     )
 
     val footerStyle = FooterStyleConfig(

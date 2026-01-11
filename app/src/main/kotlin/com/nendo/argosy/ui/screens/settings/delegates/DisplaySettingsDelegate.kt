@@ -346,22 +346,4 @@ class DisplaySettingsDelegate @Inject constructor(
             _state.update { it.copy(defaultView = next) }
         }
     }
-
-    fun setGradientVibrance(scope: CoroutineScope, enabled: Boolean) {
-        scope.launch {
-            preferencesRepository.setGradientVibrance(enabled)
-            _state.update { it.copy(gradientVibrance = enabled) }
-        }
-    }
-
-    fun adjustVibranceMinDistance(scope: CoroutineScope, delta: Int) {
-        val current = _state.value.vibranceMinDistance
-        val newValue = (current + delta).coerceIn(0, 50)
-        if (newValue != current) {
-            scope.launch {
-                preferencesRepository.setVibranceMinDistance(newValue)
-                _state.update { it.copy(vibranceMinDistance = newValue) }
-            }
-        }
-    }
 }

@@ -126,6 +126,7 @@ data class HomeGameUi(
     val platformSlug: String,
     val platformDisplayName: String,
     val coverPath: String?,
+    val gradientColors: Pair<androidx.compose.ui.graphics.Color, androidx.compose.ui.graphics.Color>? = null,
     val backgroundPath: String?,
     val developer: String?,
     val releaseYear: Int?,
@@ -341,7 +342,8 @@ class HomeViewModel @Inject constructor(
     private val getGamesForPinnedCollectionUseCase: GetGamesForPinnedCollectionUseCase,
     private val gameRepository: GameRepository,
     private val playStoreService: com.nendo.argosy.data.remote.playstore.PlayStoreService,
-    private val imageCacheManager: com.nendo.argosy.data.cache.ImageCacheManager
+    private val imageCacheManager: com.nendo.argosy.data.cache.ImageCacheManager,
+    private val gradientColorExtractor: com.nendo.argosy.data.cache.GradientColorExtractor
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(restoreInitialState())
@@ -1765,6 +1767,7 @@ class HomeViewModel @Inject constructor(
         val firstScreenshot = screenshotPaths?.split(",")?.firstOrNull()?.takeIf { it.isNotBlank() }
         val effectiveBackground = backgroundPath ?: firstScreenshot ?: coverPath
         val newThreshold = Instant.now().minus(24, ChronoUnit.HOURS)
+        val parsedGradientColors = gradientColors?.let { gradientColorExtractor.deserializeColors(it) }
         return HomeGameUi(
             id = id,
             title = title,
@@ -1772,6 +1775,7 @@ class HomeViewModel @Inject constructor(
             platformSlug = platformSlug,
             platformDisplayName = platformDisplayNames[platformId] ?: platformSlug,
             coverPath = coverPath,
+            gradientColors = parsedGradientColors,
             backgroundPath = effectiveBackground,
             developer = developer,
             releaseYear = releaseYear,
