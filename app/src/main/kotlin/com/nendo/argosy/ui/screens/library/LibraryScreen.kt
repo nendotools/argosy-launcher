@@ -605,6 +605,7 @@ private fun LibraryGameCard(
             platformSlug = game.platformSlug,
             platformDisplayName = game.platformDisplayName,
             coverPath = game.coverPath,
+            gradientColors = game.gradientColors,
             backgroundPath = null,
             developer = null,
             releaseYear = null,

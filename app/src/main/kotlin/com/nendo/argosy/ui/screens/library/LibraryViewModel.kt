@@ -7,9 +7,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nendo.argosy.data.cache.GradientColorExtractor
 import com.nendo.argosy.data.cache.ImageCacheManager
 import com.nendo.argosy.data.local.dao.CollectionDao
 import com.nendo.argosy.data.local.dao.GameDao
@@ -126,6 +128,7 @@ data class LibraryGameUi(
     val platformSlug: String,
     val platformDisplayName: String,
     val coverPath: String?,
+    val gradientColors: Pair<Color, Color>? = null,
     val source: GameSource,
     val isFavorite: Boolean,
     val isDownloaded: Boolean,
@@ -276,7 +279,8 @@ class LibraryViewModel @Inject constructor(
     private val apkInstallManager: ApkInstallManager,
     private val syncPlatformUseCase: SyncPlatformUseCase,
     private val repairImageCacheUseCase: RepairImageCacheUseCase,
-    private val modalResetSignal: ModalResetSignal
+    private val modalResetSignal: ModalResetSignal,
+    private val gradientColorExtractor: GradientColorExtractor
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LibraryUiState())
@@ -1098,39 +1102,47 @@ class LibraryViewModel @Inject constructor(
         logoPath = logoPath
     )
 
-    private fun GameEntity.toUi(platformDisplayNames: Map<Long, String> = emptyMap()) = LibraryGameUi(
-        id = id,
-        title = title,
-        platformId = platformId,
-        platformSlug = platformSlug,
-        platformDisplayName = platformDisplayNames[platformId] ?: platformSlug,
-        coverPath = coverPath,
-        source = source,
-        isFavorite = isFavorite,
-        isDownloaded = localPath != null || source == GameSource.STEAM || source == GameSource.ANDROID_APP,
-        isRommGame = rommId != null,
-        isAndroidApp = source == GameSource.ANDROID_APP || platformSlug == "android",
-        emulatorName = null,
-        needsInstall = platformSlug == "android" && localPath != null && packageName == null && source != GameSource.ANDROID_APP,
-        isHidden = isHidden
-    )
+    private fun GameEntity.toUi(platformDisplayNames: Map<Long, String> = emptyMap()): LibraryGameUi {
+        val parsedGradientColors = gradientColors?.let { gradientColorExtractor.deserializeColors(it) }
+        return LibraryGameUi(
+            id = id,
+            title = title,
+            platformId = platformId,
+            platformSlug = platformSlug,
+            platformDisplayName = platformDisplayNames[platformId] ?: platformSlug,
+            coverPath = coverPath,
+            gradientColors = parsedGradientColors,
+            source = source,
+            isFavorite = isFavorite,
+            isDownloaded = localPath != null || source == GameSource.STEAM || source == GameSource.ANDROID_APP,
+            isRommGame = rommId != null,
+            isAndroidApp = source == GameSource.ANDROID_APP || platformSlug == "android",
+            emulatorName = null,
+            needsInstall = platformSlug == "android" && localPath != null && packageName == null && source != GameSource.ANDROID_APP,
+            isHidden = isHidden
+        )
+    }
 
-    private fun GameListItem.toUi(platformDisplayNames: Map<Long, String> = emptyMap()) = LibraryGameUi(
-        id = id,
-        title = title,
-        platformId = platformId,
-        platformSlug = platformSlug,
-        platformDisplayName = platformDisplayNames[platformId] ?: platformSlug,
-        coverPath = coverPath,
-        source = source,
-        isFavorite = isFavorite,
-        isDownloaded = isDownloaded || source == GameSource.STEAM || source == GameSource.ANDROID_APP,
-        isRommGame = rommId != null,
-        isAndroidApp = source == GameSource.ANDROID_APP || platformSlug == "android",
-        emulatorName = null,
-        needsInstall = platformSlug == "android" && localPath != null && packageName == null && source != GameSource.ANDROID_APP,
-        isHidden = isHidden
-    )
+    private fun GameListItem.toUi(platformDisplayNames: Map<Long, String> = emptyMap()): LibraryGameUi {
+        val parsedGradientColors = gradientColors?.let { gradientColorExtractor.deserializeColors(it) }
+        return LibraryGameUi(
+            id = id,
+            title = title,
+            platformId = platformId,
+            platformSlug = platformSlug,
+            platformDisplayName = platformDisplayNames[platformId] ?: platformSlug,
+            coverPath = coverPath,
+            gradientColors = parsedGradientColors,
+            source = source,
+            isFavorite = isFavorite,
+            isDownloaded = isDownloaded || source == GameSource.STEAM || source == GameSource.ANDROID_APP,
+            isRommGame = rommId != null,
+            isAndroidApp = source == GameSource.ANDROID_APP || platformSlug == "android",
+            emulatorName = null,
+            needsInstall = platformSlug == "android" && localPath != null && packageName == null && source != GameSource.ANDROID_APP,
+            isHidden = isHidden
+        )
+    }
 
     fun enterTouchMode() {
         _uiState.update { it.copy(isTouchMode = true, hasSelectedGame = false) }
