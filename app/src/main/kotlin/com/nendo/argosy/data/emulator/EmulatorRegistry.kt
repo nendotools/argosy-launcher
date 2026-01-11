@@ -801,7 +801,7 @@ object EmulatorRegistry {
         ),
         "c64" to listOf(
             RetroArchCore("vice_x64", "VICE x64"),
-            RetroArchCore("vice_x64sc", "VICE x64 SuperCPU")
+            RetroArchCore("vice_x64sc", "VICE x64 (Accurate)")
         )
     )
 
