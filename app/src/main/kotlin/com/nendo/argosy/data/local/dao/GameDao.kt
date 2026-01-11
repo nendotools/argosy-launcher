@@ -238,8 +238,8 @@ interface GameDao {
     @Query("UPDATE games SET playTimeMinutes = playTimeMinutes + :minutes WHERE id = :gameId")
     suspend fun addPlayTime(gameId: Long, minutes: Int)
 
-    @Query("UPDATE games SET localPath = :path, source = :source WHERE id = :gameId")
-    suspend fun updateLocalPath(gameId: Long, path: String?, source: GameSource)
+    @Query("UPDATE games SET localPath = :path, source = :source, addedAt = :addedAt WHERE id = :gameId")
+    suspend fun updateLocalPath(gameId: Long, path: String?, source: GameSource, addedAt: Instant = Instant.now())
 
     @Query("DELETE FROM games WHERE id = :gameId")
     suspend fun delete(gameId: Long)

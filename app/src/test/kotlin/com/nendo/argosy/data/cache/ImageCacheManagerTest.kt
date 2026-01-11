@@ -24,6 +24,7 @@ class ImageCacheManagerTest {
     private lateinit var gameDao: GameDao
     private lateinit var platformDao: PlatformDao
     private lateinit var achievementDao: AchievementDao
+    private lateinit var gradientColorExtractor: GradientColorExtractor
     private lateinit var imageCacheManager: ImageCacheManager
     private lateinit var defaultCacheDir: File
 
@@ -36,7 +37,8 @@ class ImageCacheManagerTest {
         gameDao = mockk(relaxed = true)
         platformDao = mockk(relaxed = true)
         achievementDao = mockk(relaxed = true)
-        imageCacheManager = ImageCacheManager(context, gameDao, platformDao, achievementDao)
+        gradientColorExtractor = mockk(relaxed = true)
+        imageCacheManager = ImageCacheManager(context, gameDao, platformDao, achievementDao, gradientColorExtractor)
     }
 
     @Test
