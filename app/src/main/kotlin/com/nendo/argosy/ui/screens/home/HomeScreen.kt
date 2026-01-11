@@ -307,7 +307,9 @@ fun HomeScreen(
             return@LaunchedEffect
         }
         delay(VIDEO_PREVIEW_DELAY_MS)
-        val stillValid = !suppressVideoPreview &&
+        val isResumed = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+        val stillValid = isResumed &&
+            !suppressVideoPreview &&
             uiState.discPickerState == null &&
             videoPlayedForGameId != game.id
         if (stillValid) {
@@ -321,6 +323,7 @@ fun HomeScreen(
             when (event) {
                 Lifecycle.Event.ON_PAUSE -> {
                     viewModel.deactivateVideoPreview()
+                    videoPlayedForGameId = uiState.focusedGame?.id
                 }
                 Lifecycle.Event.ON_RESUME -> {
                     suppressVideoPreview = true
