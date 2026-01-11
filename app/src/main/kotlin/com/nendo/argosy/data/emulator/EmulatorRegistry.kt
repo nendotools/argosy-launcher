@@ -39,7 +39,8 @@ sealed class LaunchConfig {
         val activityClass: String? = null,
         val intentExtras: Map<String, ExtraValue> = emptyMap(),
         val mimeTypeOverride: String? = null,
-        val useAbsolutePath: Boolean = false
+        val useAbsolutePath: Boolean = false,
+        val useFileUri: Boolean = false
     ) : LaunchConfig()
 
     data class CustomScheme(
@@ -426,7 +427,8 @@ object EmulatorRegistry {
             displayName = "Flycast",
             supportedPlatforms = setOf("dreamcast", "dc", "arcade"),
             launchConfig = LaunchConfig.Custom(
-                activityClass = "com.flycast.emulator.MainActivity"
+                activityClass = "com.flycast.emulator.MainActivity",
+                useFileUri = true
             ),
             downloadUrl = "https://play.google.com/store/apps/details?id=com.flycast.emulator"
         ),

@@ -469,11 +469,17 @@ class GameLauncher @Inject constructor(
             addCategory(Intent.CATEGORY_DEFAULT)
 
             if (emulator.launchAction == Intent.ACTION_VIEW && usesIntentDataUri) {
-                val uri = getFileUri(romFile)
+                val uri = if (config.useFileUri) {
+                    Uri.fromFile(romFile)
+                } else {
+                    getFileUri(romFile)
+                }
                 val mimeType = config.mimeTypeOverride ?: getMimeType(romFile)
                 setDataAndType(uri, mimeType)
-                clipData = android.content.ClipData.newRawUri(null, uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                if (!config.useFileUri) {
+                    clipData = android.content.ClipData.newRawUri(null, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
             }
 
             if (config.useAbsolutePath) {
