@@ -94,7 +94,8 @@ object EmulatorRegistry {
                 "ngp", "ngpc", "neogeo",
                 "msx", "msx2",
                 "wonderswan", "wonderswancolor",
-                "arcade"
+                "arcade",
+                "c64"
             ),
             launchAction = Intent.ACTION_MAIN,
             launchConfig = LaunchConfig.RetroArch(),
@@ -113,7 +114,8 @@ object EmulatorRegistry {
                 "ngp", "ngpc", "neogeo",
                 "msx", "msx2",
                 "wonderswan", "wonderswancolor",
-                "arcade"
+                "arcade",
+                "c64"
             ),
             launchAction = Intent.ACTION_MAIN,
             launchConfig = LaunchConfig.RetroArch(),
@@ -562,7 +564,8 @@ object EmulatorRegistry {
         "ngpc" to listOf("retroarch", "retroarch_64"),
         "wonderswan" to listOf("retroarch", "retroarch_64"),
         "wonderswancolor" to listOf("retroarch", "retroarch_64"),
-        "steam" to listOf("gamehub", "gamehub_lite", "gamenative")
+        "steam" to listOf("gamehub", "gamehub_lite", "gamenative"),
+        "c64" to listOf("retroarch", "retroarch_64")
     )
 
     fun getPreferredCore(platformId: String): String? {
@@ -606,7 +609,8 @@ object EmulatorRegistry {
         "msx" to "bluemsx",
         "msx2" to "bluemsx",
         "wonderswan" to "mednafen_wswan",
-        "wonderswancolor" to "mednafen_wswan"
+        "wonderswancolor" to "mednafen_wswan",
+        "c64" to "vice_x64"
     )
 
     fun getRetroArchCorePatterns(): Map<String, List<String>> = mapOf(
@@ -645,7 +649,8 @@ object EmulatorRegistry {
         "msx" to listOf("bluemsx", "fmsx"),
         "msx2" to listOf("bluemsx", "fmsx"),
         "wonderswan" to listOf("mednafen_wswan"),
-        "wonderswancolor" to listOf("mednafen_wswan")
+        "wonderswancolor" to listOf("mednafen_wswan"),
+        "c64" to listOf("vice_x64", "vice_x64sc")
     )
 
     private val platformCores: Map<String, List<RetroArchCore>> = mapOf(
@@ -793,6 +798,10 @@ object EmulatorRegistry {
         ),
         "wonderswancolor" to listOf(
             RetroArchCore("mednafen_wswan", "Mednafen WonderSwan")
+        ),
+        "c64" to listOf(
+            RetroArchCore("vice_x64", "VICE x64"),
+            RetroArchCore("vice_x64sc", "VICE x64 SuperCPU")
         )
     )
 
@@ -970,7 +979,8 @@ object EmulatorRegistry {
                 "ngp", "ngpc", "neogeo",
                 "msx", "msx2",
                 "wonderswan", "wonderswancolor",
-                "arcade"
+                "arcade",
+                "c64"
             ),
             launchAction = Intent.ACTION_MAIN,
             launchConfig = LaunchConfig.RetroArch(),

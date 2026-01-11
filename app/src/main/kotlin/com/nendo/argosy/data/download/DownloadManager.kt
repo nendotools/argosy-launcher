@@ -61,7 +61,8 @@ data class DownloadProgress(
     val state: DownloadState,
     val errorReason: String? = null,
     val extractionBytesWritten: Long = 0,
-    val extractionTotalBytes: Long = 0
+    val extractionTotalBytes: Long = 0,
+    val isMultiFileRom: Boolean = false
 ) {
     val progressPercent: Float
         get() = if (totalBytes > 0) bytesDownloaded.toFloat() / totalBytes else 0f
@@ -327,7 +328,8 @@ class DownloadManager @Inject constructor(
         gameTitle: String,
         platformSlug: String,
         coverPath: String?,
-        expectedSizeBytes: Long = 0
+        expectedSizeBytes: Long = 0,
+        isMultiFileRom: Boolean = false
     ) {
         val currentState = _state.value
         if (currentState.activeDownloads.any { it.gameId == gameId }) return
@@ -351,7 +353,8 @@ class DownloadManager @Inject constructor(
             state = DownloadState.QUEUED.name,
             errorReason = null,
             tempFilePath = tempFilePath,
-            createdAt = Instant.now()
+            createdAt = Instant.now(),
+            isMultiFileRom = isMultiFileRom
         )
 
         val id = downloadQueueDao.insert(entity)
@@ -366,7 +369,8 @@ class DownloadManager @Inject constructor(
             coverPath = coverPath,
             bytesDownloaded = 0,
             totalBytes = expectedSizeBytes,
-            state = DownloadState.QUEUED
+            state = DownloadState.QUEUED,
+            isMultiFileRom = isMultiFileRom
         )
 
         if (isInstantDownload(expectedSizeBytes)) {
@@ -627,6 +631,7 @@ class DownloadManager @Inject constructor(
                         progressId = progress.id,
                         isDiscDownload = progress.isDiscDownload,
                         expectedSize = progress.totalBytes,
+                        isMultiFileRom = progress.isMultiFileRom,
                         onExtractionProgress = { bytesWritten, totalBytes ->
                             updateProgress(
                                 progress.copy(
@@ -757,6 +762,7 @@ class DownloadManager @Inject constructor(
                                     progressId = progress.id,
                                     isDiscDownload = progress.isDiscDownload,
                                     expectedSize = totalSize,
+                                    isMultiFileRom = progress.isMultiFileRom,
                                     onExtractionProgress = { bytesWritten, totalBytes ->
                                         updateProgress(
                                             progress.copy(
@@ -844,15 +850,20 @@ class DownloadManager @Inject constructor(
         progressId: Long = 0,
         isDiscDownload: Boolean = false,
         expectedSize: Long = 0,
+        isMultiFileRom: Boolean = false,
         onExtractionProgress: ((bytesWritten: Long, totalBytes: Long) -> Unit)? = null
     ): String {
-        val shouldExtract = ZipExtractor.shouldExtractZip(targetFile)
+        val shouldExtract = when {
+            isMultiFileRom -> ZipExtractor.isZipFile(targetFile)
+            ZipExtractor.usesZipAsRomFormat(platformSlug) -> false
+            else -> ZipExtractor.shouldExtractZip(targetFile)
+        }
 
         if (shouldExtract && onExtractionProgress != null) {
             onExtractionProgress(0L, targetFile.length())
         }
 
-        Log.d(TAG, "processDownloadedFile: targetFile=${targetFile.absolutePath}, shouldExtract=$shouldExtract, isNsw=${ZipExtractor.isNswPlatform(platformSlug)}, isDisc=$isDiscDownload")
+        Log.d(TAG, "processDownloadedFile: targetFile=${targetFile.absolutePath}, shouldExtract=$shouldExtract, isMultiFileRom=$isMultiFileRom, usesZipAsRom=${ZipExtractor.usesZipAsRomFormat(platformSlug)}, isNsw=${ZipExtractor.isNswPlatform(platformSlug)}, isDisc=$isDiscDownload")
 
         return when {
             shouldExtract -> {
@@ -1083,6 +1094,7 @@ class DownloadManager @Inject constructor(
                 progressId = queueEntry.id,
                 isDiscDownload = isDiscDownload,
                 expectedSize = queueEntry.totalBytes,
+                isMultiFileRom = queueEntry.isMultiFileRom,
                 onExtractionProgress = { bytesWritten, totalBytes ->
                     val progress = queueEntry.toDownloadProgress()
                     updateProgress(
@@ -1158,7 +1170,8 @@ class DownloadManager @Inject constructor(
             } catch (e: Exception) {
                 DownloadState.QUEUED
             },
-            errorReason = errorReason
+            errorReason = errorReason,
+            isMultiFileRom = isMultiFileRom
         )
     }
 }

@@ -49,6 +49,15 @@ private val NSW_PLATFORM_SLUGS = setOf("switch", "nsw")
 private val DISC_EXTENSIONS = setOf("bin", "cue", "chd", "iso", "img", "mdf", "gdi", "cdi")
 private val ZIP_MAGIC_BYTES = byteArrayOf(0x50, 0x4B, 0x03, 0x04)
 
+private val ZIP_AS_ROM_PLATFORMS = setOf(
+    "arcade", "mame", "fbneo", "fba",
+    "neogeo", "neogeocd",
+    "cps1", "cps2", "cps3",
+    "naomi", "naomi2", "atomiswave",
+    "model2", "model3",
+    "hyperneogeo64"
+)
+
 data class PlatformExtractConfig(
     val platformSlugs: Set<String>,
     val gameExtensions: Set<String>,
@@ -98,6 +107,10 @@ object ZipExtractor {
 
     fun isNswPlatform(platformSlug: String): Boolean {
         return platformSlug.lowercase() in NSW_PLATFORM_SLUGS
+    }
+
+    fun usesZipAsRomFormat(platformSlug: String): Boolean {
+        return platformSlug.lowercase() in ZIP_AS_ROM_PLATFORMS
     }
 
     fun getPlatformConfig(platformSlug: String): PlatformExtractConfig? {

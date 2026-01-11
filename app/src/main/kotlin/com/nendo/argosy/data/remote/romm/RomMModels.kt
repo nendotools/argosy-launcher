@@ -63,6 +63,9 @@ data class RomMRom(
     @Json(name = "tags") val tags: List<String>? = null,
     @Json(name = "siblings") val siblings: List<RomMSibling>? = null,
     @Json(name = "multi") val multi: Boolean = false,
+    @Json(name = "has_multiple_files") val hasMultipleFiles: Boolean = false,
+    @Json(name = "has_simple_single_file") val hasSimpleSingleFile: Boolean = true,
+    @Json(name = "has_nested_single_file") val hasNestedSingleFile: Boolean = false,
     @Json(name = "files") val files: List<RomMRomFile>? = null,
     @Json(name = "youtube_video_id") val youtubeVideoId: String? = null
 ) {
@@ -90,7 +93,7 @@ data class RomMRom(
         get() = discNumber != null
 
     val isFolderMultiDisc: Boolean
-        get() = multi && files?.any { it.isDiscVariant } == true
+        get() = hasMultipleFiles && files?.any { it.isDiscVariant } == true
 
     val hasDiscSiblings: Boolean
         get() = isFolderMultiDisc || (isDiscVariant && siblings?.any { sibling ->
