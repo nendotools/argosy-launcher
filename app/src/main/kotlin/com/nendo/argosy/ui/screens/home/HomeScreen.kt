@@ -465,6 +465,7 @@ fun HomeScreen(
                     ) {
                         YouTubeVideoPlayer(
                             videoId = videoId,
+                            muted = uiState.muteVideoPreview,
                             onReady = { viewModel.activateVideoPreview() },
                             onError = { viewModel.cancelVideoPreviewLoading() }
                         )

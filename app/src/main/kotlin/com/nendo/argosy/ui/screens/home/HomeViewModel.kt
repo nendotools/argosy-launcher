@@ -212,7 +212,8 @@ data class HomeUiState(
     val changelogEntry: ChangelogEntry? = null,
     val isVideoPreviewActive: Boolean = false,
     val videoPreviewId: String? = null,
-    val isVideoPreviewLoading: Boolean = false
+    val isVideoPreviewLoading: Boolean = false,
+    val muteVideoPreview: Boolean = false
 ) {
     val availableRows: List<HomeRow>
         get() = buildList {
@@ -504,7 +505,8 @@ class HomeViewModel @Inject constructor(
                         backgroundSaturation = prefs.backgroundSaturation,
                         backgroundOpacity = prefs.backgroundOpacity,
                         useGameBackground = prefs.useGameBackground,
-                        customBackgroundPath = prefs.customBackgroundPath
+                        customBackgroundPath = prefs.customBackgroundPath,
+                        muteVideoPreview = prefs.ambientAudioEnabled
                     )
                 }
             }

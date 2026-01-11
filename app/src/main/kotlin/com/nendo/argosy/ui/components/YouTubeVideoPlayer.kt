@@ -24,6 +24,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 @Composable
 fun YouTubeVideoPlayer(
     videoId: String,
+    muted: Boolean,
     onReady: () -> Unit,
     onError: () -> Unit,
     modifier: Modifier = Modifier
@@ -52,7 +53,8 @@ fun YouTubeVideoPlayer(
         }
     }
 
-    val embedHtml = remember(videoId) {
+    val muteValue = if (muted) 1 else 0
+    val embedHtml = remember(videoId, muted) {
         """
         <!DOCTYPE html>
         <html>
@@ -76,7 +78,7 @@ fun YouTubeVideoPlayer(
                         playerVars: {
                             'autoplay': 1, 'controls': 0, 'disablekb': 1, 'fs': 0,
                             'modestbranding': 1, 'rel': 0, 'showinfo': 0, 'iv_load_policy': 3,
-                            'playsinline': 1, 'mute': 0, 'loop': 1, 'playlist': '$videoId'
+                            'playsinline': 1, 'mute': $muteValue, 'loop': 1, 'playlist': '$videoId'
                         },
                         events: {
                             'onReady': function(e) { e.target.playVideo(); },
