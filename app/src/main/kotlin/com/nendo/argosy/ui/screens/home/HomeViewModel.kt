@@ -1779,7 +1779,7 @@ class HomeViewModel @Inject constructor(
             platformSlug = platformSlug,
             platformDisplayName = platformDisplayNames[platformId] ?: platformSlug,
             coverPath = coverPath,
-            gradientColors = coverPath?.let { gradientColorExtractor.getGradientColors(it, currentGradientPreset) },
+            gradientColors = null,
             backgroundPath = effectiveBackground,
             developer = developer,
             releaseYear = releaseYear,
