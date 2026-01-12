@@ -921,18 +921,18 @@ class SettingsViewModel @Inject constructor(
                     val showOuterThickness = state.display.boxArtOuterEffect != com.nendo.argosy.data.preferences.BoxArtOuterEffect.OFF
                     val showGlowIntensity = state.display.boxArtOuterEffect == com.nendo.argosy.data.preferences.BoxArtOuterEffect.GLOW
                     val showInnerThickness = state.display.boxArtInnerEffect != com.nendo.argosy.data.preferences.BoxArtInnerEffect.OFF
-                    var idx = 3
-                    if (showGlassTint) idx++
-                    if (showGradient) idx += 2 // preset + advanced toggle
-                    if (showGradient && showAdvancedMode) idx += 7 // 7 gradient config settings
-                    idx++ // IconPos
-                    if (showIconPadding) idx++
-                    idx++ // OuterEffect
-                    if (showOuterThickness) idx++
-                    if (showGlowIntensity) idx++ // GlowIntensity
-                    idx++ // InnerEffect
-                    if (showInnerThickness) idx++
-                    idx - 1
+                    var count = 4 // Shape, CornerRadius, BorderThickness, BorderStyle
+                    if (showGlassTint) count++
+                    if (showGradient) count += 2 // preset + advanced toggle
+                    if (showGradient && showAdvancedMode) count += 7 // 7 gradient config settings
+                    count++ // IconPos
+                    if (showIconPadding) count++
+                    count++ // OuterEffect
+                    if (showOuterThickness) count++
+                    if (showGlowIntensity) count++ // GlowIntensity
+                    count++ // InnerEffect
+                    if (showInnerThickness) count++
+                    count - 1 // convert count to max index
                 }
                 SettingsSection.CONTROLS -> if (state.controls.hapticEnabled && state.controls.vibrationSupported) 5 else 4
                 SettingsSection.SOUNDS -> {
