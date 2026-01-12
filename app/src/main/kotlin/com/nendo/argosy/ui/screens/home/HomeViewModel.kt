@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nendo.argosy.BuildConfig
 import com.nendo.argosy.data.cache.GradientPreset
+import com.nendo.argosy.data.preferences.BoxArtBorderStyle
 import com.nendo.argosy.data.download.DownloadManager
 import com.nendo.argosy.data.download.DownloadState
 import com.nendo.argosy.data.update.ApkInstallManager
@@ -62,7 +63,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.nendo.argosy.data.platform.LocalPlatformIds
 import java.io.File
 import java.time.DayOfWeek
@@ -364,6 +368,9 @@ class HomeViewModel @Inject constructor(
     private val _pinnedGamesLoading = MutableStateFlow<Set<Long>>(emptySet())
     private var cachedPlatformDisplayNames: Map<Long, String> = emptyMap()
     private var currentGradientPreset: GradientPreset = GradientPreset.BALANCED
+    private var currentBorderStyle: BoxArtBorderStyle = BoxArtBorderStyle.SOLID
+    private var gradientExtractionJob: Job? = null
+    private val extractedGradients = mutableMapOf<Long, Pair<androidx.compose.ui.graphics.Color, androidx.compose.ui.graphics.Color>>()
 
     init {
         modalResetSignal.signal.onEach {
@@ -502,6 +509,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             preferencesRepository.preferences.collect { prefs ->
                 currentGradientPreset = prefs.gradientPreset
+                currentBorderStyle = prefs.boxArtBorderStyle
                 _uiState.update {
                     it.copy(
                         backgroundBlur = prefs.backgroundBlur,
@@ -512,6 +520,7 @@ class HomeViewModel @Inject constructor(
                         muteVideoPreview = prefs.ambientAudioEnabled
                     )
                 }
+                extractGradientsForVisibleGames(_uiState.value.focusedGameIndex)
             }
         }
     }
@@ -585,6 +594,78 @@ class HomeViewModel @Inject constructor(
                     }
                 }
             }
+        }
+    }
+
+    private fun extractGradientsForVisibleGames(focusedIndex: Int) {
+        if (currentBorderStyle != BoxArtBorderStyle.GRADIENT) return
+
+        gradientExtractionJob?.cancel()
+        gradientExtractionJob = viewModelScope.launch {
+            val state = _uiState.value
+            val games = state.currentItems.filterIsInstance<HomeRowItem.Game>().map { it.game }
+            if (games.isEmpty()) return@launch
+
+            val buffer = 5
+            val startIndex = (focusedIndex - buffer).coerceAtLeast(0)
+            val endIndex = (focusedIndex + buffer).coerceAtMost(games.size - 1)
+
+            val gamesToExtract = games.subList(startIndex, endIndex + 1)
+                .filter { it.coverPath != null && it.gradientColors == null && !extractedGradients.containsKey(it.id) }
+
+            if (gamesToExtract.isEmpty()) return@launch
+
+            val extracted = withContext(Dispatchers.IO) {
+                gamesToExtract.mapNotNull { game ->
+                    game.coverPath?.let { path ->
+                        gradientColorExtractor.getGradientColors(path, currentGradientPreset)?.let { colors ->
+                            game.id to colors
+                        }
+                    }
+                }
+            }
+
+            extracted.forEach { (id, colors) ->
+                extractedGradients[id] = colors
+            }
+
+            applyExtractedGradientsToState()
+        }
+    }
+
+    private fun applyExtractedGradientsToState() {
+        _uiState.update { state ->
+            state.copy(
+                recentGames = state.recentGames.map { game ->
+                    extractedGradients[game.id]?.let { colors -> game.copy(gradientColors = colors) } ?: game
+                },
+                favoriteGames = state.favoriteGames.map { game ->
+                    extractedGradients[game.id]?.let { colors -> game.copy(gradientColors = colors) } ?: game
+                },
+                recommendedGames = state.recommendedGames.map { game ->
+                    extractedGradients[game.id]?.let { colors -> game.copy(gradientColors = colors) } ?: game
+                },
+                androidGames = state.androidGames.map { game ->
+                    extractedGradients[game.id]?.let { colors -> game.copy(gradientColors = colors) } ?: game
+                },
+                steamGames = state.steamGames.map { game ->
+                    extractedGradients[game.id]?.let { colors -> game.copy(gradientColors = colors) } ?: game
+                },
+                platformItems = state.platformItems.map { item ->
+                    when (item) {
+                        is HomeRowItem.Game -> {
+                            val colors = extractedGradients[item.game.id]
+                            if (colors != null) HomeRowItem.Game(item.game.copy(gradientColors = colors)) else item
+                        }
+                        is HomeRowItem.ViewAll -> item
+                    }
+                },
+                pinnedGames = state.pinnedGames.mapValues { (_, games) ->
+                    games.map { game ->
+                        extractedGradients[game.id]?.let { colors -> game.copy(gradientColors = colors) } ?: game
+                    }
+                }
+            )
         }
     }
 
@@ -715,6 +796,7 @@ class HomeViewModel @Inject constructor(
 
             loadRecommendations()
             launch { observeDownloadState() }
+            extractGradientsForVisibleGames(0)
         }
     }
 
@@ -1137,6 +1219,7 @@ class HomeViewModel @Inject constructor(
                 is HomeRow.PinnedRegular -> loadGamesForPinnedCollection(row.pinId)
                 is HomeRow.PinnedVirtual -> loadGamesForPinnedCollection(row.pinId)
             }
+            extractGradientsForVisibleGames(_uiState.value.focusedGameIndex)
         }
     }
 
@@ -1150,6 +1233,7 @@ class HomeViewModel @Inject constructor(
         }
         saveCurrentState()
         prefetchAchievementsDebounced()
+        extractGradientsForVisibleGames(_uiState.value.focusedGameIndex)
         return true
     }
 
@@ -1163,6 +1247,7 @@ class HomeViewModel @Inject constructor(
         }
         saveCurrentState()
         prefetchAchievementsDebounced()
+        extractGradientsForVisibleGames(_uiState.value.focusedGameIndex)
         return true
     }
 
@@ -1182,6 +1267,7 @@ class HomeViewModel @Inject constructor(
         soundManager.play(SoundType.NAVIGATE)
         saveCurrentState()
         prefetchAchievementsDebounced()
+        extractGradientsForVisibleGames(index)
     }
 
     @Suppress("UNUSED_PARAMETER")
@@ -1779,7 +1865,7 @@ class HomeViewModel @Inject constructor(
             platformSlug = platformSlug,
             platformDisplayName = platformDisplayNames[platformId] ?: platformSlug,
             coverPath = coverPath,
-            gradientColors = null,
+            gradientColors = extractedGradients[id],
             backgroundPath = effectiveBackground,
             developer = developer,
             releaseYear = releaseYear,
