@@ -166,7 +166,10 @@ fun NavGraph(
         composable(Screen.Downloads.route) {
             DownloadsScreen(
                 onBack = navigateToDefault,
-                onDrawerToggle = onDrawerToggle
+                onDrawerToggle = onDrawerToggle,
+                onNavigateToGame = { gameId ->
+                    navController.navigate(Screen.GameDetail.createRoute(gameId))
+                }
             )
         }
 

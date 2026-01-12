@@ -27,12 +27,15 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -72,11 +75,15 @@ import com.nendo.argosy.ui.components.InputButton
 fun DownloadsScreen(
     onBack: () -> Unit,
     onDrawerToggle: () -> Unit,
+    onNavigateToGame: (Long) -> Unit,
     viewModel: DownloadsViewModel = hiltViewModel()
 ) {
     val inputDispatcher = LocalInputDispatcher.current
-    val inputHandler = remember(onBack) {
-        viewModel.createInputHandler(onBack = onBack)
+    val inputHandler = remember(onBack, onNavigateToGame) {
+        viewModel.createInputHandler(
+            onBack = onBack,
+            onNavigateToGame = onNavigateToGame
+        )
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -177,10 +184,14 @@ fun DownloadsScreen(
                 }
             }
 
-            if (state.completed.isNotEmpty()) {
-                item { SectionHeader("Completed") }
-                itemsIndexed(state.completed) { _, download ->
-                    CompletedDownloadItem(download = download)
+            if (uiState.completedItems.isNotEmpty()) {
+                item { SectionHeader("Finished") }
+                val completedStartIndex = activeItems.size + queuedItems.size
+                itemsIndexed(uiState.completedItems) { index, download ->
+                    CompletedDownloadItem(
+                        download = download,
+                        isFocused = (completedStartIndex + index) == uiState.focusedIndex
+                    )
                 }
             }
         }
@@ -188,11 +199,16 @@ fun DownloadsScreen(
         if (uiState.allItems.isNotEmpty()) {
             val footerHints = buildList {
                 add(InputButton.DPAD_VERTICAL to "Navigate")
-                if (uiState.canToggle) {
-                    add(InputButton.SOUTH to uiState.toggleLabel)
+                if (uiState.focusedItem != null) {
+                    add(InputButton.SOUTH to uiState.confirmLabel)
                 }
-                if (uiState.canCancel) {
+                if (uiState.canRemove) {
+                    add(InputButton.WEST to "Remove")
+                } else if (uiState.canCancel) {
                     add(InputButton.WEST to "Cancel")
+                }
+                if (uiState.hasFinishedItems) {
+                    add(InputButton.NORTH to "Clear Finished")
                 }
                 add(InputButton.EAST to "Back")
             }
@@ -200,6 +216,22 @@ fun DownloadsScreen(
             FooterBar(
                 hints = footerHints,
                 modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        }
+
+        if (uiState.showFailedActionDialog) {
+            val failedItem = uiState.focusedItem
+            FailedDownloadDialog(
+                gameTitle = failedItem?.displayTitle ?: "",
+                onRetry = {
+                    failedItem?.let { viewModel.retryDownload(it.id) }
+                    viewModel.dismissFailedActionDialog()
+                },
+                onClear = {
+                    failedItem?.let { viewModel.removeFromCompleted(it.id) }
+                    viewModel.dismissFailedActionDialog()
+                },
+                onDismiss = { viewModel.dismissFailedActionDialog() }
             )
         }
     }
@@ -342,15 +374,31 @@ private fun DownloadItem(
 }
 
 @Composable
-private fun CompletedDownloadItem(download: DownloadProgress) {
+private fun CompletedDownloadItem(
+    download: DownloadProgress,
+    isFocused: Boolean
+) {
     val (icon, iconColor) = when (download.state) {
         DownloadState.COMPLETED -> Icons.Default.CheckCircle to MaterialTheme.colorScheme.primary
         DownloadState.FAILED -> Icons.Default.Error to MaterialTheme.colorScheme.error
         else -> Icons.Default.CheckCircle to MaterialTheme.colorScheme.onSurfaceVariant
     }
 
+    val borderColor = if (isFocused) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                width = 2.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(12.dp)
+            ),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
@@ -474,4 +522,39 @@ private fun ShimmerProgressBar() {
                 )
         )
     }
+}
+
+@Composable
+private fun FailedDownloadDialog(
+    gameTitle: String,
+    onRetry: () -> Unit,
+    onClear: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Download Failed",
+                style = MaterialTheme.typography.headlineSmall
+            )
+        },
+        text = {
+            Text(
+                text = "\"$gameTitle\" failed to download. What would you like to do?",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        },
+        confirmButton = {
+            Button(onClick = onRetry) {
+                Text("Retry")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onClear) {
+                Text("Clear")
+            }
+        },
+        shape = RoundedCornerShape(16.dp)
+    )
 }

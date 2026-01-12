@@ -1062,6 +1062,70 @@ class DownloadManager @Inject constructor(
         _state.value = _state.value.copy(completed = emptyList())
     }
 
+    fun clearFinished() {
+        scope.launch {
+            downloadQueueDao.clearFinished()
+        }
+        _state.value = _state.value.copy(completed = emptyList())
+    }
+
+    fun removeFromCompleted(downloadId: Long) {
+        scope.launch {
+            downloadQueueDao.deleteById(downloadId)
+        }
+        _state.value = _state.value.copy(
+            completed = _state.value.completed.filter { it.id != downloadId }
+        )
+    }
+
+    fun retryDownload(downloadId: Long) {
+        val item = _state.value.completed.find { it.id == downloadId } ?: return
+
+        scope.launch {
+            downloadQueueDao.deleteById(downloadId)
+
+            _state.value = _state.value.copy(
+                completed = _state.value.completed.filter { it.id != downloadId }
+            )
+
+            when {
+                item.isDiscDownload -> enqueueDiscDownload(
+                    gameId = item.gameId,
+                    discId = item.discId!!,
+                    discNumber = item.discNumber ?: 1,
+                    rommId = item.rommId,
+                    fileName = item.fileName,
+                    gameTitle = item.gameTitle,
+                    platformSlug = item.platformSlug,
+                    coverPath = item.coverPath,
+                    expectedSizeBytes = item.totalBytes
+                )
+                item.isGameFileDownload -> enqueueGameFileDownload(
+                    gameId = item.gameId,
+                    gameFileId = item.gameFileId!!,
+                    rommFileId = item.rommId,
+                    romId = item.rommId,
+                    fileName = item.fileName,
+                    category = item.fileCategory ?: "unknown",
+                    gameTitle = item.gameTitle,
+                    platformSlug = item.platformSlug,
+                    coverPath = item.coverPath,
+                    expectedSizeBytes = item.totalBytes
+                )
+                else -> enqueueDownload(
+                    gameId = item.gameId,
+                    rommId = item.rommId,
+                    fileName = item.fileName,
+                    gameTitle = item.gameTitle,
+                    platformSlug = item.platformSlug,
+                    coverPath = item.coverPath,
+                    expectedSizeBytes = item.totalBytes,
+                    isMultiFileRom = item.isMultiFileRom
+                )
+            }
+        }
+    }
+
     suspend fun getDownloadPath(platformSlug: String, fileName: String): File {
         val platformDir = getDownloadDir(platformSlug)
         return File(platformDir, fileName)

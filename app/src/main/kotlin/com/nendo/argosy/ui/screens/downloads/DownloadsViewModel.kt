@@ -21,7 +21,8 @@ import javax.inject.Inject
 data class DownloadsUiState(
     val downloadState: DownloadQueueState = DownloadQueueState(),
     val focusedDownloadId: Long? = null,
-    val maxActiveSlots: Int = 1
+    val maxActiveSlots: Int = 1,
+    val showFailedActionDialog: Boolean = false
 ) {
     val activeItems: List<DownloadProgress>
         get() = buildList {
@@ -39,8 +40,11 @@ data class DownloadsUiState(
     val queuedItems: List<DownloadProgress>
         get() = downloadState.queue.filter { it.id !in activeDownloadIds }
 
+    val completedItems: List<DownloadProgress>
+        get() = downloadState.completed
+
     val allItems: List<DownloadProgress>
-        get() = activeItems + queuedItems
+        get() = activeItems + queuedItems + completedItems
 
     val focusedIndex: Int
         get() = allItems.indexOfFirst { it.id == focusedDownloadId }.takeIf { it >= 0 } ?: 0
@@ -48,11 +52,23 @@ data class DownloadsUiState(
     val focusedItem: DownloadProgress?
         get() = allItems.find { it.id == focusedDownloadId } ?: allItems.firstOrNull()
 
+    val isFocusedItemCompleted: Boolean
+        get() = focusedItem?.let { it.id in completedItems.map { c -> c.id } } ?: false
+
+    val isFocusedItemFailed: Boolean
+        get() = focusedItem?.state == DownloadState.FAILED
+
     val canToggle: Boolean
-        get() = focusedItem != null
+        get() = focusedItem != null && !isFocusedItemCompleted
 
     val canCancel: Boolean
-        get() = focusedItem != null
+        get() = focusedItem != null && !isFocusedItemCompleted
+
+    val canRemove: Boolean
+        get() = focusedItem != null && isFocusedItemCompleted
+
+    val hasFinishedItems: Boolean
+        get() = completedItems.isNotEmpty()
 
     val toggleLabel: String
         get() = when (focusedItem?.state) {
@@ -60,6 +76,13 @@ data class DownloadsUiState(
             DownloadState.PAUSED, DownloadState.WAITING_FOR_STORAGE, DownloadState.FAILED -> "Resume"
             DownloadState.QUEUED -> "Pause"
             else -> "Toggle"
+        }
+
+    val confirmLabel: String
+        get() = when {
+            isFocusedItemFailed -> "Options"
+            isFocusedItemCompleted -> "View"
+            else -> toggleLabel
         }
 }
 
@@ -86,6 +109,7 @@ class DownloadsViewModel @Inject constructor(
                 val allItems = buildList {
                     addAll(downloadState.activeDownloads)
                     addAll(downloadState.queue)
+                    addAll(downloadState.completed)
                 }
 
                 val newFocusedId = when {
@@ -150,30 +174,79 @@ class DownloadsViewModel @Inject constructor(
         downloadManager.clearCompleted()
     }
 
-    fun createInputHandler(onBack: () -> Unit): InputHandler = object : InputHandler {
+    fun clearFinished() {
+        downloadManager.clearFinished()
+    }
+
+    fun removeFromCompleted(downloadId: Long) {
+        downloadManager.removeFromCompleted(downloadId)
+    }
+
+    fun retryDownload(downloadId: Long) {
+        downloadManager.retryDownload(downloadId)
+    }
+
+    fun showFailedActionDialog() {
+        _uiState.value = _uiState.value.copy(showFailedActionDialog = true)
+    }
+
+    fun dismissFailedActionDialog() {
+        _uiState.value = _uiState.value.copy(showFailedActionDialog = false)
+    }
+
+    fun createInputHandler(
+        onBack: () -> Unit,
+        onNavigateToGame: (Long) -> Unit
+    ): InputHandler = object : InputHandler {
         override fun onUp(): InputResult = if (moveFocus(-1)) InputResult.HANDLED else InputResult.UNHANDLED
         override fun onDown(): InputResult = if (moveFocus(1)) InputResult.HANDLED else InputResult.UNHANDLED
         override fun onLeft(): InputResult = InputResult.UNHANDLED
         override fun onRight(): InputResult = InputResult.UNHANDLED
         override fun onConfirm(): InputResult {
-            if (_uiState.value.canToggle) {
-                toggleFocusedItem()
-                return InputResult.HANDLED
+            val state = _uiState.value
+            val item = state.focusedItem ?: return InputResult.UNHANDLED
+
+            return when {
+                state.isFocusedItemFailed -> {
+                    showFailedActionDialog()
+                    InputResult.HANDLED
+                }
+                state.isFocusedItemCompleted -> {
+                    onNavigateToGame(item.gameId)
+                    InputResult.HANDLED
+                }
+                state.canToggle -> {
+                    toggleFocusedItem()
+                    InputResult.HANDLED
+                }
+                else -> InputResult.UNHANDLED
             }
-            return InputResult.UNHANDLED
         }
         override fun onBack(): InputResult {
             onBack()
             return InputResult.HANDLED
         }
         override fun onMenu(): InputResult = InputResult.UNHANDLED
-        override fun onSecondaryAction(): InputResult = InputResult.UNHANDLED
-        override fun onContextMenu(): InputResult {
-            if (_uiState.value.canCancel) {
-                cancelFocusedItem()
+        override fun onSecondaryAction(): InputResult {
+            if (_uiState.value.hasFinishedItems) {
+                clearFinished()
                 return InputResult.HANDLED
             }
             return InputResult.UNHANDLED
+        }
+        override fun onContextMenu(): InputResult {
+            val state = _uiState.value
+            return when {
+                state.canRemove -> {
+                    state.focusedItem?.let { removeFromCompleted(it.id) }
+                    InputResult.HANDLED
+                }
+                state.canCancel -> {
+                    cancelFocusedItem()
+                    InputResult.HANDLED
+                }
+                else -> InputResult.UNHANDLED
+            }
         }
     }
 }
