@@ -2,6 +2,7 @@ package com.nendo.argosy.ui.theme
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nendo.argosy.data.cache.GradientPreset
 import com.nendo.argosy.data.preferences.BoxArtBorderStyle
 import com.nendo.argosy.data.preferences.BoxArtBorderThickness
 import com.nendo.argosy.data.preferences.BoxArtCornerRadius
@@ -36,6 +37,7 @@ data class ThemeState(
     val boxArtOuterEffectThickness: BoxArtOuterEffectThickness = BoxArtOuterEffectThickness.MEDIUM,
     val boxArtInnerEffect: BoxArtInnerEffect = BoxArtInnerEffect.SHADOW,
     val boxArtInnerEffectThickness: BoxArtInnerEffectThickness = BoxArtInnerEffectThickness.MEDIUM,
+    val gradientPreset: GradientPreset = GradientPreset.BALANCED,
     val systemIconPosition: SystemIconPosition = SystemIconPosition.TOP_LEFT,
     val systemIconPadding: SystemIconPadding = SystemIconPadding.MEDIUM,
     val useAccentColorFooter: Boolean = false
@@ -62,6 +64,7 @@ class ThemeViewModel @Inject constructor(
                 boxArtOuterEffectThickness = prefs.boxArtOuterEffectThickness,
                 boxArtInnerEffect = prefs.boxArtInnerEffect,
                 boxArtInnerEffectThickness = prefs.boxArtInnerEffectThickness,
+                gradientPreset = prefs.gradientPreset,
                 systemIconPosition = prefs.systemIconPosition,
                 systemIconPadding = prefs.systemIconPadding,
                 useAccentColorFooter = prefs.useAccentColorFooter

@@ -44,7 +44,7 @@ data class FooterHintItem(
 enum class InputButton {
     SOUTH, EAST, WEST, NORTH,
     DPAD, DPAD_UP, DPAD_DOWN, DPAD_LEFT, DPAD_RIGHT, DPAD_HORIZONTAL, DPAD_VERTICAL,
-    LB, RB, LB_RB, LT, RT,
+    LB, RB, LB_RB, LT, RT, LT_RT,
     START, SELECT
 }
 
@@ -55,7 +55,7 @@ private fun InputButton.category(): HintCategory = when (this) {
     InputButton.DPAD_LEFT, InputButton.DPAD_RIGHT,
     InputButton.DPAD_HORIZONTAL, InputButton.DPAD_VERTICAL -> HintCategory.DPAD
     InputButton.LB, InputButton.RB, InputButton.LB_RB -> HintCategory.BUMPER
-    InputButton.LT, InputButton.RT, InputButton.START, InputButton.SELECT -> HintCategory.SHOULDER_MENU
+    InputButton.LT, InputButton.RT, InputButton.LT_RT, InputButton.START, InputButton.SELECT -> HintCategory.SHOULDER_MENU
     InputButton.SOUTH, InputButton.EAST, InputButton.WEST, InputButton.NORTH -> HintCategory.FACE
 }
 
@@ -81,12 +81,13 @@ private fun InputButton.toPainter(): Painter? {
         InputButton.LB_RB -> null
         InputButton.LT -> InputIcons.TriggerLeft
         InputButton.RT -> InputIcons.TriggerRight
+        InputButton.LT_RT -> null
         InputButton.START -> if (swapStartSelect) InputIcons.Options else InputIcons.Menu
         InputButton.SELECT -> if (swapStartSelect) InputIcons.Menu else InputIcons.Options
     }
 }
 
-private fun InputButton.isComposite(): Boolean = this == InputButton.LB_RB
+private fun InputButton.isComposite(): Boolean = this == InputButton.LB_RB || this == InputButton.LT_RT
 
 private fun InputButton.isDpadButton(): Boolean = when (this) {
     InputButton.DPAD, InputButton.DPAD_UP, InputButton.DPAD_DOWN,
@@ -142,27 +143,52 @@ fun FooterHint(
 
 @Composable
 private fun CompositeButtonIcon(button: InputButton, iconColor: Color) {
-    if (button == InputButton.LB_RB) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                painter = InputIcons.BumperLeft,
-                contentDescription = "LB",
-                tint = iconColor,
-                modifier = Modifier.size(20.dp)
-            )
-            Text(
-                text = "/",
-                style = MaterialTheme.typography.bodySmall,
-                color = iconColor,
-                modifier = Modifier.padding(horizontal = 2.dp)
-            )
-            Icon(
-                painter = InputIcons.BumperRight,
-                contentDescription = "RB",
-                tint = iconColor,
-                modifier = Modifier.size(20.dp)
-            )
+    when (button) {
+        InputButton.LB_RB -> {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    painter = InputIcons.BumperLeft,
+                    contentDescription = "LB",
+                    tint = iconColor,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    text = "/",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = iconColor,
+                    modifier = Modifier.padding(horizontal = 2.dp)
+                )
+                Icon(
+                    painter = InputIcons.BumperRight,
+                    contentDescription = "RB",
+                    tint = iconColor,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
+        InputButton.LT_RT -> {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    painter = InputIcons.TriggerLeft,
+                    contentDescription = "LT",
+                    tint = iconColor,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    text = "/",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = iconColor,
+                    modifier = Modifier.padding(horizontal = 2.dp)
+                )
+                Icon(
+                    painter = InputIcons.TriggerRight,
+                    contentDescription = "RT",
+                    tint = iconColor,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+        else -> {}
     }
 }
 

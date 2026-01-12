@@ -2,6 +2,7 @@ package com.nendo.argosy.ui.screens.settings
 
 import com.nendo.argosy.data.cache.GradientExtractionConfig
 import com.nendo.argosy.data.cache.GradientExtractionResult
+import com.nendo.argosy.data.cache.GradientPreset
 import com.nendo.argosy.data.emulator.EmulatorDef
 import com.nendo.argosy.data.emulator.ExtensionOption
 import com.nendo.argosy.data.emulator.InstalledEmulator
@@ -122,6 +123,8 @@ data class DisplayState(
     val boxArtOuterEffectThickness: BoxArtOuterEffectThickness = BoxArtOuterEffectThickness.MEDIUM,
     val boxArtInnerEffect: BoxArtInnerEffect = BoxArtInnerEffect.SHADOW,
     val boxArtInnerEffectThickness: BoxArtInnerEffectThickness = BoxArtInnerEffectThickness.MEDIUM,
+    val gradientPreset: GradientPreset = GradientPreset.BALANCED,
+    val gradientAdvancedMode: Boolean = false,
     val systemIconPosition: SystemIconPosition = SystemIconPosition.TOP_LEFT,
     val systemIconPadding: SystemIconPadding = SystemIconPadding.MEDIUM,
     val defaultView: DefaultView = DefaultView.SHOWCASE

@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nendo.argosy.data.cache.GradientColorExtractor
+import com.nendo.argosy.data.cache.GradientPreset
 import com.nendo.argosy.data.cache.ImageCacheManager
 import com.nendo.argosy.data.local.dao.CollectionDao
 import com.nendo.argosy.data.local.dao.GameDao
@@ -293,6 +294,7 @@ class LibraryViewModel @Inject constructor(
     private var pendingInitialPlatformId: Long? = null
     private var pendingInitialSourceFilter: SourceFilter? = null
     private var cachedPlatformDisplayNames: Map<Long, String> = emptyMap()
+    private var currentGradientPreset: GradientPreset = GradientPreset.BALANCED
 
     private val pendingCoverRepairs = mutableSetOf<Long>()
 
@@ -363,6 +365,7 @@ class LibraryViewModel @Inject constructor(
     private fun observeGridDensity() {
         viewModelScope.launch {
             preferencesRepository.userPreferences.collectLatest { prefs ->
+                currentGradientPreset = prefs.gradientPreset
                 _uiState.update {
                     it.copy(
                         gridDensity = prefs.gridDensity,
@@ -1103,7 +1106,6 @@ class LibraryViewModel @Inject constructor(
     )
 
     private fun GameEntity.toUi(platformDisplayNames: Map<Long, String> = emptyMap()): LibraryGameUi {
-        val parsedGradientColors = gradientColors?.let { gradientColorExtractor.deserializeColors(it) }
         return LibraryGameUi(
             id = id,
             title = title,
@@ -1111,7 +1113,7 @@ class LibraryViewModel @Inject constructor(
             platformSlug = platformSlug,
             platformDisplayName = platformDisplayNames[platformId] ?: platformSlug,
             coverPath = coverPath,
-            gradientColors = parsedGradientColors,
+            gradientColors = coverPath?.let { gradientColorExtractor.getGradientColors(it, currentGradientPreset) },
             source = source,
             isFavorite = isFavorite,
             isDownloaded = localPath != null || source == GameSource.STEAM || source == GameSource.ANDROID_APP,
@@ -1124,7 +1126,6 @@ class LibraryViewModel @Inject constructor(
     }
 
     private fun GameListItem.toUi(platformDisplayNames: Map<Long, String> = emptyMap()): LibraryGameUi {
-        val parsedGradientColors = gradientColors?.let { gradientColorExtractor.deserializeColors(it) }
         return LibraryGameUi(
             id = id,
             title = title,
@@ -1132,7 +1133,7 @@ class LibraryViewModel @Inject constructor(
             platformSlug = platformSlug,
             platformDisplayName = platformDisplayNames[platformId] ?: platformSlug,
             coverPath = coverPath,
-            gradientColors = parsedGradientColors,
+            gradientColors = coverPath?.let { gradientColorExtractor.getGradientColors(it, currentGradientPreset) },
             source = source,
             isFavorite = isFavorite,
             isDownloaded = isDownloaded || source == GameSource.STEAM || source == GameSource.ANDROID_APP,

@@ -87,8 +87,7 @@ class ImageCacheManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val gameDao: GameDao,
     private val platformDao: PlatformDao,
-    private val achievementDao: AchievementDao,
-    private val gradientColorExtractor: GradientColorExtractor
+    private val achievementDao: AchievementDao
 ) {
     private val defaultCacheDir: File by lazy {
         File(context.cacheDir, "images").also { it.mkdirs() }
@@ -823,7 +822,7 @@ class ImageCacheManager @Inject constructor(
 
         if (cachedFile.exists()) {
             if (isValidImageFile(cachedFile)) {
-                updateGameCover(request.id, cachedFile.absolutePath, null)
+                updateGameCover(request.id, cachedFile.absolutePath)
                 return
             } else {
                 cachedFile.delete()
@@ -832,14 +831,6 @@ class ImageCacheManager @Inject constructor(
         }
 
         val bitmap = downloadAndResize(request.url, 400) ?: return
-
-        val gradientColors = try {
-            val (primary, secondary) = gradientColorExtractor.extractGradientColors(bitmap)
-            gradientColorExtractor.serializeColors(primary, secondary)
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to extract gradient colors for rommId ${request.id}", e)
-            null
-        }
 
         FileOutputStream(cachedFile).use { out ->
             bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
@@ -853,16 +844,13 @@ class ImageCacheManager @Inject constructor(
         }
 
         Log.d(TAG, "Cached cover for rommId ${request.id}: ${cachedFile.length() / 1024}KB")
-        updateGameCover(request.id, cachedFile.absolutePath, gradientColors)
+        updateGameCover(request.id, cachedFile.absolutePath)
     }
 
-    private suspend fun updateGameCover(rommId: Long, localPath: String, gradientColors: String?) {
+    private suspend fun updateGameCover(rommId: Long, localPath: String) {
         val game = gameDao.getByRommId(rommId) ?: return
         if (game.coverPath?.startsWith("/") == true) return
         gameDao.updateCoverPath(game.id, localPath)
-        if (gradientColors != null) {
-            gameDao.updateGradientColors(game.id, gradientColors)
-        }
     }
 
     fun resumePendingCoverCache() {

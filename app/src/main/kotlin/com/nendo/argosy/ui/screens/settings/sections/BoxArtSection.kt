@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import com.nendo.argosy.ui.components.ListSection
 import com.nendo.argosy.ui.components.SectionFocusedScroll
 import com.nendo.argosy.data.cache.GradientExtractionConfig
+import com.nendo.argosy.data.cache.GradientPreset
 import com.nendo.argosy.data.preferences.BoxArtBorderStyle
 import com.nendo.argosy.data.preferences.BoxArtBorderThickness
 import com.nendo.argosy.data.preferences.BoxArtCornerRadius
@@ -55,6 +56,8 @@ private sealed class BoxArtItem(val key: String, val section: String) {
     data object BorderThickness : BoxArtItem("borderThickness", "styling")
     data object BorderStyle : BoxArtItem("borderStyle", "styling")
     data object GlassTint : BoxArtItem("glassTint", "styling")
+    data object GradientPresetItem : BoxArtItem("gradientPreset", "styling")
+    data object GradientAdvanced : BoxArtItem("gradientAdvanced", "styling")
 
     data object IconHeader : BoxArtItem("iconHeader", "icon")
     data object IconPos : BoxArtItem("iconPos", "icon")
@@ -87,8 +90,12 @@ private fun buildVisibleItems(display: DisplayState, showGradientSection: Boolea
     if (display.boxArtBorderStyle == BoxArtBorderStyle.GLASS) {
         add(BoxArtItem.GlassTint)
     }
-
     if (showGradientSection) {
+        add(BoxArtItem.GradientPresetItem)
+        add(BoxArtItem.GradientAdvanced)
+    }
+
+    if (showGradientSection && display.gradientAdvancedMode) {
         add(BoxArtItem.GradientHeader)
         add(BoxArtItem.SampleGrid)
         add(BoxArtItem.SampleRadius)
@@ -210,6 +217,18 @@ fun BoxArtSection(
                         value = display.glassBorderTint.displayName(),
                         isFocused = isFocused(item),
                         onClick = { viewModel.cycleGlassBorderTint() }
+                    )
+                    BoxArtItem.GradientPresetItem -> CyclePreference(
+                        title = "Color Preset",
+                        value = display.gradientPreset.displayName(),
+                        isFocused = isFocused(item),
+                        onClick = { viewModel.cycleGradientPreset() }
+                    )
+                    BoxArtItem.GradientAdvanced -> CyclePreference(
+                        title = "Advanced",
+                        value = if (display.gradientAdvancedMode) "On" else "Off",
+                        isFocused = isFocused(item),
+                        onClick = { viewModel.toggleGradientAdvancedMode() }
                     )
 
                     BoxArtItem.IconPos -> CyclePreference(
@@ -376,7 +395,7 @@ fun BoxArtSection(
                 )
             }
 
-            if (showGradientSection && extractionResult != null) {
+            if (showGradientSection && display.gradientAdvancedMode && extractionResult != null) {
                 Text(
                     text = "${extractionResult.extractionTimeMs}ms | ${extractionResult.sampleCount} samples | ${extractionResult.colorFamiliesUsed} families",
                     style = MaterialTheme.typography.labelSmall,

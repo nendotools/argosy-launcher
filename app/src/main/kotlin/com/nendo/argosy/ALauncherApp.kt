@@ -5,7 +5,6 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import coil.ImageLoader
 import coil.ImageLoaderFactory
-import com.nendo.argosy.data.cache.GradientColorValidator
 import com.nendo.argosy.data.local.dao.PlatformDao
 import com.nendo.argosy.data.platform.PlatformDefinitions
 import com.nendo.argosy.data.sync.SaveSyncDownloadObserver
@@ -45,9 +44,6 @@ class ArgosyApp : Application(), Configuration.Provider, ImageLoaderFactory {
     @Inject
     lateinit var syncServiceController: SyncServiceController
 
-    @Inject
-    lateinit var gradientColorValidator: GradientColorValidator
-
     override fun onCreate() {
         super.onCreate()
         UpdateCheckWorker.schedule(this)
@@ -55,7 +51,6 @@ class ArgosyApp : Application(), Configuration.Provider, ImageLoaderFactory {
         saveSyncDownloadObserver.start()
         downloadServiceController.start()
         syncServiceController.start()
-        gradientColorValidator.start()
         syncPlatformSortOrders()
     }
 

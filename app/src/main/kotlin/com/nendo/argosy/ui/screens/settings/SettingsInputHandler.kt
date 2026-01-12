@@ -156,19 +156,22 @@ class SettingsInputHandler(
             val borderStyle = state.display.boxArtBorderStyle
             val showGlassTint = borderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GLASS
             val showGradient = borderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GRADIENT
+            val showAdvancedMode = state.display.gradientAdvancedMode
             val showIconPadding = state.display.systemIconPosition != com.nendo.argosy.data.preferences.SystemIconPosition.OFF
             val showOuterThickness = state.display.boxArtOuterEffect != com.nendo.argosy.data.preferences.BoxArtOuterEffect.OFF
             val showGlowIntensity = state.display.boxArtOuterEffect == com.nendo.argosy.data.preferences.BoxArtOuterEffect.GLOW
             val showInnerThickness = state.display.boxArtInnerEffect != com.nendo.argosy.data.preferences.BoxArtInnerEffect.OFF
             var idx = 3
             val glassTintIdx = if (showGlassTint) idx++ else -1
-            val sampleGridIdx = if (showGradient) idx++ else -1
-            val sampleRadiusIdx = if (showGradient) idx++ else -1
-            val minSatIdx = if (showGradient) idx++ else -1
-            val minBrightIdx = if (showGradient) idx++ else -1
-            val hueDistIdx = if (showGradient) idx++ else -1
-            val satBoostIdx = if (showGradient) idx++ else -1
-            val brightClampIdx = if (showGradient) idx++ else -1
+            val gradientPresetIdx = if (showGradient) idx++ else -1
+            val gradientAdvancedIdx = if (showGradient) idx++ else -1
+            val sampleGridIdx = if (showGradient && showAdvancedMode) idx++ else -1
+            val sampleRadiusIdx = if (showGradient && showAdvancedMode) idx++ else -1
+            val minSatIdx = if (showGradient && showAdvancedMode) idx++ else -1
+            val minBrightIdx = if (showGradient && showAdvancedMode) idx++ else -1
+            val hueDistIdx = if (showGradient && showAdvancedMode) idx++ else -1
+            val satBoostIdx = if (showGradient && showAdvancedMode) idx++ else -1
+            val brightClampIdx = if (showGradient && showAdvancedMode) idx++ else -1
             val iconPosIdx = idx++
             val iconPadIdx = if (showIconPadding) idx++ else -1
             val outerEffectIdx = idx++
@@ -181,6 +184,8 @@ class SettingsInputHandler(
                 1 -> viewModel.cycleBoxArtBorderThickness(-1)
                 2 -> viewModel.cycleBoxArtBorderStyle(-1)
                 glassTintIdx -> viewModel.cycleGlassBorderTint(-1)
+                gradientPresetIdx -> viewModel.cycleGradientPreset(-1)
+                gradientAdvancedIdx -> viewModel.toggleGradientAdvancedMode()
                 sampleGridIdx -> viewModel.cycleGradientSampleGrid(-1)
                 sampleRadiusIdx -> viewModel.cycleGradientRadius(-1)
                 minSatIdx -> viewModel.cycleGradientMinSaturation(-1)
@@ -337,19 +342,22 @@ class SettingsInputHandler(
             val borderStyle = state.display.boxArtBorderStyle
             val showGlassTint = borderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GLASS
             val showGradient = borderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GRADIENT
+            val showAdvancedMode = state.display.gradientAdvancedMode
             val showIconPadding = state.display.systemIconPosition != com.nendo.argosy.data.preferences.SystemIconPosition.OFF
             val showOuterThickness = state.display.boxArtOuterEffect != com.nendo.argosy.data.preferences.BoxArtOuterEffect.OFF
             val showGlowIntensity = state.display.boxArtOuterEffect == com.nendo.argosy.data.preferences.BoxArtOuterEffect.GLOW
             val showInnerThickness = state.display.boxArtInnerEffect != com.nendo.argosy.data.preferences.BoxArtInnerEffect.OFF
             var idx = 3
             val glassTintIdx = if (showGlassTint) idx++ else -1
-            val sampleGridIdx = if (showGradient) idx++ else -1
-            val sampleRadiusIdx = if (showGradient) idx++ else -1
-            val minSatIdx = if (showGradient) idx++ else -1
-            val minBrightIdx = if (showGradient) idx++ else -1
-            val hueDistIdx = if (showGradient) idx++ else -1
-            val satBoostIdx = if (showGradient) idx++ else -1
-            val brightClampIdx = if (showGradient) idx++ else -1
+            val gradientPresetIdx = if (showGradient) idx++ else -1
+            val gradientAdvancedIdx = if (showGradient) idx++ else -1
+            val sampleGridIdx = if (showGradient && showAdvancedMode) idx++ else -1
+            val sampleRadiusIdx = if (showGradient && showAdvancedMode) idx++ else -1
+            val minSatIdx = if (showGradient && showAdvancedMode) idx++ else -1
+            val minBrightIdx = if (showGradient && showAdvancedMode) idx++ else -1
+            val hueDistIdx = if (showGradient && showAdvancedMode) idx++ else -1
+            val satBoostIdx = if (showGradient && showAdvancedMode) idx++ else -1
+            val brightClampIdx = if (showGradient && showAdvancedMode) idx++ else -1
             val iconPosIdx = idx++
             val iconPadIdx = if (showIconPadding) idx++ else -1
             val outerEffectIdx = idx++
@@ -362,6 +370,8 @@ class SettingsInputHandler(
                 1 -> viewModel.cycleBoxArtBorderThickness(1)
                 2 -> viewModel.cycleBoxArtBorderStyle(1)
                 glassTintIdx -> viewModel.cycleGlassBorderTint(1)
+                gradientPresetIdx -> viewModel.cycleGradientPreset(1)
+                gradientAdvancedIdx -> viewModel.toggleGradientAdvancedMode()
                 sampleGridIdx -> viewModel.cycleGradientSampleGrid(1)
                 sampleRadiusIdx -> viewModel.cycleGradientRadius(1)
                 minSatIdx -> viewModel.cycleGradientMinSaturation(1)

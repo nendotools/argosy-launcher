@@ -415,6 +415,8 @@ class SettingsViewModel @Inject constructor(
                 boxArtOuterEffectThickness = prefs.boxArtOuterEffectThickness,
                 boxArtInnerEffect = prefs.boxArtInnerEffect,
                 boxArtInnerEffectThickness = prefs.boxArtInnerEffectThickness,
+                gradientPreset = prefs.gradientPreset,
+                gradientAdvancedMode = prefs.gradientAdvancedMode,
                 systemIconPosition = prefs.systemIconPosition,
                 systemIconPadding = prefs.systemIconPadding,
                 defaultView = prefs.defaultView
@@ -899,13 +901,15 @@ class SettingsViewModel @Inject constructor(
                     val borderStyle = state.display.boxArtBorderStyle
                     val showGlassTint = borderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GLASS
                     val showGradient = borderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GRADIENT
+                    val showAdvancedMode = state.display.gradientAdvancedMode
                     val showIconPadding = state.display.systemIconPosition != com.nendo.argosy.data.preferences.SystemIconPosition.OFF
                     val showOuterThickness = state.display.boxArtOuterEffect != com.nendo.argosy.data.preferences.BoxArtOuterEffect.OFF
                     val showGlowIntensity = state.display.boxArtOuterEffect == com.nendo.argosy.data.preferences.BoxArtOuterEffect.GLOW
                     val showInnerThickness = state.display.boxArtInnerEffect != com.nendo.argosy.data.preferences.BoxArtInnerEffect.OFF
                     var idx = 3
                     if (showGlassTint) idx++
-                    if (showGradient) idx += 7 // 7 gradient settings
+                    if (showGradient) idx += 2 // preset + advanced toggle
+                    if (showGradient && showAdvancedMode) idx += 7 // 7 gradient config settings
                     idx++ // IconPos
                     if (showIconPadding) idx++
                     idx++ // OuterEffect
@@ -1069,6 +1073,14 @@ class SettingsViewModel @Inject constructor(
 
     fun cycleGlassBorderTint(direction: Int = 1) {
         displayDelegate.cycleGlassBorderTint(viewModelScope, direction)
+    }
+
+    fun cycleGradientPreset(direction: Int = 1) {
+        displayDelegate.cycleGradientPreset(viewModelScope, direction)
+    }
+
+    fun toggleGradientAdvancedMode() {
+        displayDelegate.toggleGradientAdvancedMode(viewModelScope)
     }
 
     fun cycleBoxArtGlowStrength(direction: Int = 1) {

@@ -1,6 +1,7 @@
 package com.nendo.argosy.ui.screens.settings.delegates
 
 import androidx.core.graphics.ColorUtils
+import com.nendo.argosy.data.cache.GradientPreset
 import com.nendo.argosy.data.preferences.BoxArtBorderStyle
 import com.nendo.argosy.data.preferences.BoxArtBorderThickness
 import com.nendo.argosy.data.preferences.BoxArtCornerRadius
@@ -348,6 +349,37 @@ class DisplaySettingsDelegate @Inject constructor(
         scope.launch {
             preferencesRepository.setDefaultView(next)
             _state.update { it.copy(defaultView = next) }
+        }
+    }
+
+    fun cycleGradientPreset(scope: CoroutineScope, direction: Int = 1) {
+        val current = _state.value.gradientPreset
+        val isAdvanced = _state.value.gradientAdvancedMode
+        val values = if (isAdvanced) {
+            GradientPreset.entries
+        } else {
+            GradientPreset.entries.filter { it != GradientPreset.CUSTOM }
+        }
+        val currentIndex = values.indexOf(current).coerceAtLeast(0)
+        val next = values[(currentIndex + direction).mod(values.size)]
+        scope.launch {
+            preferencesRepository.setGradientPreset(next)
+            _state.update { it.copy(gradientPreset = next) }
+        }
+    }
+
+    fun toggleGradientAdvancedMode(scope: CoroutineScope) {
+        val newAdvanced = !_state.value.gradientAdvancedMode
+        scope.launch {
+            preferencesRepository.setGradientAdvancedMode(newAdvanced)
+            _state.update { it.copy(gradientAdvancedMode = newAdvanced) }
+            if (newAdvanced) {
+                preferencesRepository.setGradientPreset(GradientPreset.CUSTOM)
+                _state.update { it.copy(gradientPreset = GradientPreset.CUSTOM) }
+            } else if (_state.value.gradientPreset == GradientPreset.CUSTOM) {
+                preferencesRepository.setGradientPreset(GradientPreset.BALANCED)
+                _state.update { it.copy(gradientPreset = GradientPreset.BALANCED) }
+            }
         }
     }
 }

@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nendo.argosy.BuildConfig
+import com.nendo.argosy.data.cache.GradientPreset
 import com.nendo.argosy.data.download.DownloadManager
 import com.nendo.argosy.data.download.DownloadState
 import com.nendo.argosy.data.update.ApkInstallManager
@@ -362,6 +363,7 @@ class HomeViewModel @Inject constructor(
     private val recentGamesCache = AtomicReference(RecentGamesCache(null, 0L))
     private val _pinnedGamesLoading = MutableStateFlow<Set<Long>>(emptySet())
     private var cachedPlatformDisplayNames: Map<Long, String> = emptyMap()
+    private var currentGradientPreset: GradientPreset = GradientPreset.BALANCED
 
     init {
         modalResetSignal.signal.onEach {
@@ -499,6 +501,7 @@ class HomeViewModel @Inject constructor(
     private fun observeBackgroundSettings() {
         viewModelScope.launch {
             preferencesRepository.preferences.collect { prefs ->
+                currentGradientPreset = prefs.gradientPreset
                 _uiState.update {
                     it.copy(
                         backgroundBlur = prefs.backgroundBlur,
@@ -1769,7 +1772,6 @@ class HomeViewModel @Inject constructor(
         val firstScreenshot = screenshotPaths?.split(",")?.firstOrNull()?.takeIf { it.isNotBlank() }
         val effectiveBackground = backgroundPath ?: firstScreenshot ?: coverPath
         val newThreshold = Instant.now().minus(24, ChronoUnit.HOURS)
-        val parsedGradientColors = gradientColors?.let { gradientColorExtractor.deserializeColors(it) }
         return HomeGameUi(
             id = id,
             title = title,
@@ -1777,7 +1779,7 @@ class HomeViewModel @Inject constructor(
             platformSlug = platformSlug,
             platformDisplayName = platformDisplayNames[platformId] ?: platformSlug,
             coverPath = coverPath,
-            gradientColors = parsedGradientColors,
+            gradientColors = coverPath?.let { gradientColorExtractor.getGradientColors(it, currentGradientPreset) },
             backgroundPath = effectiveBackground,
             developer = developer,
             releaseYear = releaseYear,

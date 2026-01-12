@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.nendo.argosy.data.cache.GradientPreset
 import com.nendo.argosy.ui.input.SoundConfig
 import com.nendo.argosy.ui.input.SoundType
 import com.nendo.argosy.util.LogLevel
@@ -85,6 +86,8 @@ class UserPreferencesRepository @Inject constructor(
         val BOX_ART_OUTER_EFFECT_THICKNESS = stringPreferencesKey("box_art_outer_effect_thickness")
         val BOX_ART_INNER_EFFECT = stringPreferencesKey("box_art_inner_effect")
         val BOX_ART_INNER_EFFECT_THICKNESS = stringPreferencesKey("box_art_inner_effect_thickness")
+        val GRADIENT_PRESET = stringPreferencesKey("gradient_preset")
+        val GRADIENT_ADVANCED_MODE = booleanPreferencesKey("gradient_advanced_mode")
         val SYSTEM_ICON_POSITION = stringPreferencesKey("system_icon_position")
         val SYSTEM_ICON_PADDING = stringPreferencesKey("system_icon_padding")
         val DEFAULT_VIEW = stringPreferencesKey("default_view")
@@ -186,6 +189,8 @@ class UserPreferencesRepository @Inject constructor(
             boxArtOuterEffectThickness = BoxArtOuterEffectThickness.fromString(prefs[Keys.BOX_ART_OUTER_EFFECT_THICKNESS]),
             boxArtInnerEffect = BoxArtInnerEffect.fromString(prefs[Keys.BOX_ART_INNER_EFFECT]),
             boxArtInnerEffectThickness = BoxArtInnerEffectThickness.fromString(prefs[Keys.BOX_ART_INNER_EFFECT_THICKNESS]),
+            gradientPreset = GradientPreset.fromString(prefs[Keys.GRADIENT_PRESET]),
+            gradientAdvancedMode = prefs[Keys.GRADIENT_ADVANCED_MODE] ?: false,
             systemIconPosition = SystemIconPosition.fromString(prefs[Keys.SYSTEM_ICON_POSITION]),
             systemIconPadding = SystemIconPadding.fromString(prefs[Keys.SYSTEM_ICON_PADDING]),
             defaultView = DefaultView.fromString(prefs[Keys.DEFAULT_VIEW]),
@@ -639,6 +644,18 @@ class UserPreferencesRepository @Inject constructor(
         }
     }
 
+    suspend fun setGradientPreset(preset: GradientPreset) {
+        dataStore.edit { prefs ->
+            prefs[Keys.GRADIENT_PRESET] = preset.name
+        }
+    }
+
+    suspend fun setGradientAdvancedMode(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.GRADIENT_ADVANCED_MODE] = enabled
+        }
+    }
+
     suspend fun setSystemIconPosition(position: SystemIconPosition) {
         dataStore.edit { prefs ->
             prefs[Keys.SYSTEM_ICON_POSITION] = position.name
@@ -819,6 +836,8 @@ data class UserPreferences(
     val boxArtOuterEffectThickness: BoxArtOuterEffectThickness = BoxArtOuterEffectThickness.THIN,
     val boxArtInnerEffect: BoxArtInnerEffect = BoxArtInnerEffect.GLASS,
     val boxArtInnerEffectThickness: BoxArtInnerEffectThickness = BoxArtInnerEffectThickness.THICK,
+    val gradientPreset: GradientPreset = GradientPreset.BALANCED,
+    val gradientAdvancedMode: Boolean = false,
     val systemIconPosition: SystemIconPosition = SystemIconPosition.TOP_LEFT,
     val systemIconPadding: SystemIconPadding = SystemIconPadding.MEDIUM,
     val defaultView: DefaultView = DefaultView.SHOWCASE,

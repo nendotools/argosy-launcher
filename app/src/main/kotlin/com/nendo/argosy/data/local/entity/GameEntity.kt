@@ -104,7 +104,6 @@ data class GameListItem(
     val localPath: String?,
     val source: GameSource,
     val coverPath: String?,
-    val gradientColors: String?,
     val isFavorite: Boolean,
     val isHidden: Boolean,
     val isMultiDisc: Boolean,
@@ -124,9 +123,4 @@ data class GameCategoryInfo(
     val id: Long,
     val genre: String?,
     val gameModes: String?
-)
-
-data class GradientColorCandidate(
-    val id: Long,
-    val coverPath: String
 )

@@ -612,9 +612,12 @@ private fun SettingsFooter(uiState: SettingsUiState) {
     }
 
     val hints = buildList {
-        add(InputButton.DPAD to "Navigate")
+        if (uiState.currentSection != SettingsSection.BOX_ART) {
+            add(InputButton.DPAD to "Navigate")
+        }
         if (uiState.currentSection == SettingsSection.BOX_ART) {
-            add(InputButton.LB_RB to "Preview Size")
+            add(InputButton.LB_RB to "Preview Shape")
+            add(InputButton.LT_RT to "Preview Game")
         }
         add(InputButton.SOUTH to "Select")
         if (uiState.currentSection == SettingsSection.EMULATORS) {
