@@ -354,8 +354,8 @@ class DisplaySettingsDelegate @Inject constructor(
     fun cycleDefaultView(scope: CoroutineScope) {
         val current = _state.value.defaultView
         val next = when (current) {
-            DefaultView.SHOWCASE -> DefaultView.LIBRARY
-            DefaultView.LIBRARY -> DefaultView.SHOWCASE
+            DefaultView.HOME -> DefaultView.LIBRARY
+            DefaultView.LIBRARY -> DefaultView.HOME
         }
         scope.launch {
             preferencesRepository.setDefaultView(next)
@@ -375,6 +375,31 @@ class DisplaySettingsDelegate @Inject constructor(
         scope.launch {
             preferencesRepository.setGradientAdvancedMode(newAdvanced)
             _state.update { it.copy(gradientAdvancedMode = newAdvanced) }
+        }
+    }
+
+    fun setVideoWallpaperEnabled(scope: CoroutineScope, enabled: Boolean) {
+        scope.launch {
+            preferencesRepository.setVideoWallpaperEnabled(enabled)
+            _state.update { it.copy(videoWallpaperEnabled = enabled) }
+        }
+    }
+
+    fun cycleVideoWallpaperDelay(scope: CoroutineScope) {
+        val current = _state.value.videoWallpaperDelaySeconds
+        val options = listOf(0, 1, 3, 5, 10)
+        val currentIndex = options.indexOf(current).takeIf { it >= 0 } ?: 2
+        val next = options[(currentIndex + 1) % options.size]
+        scope.launch {
+            preferencesRepository.setVideoWallpaperDelaySeconds(next)
+            _state.update { it.copy(videoWallpaperDelaySeconds = next) }
+        }
+    }
+
+    fun setVideoWallpaperMuted(scope: CoroutineScope, muted: Boolean) {
+        scope.launch {
+            preferencesRepository.setVideoWallpaperMuted(muted)
+            _state.update { it.copy(videoWallpaperMuted = muted) }
         }
     }
 }

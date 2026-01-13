@@ -218,7 +218,9 @@ data class HomeUiState(
     val isVideoPreviewActive: Boolean = false,
     val videoPreviewId: String? = null,
     val isVideoPreviewLoading: Boolean = false,
-    val muteVideoPreview: Boolean = false
+    val muteVideoPreview: Boolean = false,
+    val videoWallpaperEnabled: Boolean = false,
+    val videoWallpaperDelayMs: Long = 3000L
 ) {
     val availableRows: List<HomeRow>
         get() = buildList {
@@ -517,7 +519,10 @@ class HomeViewModel @Inject constructor(
                         backgroundOpacity = prefs.backgroundOpacity,
                         useGameBackground = prefs.useGameBackground,
                         customBackgroundPath = prefs.customBackgroundPath,
-                        muteVideoPreview = prefs.ambientAudioEnabled
+                        muteVideoPreview = prefs.videoWallpaperMuted ||
+                            (prefs.ambientAudioEnabled && prefs.ambientAudioUri != null),
+                        videoWallpaperEnabled = prefs.videoWallpaperEnabled,
+                        videoWallpaperDelayMs = prefs.videoWallpaperDelaySeconds * 1000L
                     )
                 }
                 extractGradientsForVisibleGames(_uiState.value.focusedGameIndex)

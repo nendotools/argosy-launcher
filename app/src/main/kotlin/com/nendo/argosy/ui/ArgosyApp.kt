@@ -102,7 +102,7 @@ fun ArgosyApp(
     val startDestination = when {
         uiState.isFirstRun -> Screen.FirstRun.route
         uiState.defaultView == DefaultView.LIBRARY -> Screen.Library.route
-        else -> Screen.Showcase.route
+        else -> Screen.Home.route
     }
 
     // Create drawer input handler
@@ -115,7 +115,7 @@ fun ArgosyApp(
                 val current = navController.currentDestination?.route
                 if (route != current) {
                     navController.navigate(route) {
-                        popUpTo(Screen.Showcase.route) { saveState = true }
+                        popUpTo(Screen.Home.route) { saveState = true }
                         launchSingleTop = true
                         restoreState = true
                     }
@@ -320,7 +320,7 @@ fun ArgosyApp(
                             scope.launch { drawerState.close() }
                             if (route != currentRoute) {
                                 navController.navigate(route) {
-                                    popUpTo(Screen.Showcase.route) { saveState = true }
+                                    popUpTo(Screen.Home.route) { saveState = true }
                                     launchSingleTop = true
                                     restoreState = true
                                 }

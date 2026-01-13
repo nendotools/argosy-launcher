@@ -122,7 +122,10 @@ data class DisplayState(
     val gradientAdvancedMode: Boolean = false,
     val systemIconPosition: SystemIconPosition = SystemIconPosition.TOP_LEFT,
     val systemIconPadding: SystemIconPadding = SystemIconPadding.MEDIUM,
-    val defaultView: DefaultView = DefaultView.SHOWCASE
+    val defaultView: DefaultView = DefaultView.HOME,
+    val videoWallpaperEnabled: Boolean = false,
+    val videoWallpaperDelaySeconds: Int = 3,
+    val videoWallpaperMuted: Boolean = false
 )
 
 data class ControlsState(

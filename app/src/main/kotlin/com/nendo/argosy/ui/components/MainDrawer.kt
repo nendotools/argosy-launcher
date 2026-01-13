@@ -202,7 +202,7 @@ private fun DrawerMenuItem(
 }
 
 private fun getIconForRoute(route: String): ImageVector = when (route) {
-    Screen.Showcase.route -> Icons.Filled.FeaturedPlayList
+    Screen.Home.route -> Icons.Filled.FeaturedPlayList
     Screen.Library.route -> Icons.Default.VideoLibrary
     Screen.Downloads.route -> Icons.Default.Download
     Screen.Apps.route -> Icons.Default.Apps

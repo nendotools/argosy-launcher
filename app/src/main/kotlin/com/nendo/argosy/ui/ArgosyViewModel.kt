@@ -47,7 +47,7 @@ data class ArgosyUiState(
     val abIconsSwapped: Boolean = false,
     val xyIconsSwapped: Boolean = false,
     val swapStartSelect: Boolean = false,
-    val defaultView: DefaultView = DefaultView.SHOWCASE
+    val defaultView: DefaultView = DefaultView.HOME
 )
 
 data class DrawerState(
@@ -215,7 +215,7 @@ class ArgosyViewModel @Inject constructor(
     )
 
     val drawerItems = listOf(
-        DrawerItem(Screen.Showcase.route, "Showcase"),
+        DrawerItem(Screen.Home.route, "Home"),
         DrawerItem(Screen.Collections.route, "Collections"),
         DrawerItem(Screen.Library.route, "Library"),
         DrawerItem(Screen.Downloads.route, "Downloads"),

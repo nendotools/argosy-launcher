@@ -118,7 +118,6 @@ import com.nendo.argosy.ui.theme.Motion
 import kotlinx.coroutines.launch
 
 private const val SCROLL_OFFSET = -25
-private const val VIDEO_PREVIEW_DELAY_MS = 5000L
 
 @Composable
 fun HomeScreen(
@@ -219,7 +218,7 @@ fun HomeScreen(
     DisposableEffect(lifecycleOwner, inputHandler) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                inputDispatcher.subscribeView(inputHandler, forRoute = Screen.ROUTE_SHOWCASE)
+                inputDispatcher.subscribeView(inputHandler, forRoute = Screen.ROUTE_HOME)
                 viewModel.onResume()
                 viewModel.refreshPlatforms()
                 viewModel.refreshFavorites()
@@ -227,7 +226,7 @@ fun HomeScreen(
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        inputDispatcher.subscribeView(inputHandler, forRoute = Screen.ROUTE_SHOWCASE)
+        inputDispatcher.subscribeView(inputHandler, forRoute = Screen.ROUTE_HOME)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
@@ -296,8 +295,9 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(uiState.focusedGameIndex, uiState.focusedGame?.youtubeVideoId) {
+    LaunchedEffect(uiState.focusedGameIndex, uiState.focusedGame?.youtubeVideoId, uiState.videoWallpaperEnabled) {
         viewModel.deactivateVideoPreview()
+        if (!uiState.videoWallpaperEnabled) return@LaunchedEffect
         val game = uiState.focusedGame ?: return@LaunchedEffect
         val videoId = game.youtubeVideoId ?: return@LaunchedEffect
         val shouldSkip = uiState.showGameMenu ||
@@ -307,9 +307,10 @@ fun HomeScreen(
         if (shouldSkip) {
             return@LaunchedEffect
         }
-        delay(VIDEO_PREVIEW_DELAY_MS)
+        delay(uiState.videoWallpaperDelayMs)
         val isResumed = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
         val stillValid = isResumed &&
+            uiState.videoWallpaperEnabled &&
             !suppressVideoPreview &&
             uiState.discPickerState == null &&
             videoPlayedForGameId != game.id

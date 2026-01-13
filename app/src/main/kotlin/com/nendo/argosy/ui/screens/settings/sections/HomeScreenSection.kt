@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import com.nendo.argosy.ui.components.ListSection
 import com.nendo.argosy.ui.components.SectionFocusedScroll
 import com.nendo.argosy.ui.components.ActionPreference
+import com.nendo.argosy.ui.components.CyclePreference
 import com.nendo.argosy.ui.components.SliderPreference
 import com.nendo.argosy.ui.components.SwitchPreference
 import com.nendo.argosy.ui.screens.settings.SettingsUiState
@@ -25,21 +26,28 @@ fun HomeScreenSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
     val listState = rememberLazyListState()
     val display = uiState.display
     val hasCustomImage = !display.useGameBackground
+    val sliderOffset = if (hasCustomImage) 1 else 0
 
     val sections = if (hasCustomImage) {
         listOf(
             ListSection(listStartIndex = 0, listEndIndex = 5, focusStartIndex = 0, focusEndIndex = 4),
-            ListSection(listStartIndex = 6, listEndIndex = 7, focusStartIndex = 5, focusEndIndex = 5)
+            ListSection(listStartIndex = 6, listEndIndex = 9, focusStartIndex = 5, focusEndIndex = 7),
+            ListSection(listStartIndex = 10, listEndIndex = 11, focusStartIndex = 8, focusEndIndex = 8)
         )
     } else {
         listOf(
             ListSection(listStartIndex = 0, listEndIndex = 4, focusStartIndex = 0, focusEndIndex = 3),
-            ListSection(listStartIndex = 5, listEndIndex = 6, focusStartIndex = 4, focusEndIndex = 4)
+            ListSection(listStartIndex = 5, listEndIndex = 8, focusStartIndex = 4, focusEndIndex = 6),
+            ListSection(listStartIndex = 9, listEndIndex = 10, focusStartIndex = 7, focusEndIndex = 7)
         )
     }
 
     val focusToListIndex: (Int) -> Int = { focus ->
-        if (hasCustomImage) focus + 1 else focus + 1
+        when {
+            focus <= 3 + sliderOffset -> focus + 1
+            focus <= 6 + sliderOffset -> focus + 2
+            else -> focus + 3
+        }
     }
 
     SectionFocusedScroll(
@@ -82,7 +90,6 @@ fun HomeScreenSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 )
             }
         }
-        val sliderOffset = if (display.useGameBackground) 0 else 1
         item {
             SliderPreference(
                 title = "Blur",
@@ -114,6 +121,42 @@ fun HomeScreenSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
             )
         }
         item {
+            HomeScreenSectionHeader("Video Wallpaper")
+        }
+        item {
+            SwitchPreference(
+                title = "Show Video Wallpaper",
+                subtitle = "Play video backgrounds on home screen",
+                isEnabled = display.videoWallpaperEnabled,
+                isFocused = uiState.focusedIndex == 4 + sliderOffset,
+                onToggle = { viewModel.setVideoWallpaperEnabled(!display.videoWallpaperEnabled) }
+            )
+        }
+        item {
+            val delayText = when (display.videoWallpaperDelaySeconds) {
+                0 -> "Instant"
+                1 -> "1 second"
+                else -> "${display.videoWallpaperDelaySeconds} seconds"
+            }
+            CyclePreference(
+                title = "Delay Before Playback",
+                value = delayText,
+                isFocused = uiState.focusedIndex == 5 + sliderOffset,
+                onClick = { viewModel.cycleVideoWallpaperDelay() }
+            )
+        }
+        item {
+            val hasCustomBgm = uiState.ambientAudio.enabled && uiState.ambientAudio.audioUri != null
+            val effectiveMuted = hasCustomBgm || display.videoWallpaperMuted
+            SwitchPreference(
+                title = "Muted Playback",
+                subtitle = if (hasCustomBgm) "Auto-muted while Custom BGM is active" else "Mute video audio",
+                isEnabled = effectiveMuted,
+                isFocused = uiState.focusedIndex == 6 + sliderOffset,
+                onToggle = { if (!hasCustomBgm) viewModel.setVideoWallpaperMuted(!display.videoWallpaperMuted) }
+            )
+        }
+        item {
             HomeScreenSectionHeader("Footer")
         }
         item {
@@ -121,7 +164,7 @@ fun HomeScreenSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 title = "Accent Color Footer",
                 subtitle = "Use accent color for footer background",
                 isEnabled = display.useAccentColorFooter,
-                isFocused = uiState.focusedIndex == 4 + sliderOffset,
+                isFocused = uiState.focusedIndex == 7 + sliderOffset,
                 onToggle = { viewModel.setUseAccentColorFooter(it) }
             )
         }

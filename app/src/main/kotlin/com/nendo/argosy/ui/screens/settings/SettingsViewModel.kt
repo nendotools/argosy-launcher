@@ -433,7 +433,10 @@ class SettingsViewModel @Inject constructor(
                 gradientAdvancedMode = prefs.gradientAdvancedMode,
                 systemIconPosition = prefs.systemIconPosition,
                 systemIconPadding = prefs.systemIconPadding,
-                defaultView = prefs.defaultView
+                defaultView = prefs.defaultView,
+                videoWallpaperEnabled = prefs.videoWallpaperEnabled,
+                videoWallpaperDelaySeconds = prefs.videoWallpaperDelaySeconds,
+                videoWallpaperMuted = prefs.videoWallpaperMuted
             ))
 
             val detectionResult = ControllerDetector.detectFromActiveGamepad()
@@ -911,7 +914,7 @@ class SettingsViewModel @Inject constructor(
                     (baseItemCount + expandedPlatforms - 1).coerceAtLeast(baseItemCount - 1)
                 }
                 SettingsSection.DISPLAY -> 9
-                SettingsSection.HOME_SCREEN -> if (state.display.useGameBackground) 4 else 5
+                SettingsSection.HOME_SCREEN -> if (state.display.useGameBackground) 7 else 8
                 SettingsSection.BOX_ART -> {
                     val borderStyle = state.display.boxArtBorderStyle
                     val showGlassTint = borderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GLASS
@@ -1142,6 +1145,18 @@ class SettingsViewModel @Inject constructor(
 
     fun cycleDefaultView() {
         displayDelegate.cycleDefaultView(viewModelScope)
+    }
+
+    fun setVideoWallpaperEnabled(enabled: Boolean) {
+        displayDelegate.setVideoWallpaperEnabled(viewModelScope, enabled)
+    }
+
+    fun cycleVideoWallpaperDelay() {
+        displayDelegate.cycleVideoWallpaperDelay(viewModelScope)
+    }
+
+    fun setVideoWallpaperMuted(muted: Boolean) {
+        displayDelegate.setVideoWallpaperMuted(viewModelScope, muted)
     }
 
     fun loadPreviewGames() {
@@ -2168,6 +2183,18 @@ class SettingsViewModel @Inject constructor(
                     2 + sliderOffset -> cycleBackgroundSaturation()
                     3 + sliderOffset -> cycleBackgroundOpacity()
                     4 + sliderOffset -> {
+                        setVideoWallpaperEnabled(!state.display.videoWallpaperEnabled)
+                        return InputResult.handled(SoundType.TOGGLE)
+                    }
+                    5 + sliderOffset -> cycleVideoWallpaperDelay()
+                    6 + sliderOffset -> {
+                        val hasCustomBgm = state.ambientAudio.enabled && state.ambientAudio.audioUri != null
+                        if (!hasCustomBgm) {
+                            setVideoWallpaperMuted(!state.display.videoWallpaperMuted)
+                            return InputResult.handled(SoundType.TOGGLE)
+                        }
+                    }
+                    7 + sliderOffset -> {
                         setUseAccentColorFooter(!state.display.useAccentColorFooter)
                         return InputResult.handled(SoundType.TOGGLE)
                     }

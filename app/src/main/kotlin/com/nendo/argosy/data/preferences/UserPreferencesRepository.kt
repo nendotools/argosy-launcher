@@ -108,6 +108,10 @@ class UserPreferencesRepository @Inject constructor(
         val SCREEN_DIMMER_TIMEOUT_MINUTES = intPreferencesKey("screen_dimmer_timeout_minutes")
         val SCREEN_DIMMER_LEVEL = intPreferencesKey("screen_dimmer_level")
         val CUSTOM_BIOS_PATH = stringPreferencesKey("custom_bios_path")
+
+        val VIDEO_WALLPAPER_ENABLED = booleanPreferencesKey("video_wallpaper_enabled")
+        val VIDEO_WALLPAPER_DELAY_SECONDS = intPreferencesKey("video_wallpaper_delay_seconds")
+        val VIDEO_WALLPAPER_MUTED = booleanPreferencesKey("video_wallpaper_muted")
     }
 
     val userPreferences: Flow<UserPreferences> = dataStore.data.map { prefs ->
@@ -215,7 +219,10 @@ class UserPreferencesRepository @Inject constructor(
             screenDimmerEnabled = prefs[Keys.SCREEN_DIMMER_ENABLED] ?: true,
             screenDimmerTimeoutMinutes = prefs[Keys.SCREEN_DIMMER_TIMEOUT_MINUTES] ?: 2,
             screenDimmerLevel = prefs[Keys.SCREEN_DIMMER_LEVEL] ?: 50,
-            customBiosPath = prefs[Keys.CUSTOM_BIOS_PATH]
+            customBiosPath = prefs[Keys.CUSTOM_BIOS_PATH],
+            videoWallpaperEnabled = prefs[Keys.VIDEO_WALLPAPER_ENABLED] ?: false,
+            videoWallpaperDelaySeconds = prefs[Keys.VIDEO_WALLPAPER_DELAY_SECONDS] ?: 3,
+            videoWallpaperMuted = prefs[Keys.VIDEO_WALLPAPER_MUTED] ?: false
         )
     }
 
@@ -781,6 +788,24 @@ class UserPreferencesRepository @Inject constructor(
             }
         }
     }
+
+    suspend fun setVideoWallpaperEnabled(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.VIDEO_WALLPAPER_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setVideoWallpaperDelaySeconds(seconds: Int) {
+        dataStore.edit { prefs ->
+            prefs[Keys.VIDEO_WALLPAPER_DELAY_SECONDS] = seconds.coerceIn(0, 10)
+        }
+    }
+
+    suspend fun setVideoWallpaperMuted(muted: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.VIDEO_WALLPAPER_MUTED] = muted
+        }
+    }
 }
 
 data class UserPreferences(
@@ -840,7 +865,7 @@ data class UserPreferences(
     val gradientAdvancedMode: Boolean = false,
     val systemIconPosition: SystemIconPosition = SystemIconPosition.TOP_LEFT,
     val systemIconPadding: SystemIconPadding = SystemIconPadding.MEDIUM,
-    val defaultView: DefaultView = DefaultView.SHOWCASE,
+    val defaultView: DefaultView = DefaultView.HOME,
     val recommendedGameIds: List<Long> = emptyList(),
     val lastRecommendationGeneration: Instant? = null,
     val recommendationPenalties: Map<Long, Float> = emptyMap(),
@@ -855,7 +880,10 @@ data class UserPreferences(
     val screenDimmerEnabled: Boolean = true,
     val screenDimmerTimeoutMinutes: Int = 2,
     val screenDimmerLevel: Int = 50,
-    val customBiosPath: String? = null
+    val customBiosPath: String? = null,
+    val videoWallpaperEnabled: Boolean = false,
+    val videoWallpaperDelaySeconds: Int = 3,
+    val videoWallpaperMuted: Boolean = false
 )
 
 enum class ThemeMode(val displayName: String) {
@@ -947,13 +975,13 @@ enum class SystemIconPadding(val dp: Int) {
 }
 
 enum class DefaultView {
-    SHOWCASE, LIBRARY;
+    HOME, LIBRARY;
 
     companion object {
         fun fromString(value: String?): DefaultView = when (value) {
-            "HOME", "SHOWCASE" -> SHOWCASE
+            "HOME", "SHOWCASE" -> HOME
             "LIBRARY" -> LIBRARY
-            else -> SHOWCASE
+            else -> HOME
         }
     }
 }

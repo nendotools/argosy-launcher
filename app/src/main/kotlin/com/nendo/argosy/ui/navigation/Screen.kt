@@ -2,7 +2,7 @@ package com.nendo.argosy.ui.navigation
 
 sealed class Screen(val route: String) {
     data object FirstRun : Screen("first_run")
-    data object Showcase : Screen("showcase")
+    data object Home : Screen("home")
     data object Library : Screen("library?platformId={platformId}&source={source}") {
         fun createRoute(platformId: Long? = null, source: String? = null): String {
             val params = mutableListOf<String>()
@@ -38,7 +38,7 @@ sealed class Screen(val route: String) {
     data object ManagePins : Screen("manage_pins")
 
     companion object {
-        const val ROUTE_SHOWCASE = "showcase"
+        const val ROUTE_HOME = "home"
         const val ROUTE_LIBRARY = "library"
         const val ROUTE_COLLECTIONS = "collections"
         const val ROUTE_COLLECTION_DETAIL = "collection"

@@ -37,7 +37,7 @@ fun NavGraph(
     val navigateToDefault = remember(defaultView) {
         {
             val route = when (defaultView) {
-                DefaultView.SHOWCASE -> Screen.Showcase.route
+                DefaultView.HOME -> Screen.Home.route
                 DefaultView.LIBRARY -> Screen.Library.route
             }
             navController.navigate(route) {
@@ -57,16 +57,16 @@ fun NavGraph(
         composable(Screen.FirstRun.route) {
             FirstRunScreen(
                 onComplete = {
-                    navController.navigate(Screen.Showcase.route) {
+                    navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.FirstRun.route) { inclusive = true }
                     }
                 }
             )
         }
 
-        composable(Screen.Showcase.route) {
+        composable(Screen.Home.route) {
             HomeScreen(
-                isDefaultView = defaultView == DefaultView.SHOWCASE,
+                isDefaultView = defaultView == DefaultView.HOME,
                 onGameSelect = { gameId ->
                     navController.navigate(Screen.GameDetail.createRoute(gameId))
                 },
