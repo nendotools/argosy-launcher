@@ -854,9 +854,9 @@ class DownloadManager @Inject constructor(
         onExtractionProgress: ((bytesWritten: Long, totalBytes: Long) -> Unit)? = null
     ): String {
         val shouldExtract = when {
-            isMultiFileRom -> ZipExtractor.isZipFile(targetFile)
+            isMultiFileRom -> ZipExtractor.isArchiveFile(targetFile)
             ZipExtractor.usesZipAsRomFormat(platformSlug) -> false
-            else -> ZipExtractor.shouldExtractZip(targetFile)
+            else -> ZipExtractor.shouldExtractArchive(targetFile, platformSlug)
         }
 
         if (shouldExtract && onExtractionProgress != null) {
@@ -869,8 +869,8 @@ class DownloadManager @Inject constructor(
             shouldExtract -> {
                 Log.d(TAG, "processDownloadedFile: BRANCH=ZIP_EXTRACT")
 
-                val validationResult = ZipExtractor.validateZip(targetFile, expectedSize)
-                if (validationResult is ZipExtractor.ZipValidationResult.Invalid) {
+                val validationResult = ZipExtractor.validateArchive(targetFile, expectedSize)
+                if (validationResult is ZipExtractor.ArchiveValidationResult.Invalid) {
                     Log.e(TAG, "ZIP validation failed: ${validationResult.reason}")
                     targetFile.delete()
                     throw java.io.IOException("${validationResult.reason}. Please try downloading again.")
@@ -878,7 +878,7 @@ class DownloadManager @Inject constructor(
 
                 val extracted = try {
                     ZipExtractor.extractFolderRom(
-                        zipFilePath = targetFile,
+                        archiveFilePath = targetFile,
                         gameTitle = gameTitle,
                         platformDir = platformDir,
                         onProgress = onExtractionProgress

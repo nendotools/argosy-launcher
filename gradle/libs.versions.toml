@@ -22,6 +22,8 @@ mockk = "1.13.14"
 tvFoundation = "1.0.0-alpha11"
 tvMaterial = "1.0.0"
 palette = "1.0.0"
+commonsCompress = "1.27.1"
+xz = "1.10"
 
 [libraries]
 # Core Android
@@ -74,6 +76,10 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 
 # Color extraction
 androidx-palette = { group = "androidx.palette", name = "palette-ktx", version.ref = "palette" }
+
+# Archive extraction
+commons-compress = { group = "org.apache.commons", name = "commons-compress", version.ref = "commonsCompress" }
+xz = { group = "org.tukaani", name = "xz", version.ref = "xz" }
 
 # Background work
 work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workManager" }

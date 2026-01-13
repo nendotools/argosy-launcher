@@ -1,6 +1,7 @@
 package com.nendo.argosy.data.download
 
 import android.util.Log
+import org.apache.commons.compress.archivers.sevenz.SevenZFile
 import java.io.File
 import java.util.zip.ZipFile
 
@@ -48,6 +49,7 @@ private val NSW_UPDATE_EXTENSIONS = setOf("nsp")
 private val NSW_PLATFORM_SLUGS = setOf("switch", "nsw")
 private val DISC_EXTENSIONS = setOf("bin", "cue", "chd", "iso", "img", "mdf", "gdi", "cdi")
 private val ZIP_MAGIC_BYTES = byteArrayOf(0x50, 0x4B, 0x03, 0x04)
+private val SEVEN_Z_MAGIC_BYTES = byteArrayOf(0x37, 0x7A, 0xBC.toByte(), 0xAF.toByte(), 0x27, 0x1C)
 
 private val ZIP_AS_ROM_PLATFORMS = setOf(
     "arcade", "mame", "fbneo", "fba",
@@ -130,27 +132,49 @@ object ZipExtractor {
         }
     }
 
-    sealed class ZipValidationResult {
-        data object Valid : ZipValidationResult()
-        data class Invalid(val reason: String) : ZipValidationResult()
+    fun isSevenZFile(file: File): Boolean {
+        if (!file.exists() || file.length() < 6) return false
+        return file.inputStream().use { stream ->
+            val header = ByteArray(6)
+            stream.read(header) == 6 && header.contentEquals(SEVEN_Z_MAGIC_BYTES)
+        }
     }
 
-    fun validateZip(file: File, expectedSize: Long = 0): ZipValidationResult {
+    fun isArchiveFile(file: File): Boolean = isZipFile(file) || isSevenZFile(file)
+
+    sealed class ArchiveValidationResult {
+        data object Valid : ArchiveValidationResult()
+        data class Invalid(val reason: String) : ArchiveValidationResult()
+    }
+
+    fun validateArchive(file: File, expectedSize: Long = 0): ArchiveValidationResult {
         if (!file.exists()) {
-            return ZipValidationResult.Invalid("File does not exist")
+            return ArchiveValidationResult.Invalid("File does not exist")
         }
 
-        if (!isZipFile(file)) {
-            return ZipValidationResult.Invalid("File is not a valid ZIP archive")
+        if (!isArchiveFile(file)) {
+            return ArchiveValidationResult.Invalid("File is not a valid archive")
         }
 
         if (expectedSize > 0 && file.length() < expectedSize) {
             val percent = (file.length() * 100 / expectedSize).toInt()
-            return ZipValidationResult.Invalid(
+            return ArchiveValidationResult.Invalid(
                 "Download incomplete ($percent% - ${file.length()} of $expectedSize bytes)"
             )
         }
 
+        return when {
+            isZipFile(file) -> validateZipInternal(file)
+            isSevenZFile(file) -> validateSevenZInternal(file)
+            else -> ArchiveValidationResult.Invalid("Unknown archive format")
+        }
+    }
+
+    @Deprecated("Use validateArchive instead", ReplaceWith("validateArchive(file, expectedSize)"))
+    fun validateZip(file: File, expectedSize: Long = 0): ArchiveValidationResult =
+        validateArchive(file, expectedSize)
+
+    private fun validateZipInternal(file: File): ArchiveValidationResult {
         return try {
             ZipFile(file).use { zip ->
                 val entries = zip.entries()
@@ -158,29 +182,66 @@ object ZipExtractor {
                 while (entries.hasMoreElements()) {
                     val entry = entries.nextElement()
                     zip.getInputStream(entry).use { stream ->
-                        // Read a small portion to verify entry is accessible
                         val buffer = ByteArray(1)
                         stream.read(buffer)
                     }
                     entryCount++
                 }
                 if (entryCount == 0) {
-                    ZipValidationResult.Invalid("ZIP archive is empty")
+                    ArchiveValidationResult.Invalid("ZIP archive is empty")
                 } else {
-                    ZipValidationResult.Valid
+                    ArchiveValidationResult.Valid
                 }
             }
         } catch (e: java.util.zip.ZipException) {
-            ZipValidationResult.Invalid("ZIP file is corrupted: ${e.message}")
+            ArchiveValidationResult.Invalid("ZIP file is corrupted: ${e.message}")
         } catch (e: Exception) {
-            ZipValidationResult.Invalid("Failed to validate ZIP: ${e.message}")
+            ArchiveValidationResult.Invalid("Failed to validate ZIP: ${e.message}")
         }
     }
 
-    fun shouldExtractZip(zipFile: File): Boolean {
-        if (!isZipFile(zipFile)) return false
-        // APK files are ZIP archives but should be installed, not extracted
-        if (zipFile.extension.equals("apk", ignoreCase = true)) return false
+    private fun validateSevenZInternal(file: File): ArchiveValidationResult {
+        return try {
+            SevenZFile.builder().setFile(file).get().use { sevenZ ->
+                var entryCount = 0
+                var entry = sevenZ.nextEntry
+                while (entry != null) {
+                    if (!entry.isDirectory) {
+                        entryCount++
+                    }
+                    entry = sevenZ.nextEntry
+                }
+                if (entryCount == 0) {
+                    ArchiveValidationResult.Invalid("7z archive is empty")
+                } else {
+                    ArchiveValidationResult.Valid
+                }
+            }
+        } catch (e: Exception) {
+            ArchiveValidationResult.Invalid("Failed to validate 7z: ${e.message}")
+        }
+    }
+
+    fun shouldExtractArchive(archiveFile: File, platformSlug: String? = null): Boolean {
+        if (archiveFile.extension.equals("apk", ignoreCase = true)) return false
+
+        val isArcadePlatform = platformSlug?.let { usesZipAsRomFormat(it) } ?: false
+
+        return when {
+            isSevenZFile(archiveFile) -> {
+                // 7z always needs extraction - standalone emulators don't support it
+                // Only exception would be arcade, but arcade ROMs use zip not 7z
+                if (!isArcadePlatform) true else shouldExtractSevenZInternal(archiveFile)
+            }
+            isZipFile(archiveFile) -> shouldExtractZipInternal(archiveFile)
+            else -> false
+        }
+    }
+
+    @Deprecated("Use shouldExtractArchive instead", ReplaceWith("shouldExtractArchive(zipFile, null)"))
+    fun shouldExtractZip(zipFile: File): Boolean = shouldExtractArchive(zipFile, null)
+
+    private fun shouldExtractZipInternal(zipFile: File): Boolean {
         return try {
             ZipFile(zipFile).use { zip ->
                 val entries = zip.entries().toList().filter { !it.isDirectory }
@@ -190,6 +251,29 @@ object ZipExtractor {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to inspect zip: ${e.message}")
+            false
+        }
+    }
+
+    private fun shouldExtractSevenZInternal(sevenZFile: File): Boolean {
+        return try {
+            SevenZFile.builder().setFile(sevenZFile).get().use { sevenZ ->
+                var fileCount = 0
+                var hasFolderStructure = false
+                var entry = sevenZ.nextEntry
+                while (entry != null) {
+                    if (!entry.isDirectory) {
+                        fileCount++
+                        if (entry.name.contains("/") || entry.name.contains("\\")) {
+                            hasFolderStructure = true
+                        }
+                    }
+                    entry = sevenZ.nextEntry
+                }
+                fileCount > 1 || hasFolderStructure
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to inspect 7z: ${e.message}")
             false
         }
     }
@@ -301,7 +385,7 @@ object ZipExtractor {
     }
 
     fun extractFolderRom(
-        zipFilePath: File,
+        archiveFilePath: File,
         gameTitle: String,
         platformDir: File,
         onProgress: ((bytesWritten: Long, totalBytes: Long) -> Unit)? = null
@@ -310,30 +394,87 @@ object ZipExtractor {
         val gameFolder = File(platformDir, sanitizedTitle)
 
         Log.d(TAG, "=== Folder ROM Extraction Start ===")
-        Log.d(TAG, "ZIP file: ${zipFilePath.absolutePath}")
-        Log.d(TAG, "ZIP exists: ${zipFilePath.exists()}, size: ${zipFilePath.length()}")
+        Log.d(TAG, "Archive file: ${archiveFilePath.absolutePath}")
+        Log.d(TAG, "Archive exists: ${archiveFilePath.exists()}, size: ${archiveFilePath.length()}")
         Log.d(TAG, "Game folder: ${gameFolder.absolutePath}")
 
-        val actualZipFile = if (zipFilePath.absolutePath == gameFolder.absolutePath) {
-            val renamedZip = File(platformDir, "${sanitizedTitle}.zip")
-            Log.d(TAG, "ZIP path collides with game folder, renaming to: ${renamedZip.absolutePath}")
-            if (!zipFilePath.renameTo(renamedZip)) {
-                zipFilePath.copyTo(renamedZip, overwrite = true)
-                zipFilePath.delete()
+        val extension = if (isSevenZFile(archiveFilePath)) "7z" else "zip"
+        val actualArchiveFile = if (archiveFilePath.absolutePath == gameFolder.absolutePath) {
+            val renamedArchive = File(platformDir, "${sanitizedTitle}.$extension")
+            Log.d(TAG, "Archive path collides with game folder, renaming to: ${renamedArchive.absolutePath}")
+            if (!archiveFilePath.renameTo(renamedArchive)) {
+                archiveFilePath.copyTo(renamedArchive, overwrite = true)
+                archiveFilePath.delete()
             }
-            renamedZip
+            renamedArchive
         } else {
-            zipFilePath
+            archiveFilePath
         }
 
         gameFolder.mkdirs()
 
+        val extractionResult = when {
+            isSevenZFile(actualArchiveFile) -> extractSevenZInternal(actualArchiveFile, gameFolder, onProgress)
+            else -> extractZipInternal(actualArchiveFile, gameFolder, onProgress)
+        }
+
+        if (actualArchiveFile != archiveFilePath && actualArchiveFile.exists()) {
+            Log.d(TAG, "Cleaning up renamed archive: ${actualArchiveFile.absolutePath}")
+            actualArchiveFile.delete()
+        }
+
+        Log.d(TAG, "=== Folder ROM Extraction Complete ===")
+        Log.d(TAG, "Primary file: ${extractionResult.primaryFile?.absolutePath}")
+        Log.d(TAG, "Root disc files: ${extractionResult.rootDiscFiles.size}")
+        Log.d(TAG, "Existing M3U: ${extractionResult.existingM3u?.absolutePath}")
+        Log.d(TAG, "Total extracted: ${extractionResult.allFiles.size}")
+
+        val launchableDiscFiles = filterToLaunchableDiscs(extractionResult.rootDiscFiles)
+        Log.d(TAG, "Launchable disc files: ${launchableDiscFiles.size}")
+
+        val m3uFile = when {
+            launchableDiscFiles.size <= 1 -> {
+                Log.d(TAG, "Single disc game - skipping m3u, will use disc file directly")
+                null
+            }
+            extractionResult.existingM3u != null && isValidM3u(extractionResult.existingM3u, launchableDiscFiles) -> {
+                Log.d(TAG, "Using validated existing m3u")
+                extractionResult.existingM3u
+            }
+            launchableDiscFiles.size > 1 -> {
+                Log.d(TAG, "Generating new m3u for ${launchableDiscFiles.size} discs")
+                generateM3uFile(gameFolder, sanitizedTitle, launchableDiscFiles)
+            }
+            else -> null
+        }
+
+        return ExtractedFolderRom(
+            primaryFile = extractionResult.primaryFile,
+            discFiles = extractionResult.rootDiscFiles.sortedBy { it.name },
+            m3uFile = m3uFile,
+            gameFolder = gameFolder,
+            allFiles = extractionResult.allFiles
+        )
+    }
+
+    private data class RawExtractionResult(
+        val allFiles: List<File>,
+        val rootDiscFiles: List<File>,
+        val primaryFile: File?,
+        val existingM3u: File?
+    )
+
+    private fun extractZipInternal(
+        zipFile: File,
+        gameFolder: File,
+        onProgress: ((bytesWritten: Long, totalBytes: Long) -> Unit)?
+    ): RawExtractionResult {
         val allFiles = mutableListOf<File>()
         val rootDiscFiles = mutableListOf<File>()
         var primaryFile: File? = null
         var existingM3u: File? = null
 
-        ZipFile(actualZipFile).use { zip ->
+        ZipFile(zipFile).use { zip ->
             val entries = zip.entries().toList().filter { !it.isDirectory }
             val totalBytes = entries.sumOf { it.size }
             var bytesWritten = 0L
@@ -345,10 +486,9 @@ object ZipExtractor {
             entries.forEach { entry ->
                 val entryPath = entry.name
                 val fileName = File(entryPath).name
-                val extension = fileName.substringAfterLast('.', "").lowercase()
+                val ext = fileName.substringAfterLast('.', "").lowercase()
                 val isRootFile = !entryPath.contains("/") && !entryPath.contains("\\")
 
-                // Preserve subfolder structure from ZIP
                 val targetFile = File(gameFolder, entryPath)
                 targetFile.parentFile?.mkdirs()
 
@@ -377,57 +517,107 @@ object ZipExtractor {
                 }
 
                 allFiles.add(targetFile)
-
-                val isMacOsResourceFork = fileName.startsWith("._")
-                when {
-                    isMacOsResourceFork -> { /* Skip macOS resource fork files for selection */ }
-                    extension == "m3u" && isRootFile -> existingM3u = targetFile
-                    extension in DISC_EXTENSIONS && isRootFile -> rootDiscFiles.add(targetFile)
-                    primaryFile == null && isGameFile(extension) && isRootFile -> primaryFile = targetFile
+                classifyExtractedFile(fileName, ext, isRootFile, targetFile, rootDiscFiles, { primaryFile = it }, { existingM3u = it }) {
+                    primaryFile == null
                 }
             }
         }
 
-        if (actualZipFile != zipFilePath && actualZipFile.exists()) {
-            Log.d(TAG, "Cleaning up renamed zip: ${actualZipFile.absolutePath}")
-            actualZipFile.delete()
+        return RawExtractionResult(allFiles, rootDiscFiles, primaryFile, existingM3u)
+    }
+
+    private fun extractSevenZInternal(
+        sevenZFile: File,
+        gameFolder: File,
+        onProgress: ((bytesWritten: Long, totalBytes: Long) -> Unit)?
+    ): RawExtractionResult {
+        val allFiles = mutableListOf<File>()
+        val rootDiscFiles = mutableListOf<File>()
+        var primaryFile: File? = null
+        var existingM3u: File? = null
+
+        SevenZFile.builder().setFile(sevenZFile).get().use { sevenZ ->
+            val entries = mutableListOf<org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry>()
+            var entry = sevenZ.nextEntry
+            while (entry != null) {
+                if (!entry.isDirectory) {
+                    entries.add(entry)
+                }
+                entry = sevenZ.nextEntry
+            }
+
+            val totalBytes = entries.sumOf { it.size }
+            var bytesWritten = 0L
+            var lastReportedBytes = 0L
+            val progressThreshold = 1024 * 1024L
+
+            Log.d(TAG, "Total entries found: ${entries.size}, total bytes: $totalBytes")
+
+            SevenZFile.builder().setFile(sevenZFile).get().use { sevenZRead ->
+                var readEntry = sevenZRead.nextEntry
+                while (readEntry != null) {
+                    if (!readEntry.isDirectory) {
+                        val entryPath = readEntry.name
+                        val fileName = File(entryPath).name
+                        val ext = fileName.substringAfterLast('.', "").lowercase()
+                        val isRootFile = !entryPath.contains("/") && !entryPath.contains("\\")
+
+                        val targetFile = File(gameFolder, entryPath)
+                        targetFile.parentFile?.mkdirs()
+
+                        Log.d(TAG, "Extracting: $entryPath -> ${targetFile.absolutePath}, size: ${readEntry.size}")
+
+                        targetFile.outputStream().buffered().use { output ->
+                            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                            val inputStream = sevenZRead.getInputStream(readEntry)
+                            var bytes = inputStream.read(buffer)
+                            while (bytes >= 0) {
+                                output.write(buffer, 0, bytes)
+                                bytesWritten += bytes
+                                if (bytesWritten - lastReportedBytes >= progressThreshold) {
+                                    onProgress?.invoke(bytesWritten, totalBytes)
+                                    lastReportedBytes = bytesWritten
+                                }
+                                bytes = inputStream.read(buffer)
+                            }
+                        }
+
+                        Log.d(TAG, "Extracted: $fileName, expected=${readEntry.size}, actual=${targetFile.length()}")
+
+                        if (targetFile.length() == 0L && readEntry.size > 0) {
+                            Log.e(TAG, "ERROR: File $fileName extracted as 0 bytes but expected ${readEntry.size}")
+                        }
+
+                        allFiles.add(targetFile)
+                        classifyExtractedFile(fileName, ext, isRootFile, targetFile, rootDiscFiles, { primaryFile = it }, { existingM3u = it }) {
+                            primaryFile == null
+                        }
+                    }
+                    readEntry = sevenZRead.nextEntry
+                }
+            }
         }
 
-        Log.d(TAG, "=== Folder ROM Extraction Complete ===")
-        Log.d(TAG, "Primary file: ${primaryFile?.absolutePath}")
-        Log.d(TAG, "Root disc files: ${rootDiscFiles.size}")
-        Log.d(TAG, "Existing M3U: ${existingM3u?.absolutePath}")
-        Log.d(TAG, "Total extracted: ${allFiles.size}")
+        return RawExtractionResult(allFiles, rootDiscFiles, primaryFile, existingM3u)
+    }
 
-        // Determine actual launchable disc files (filter out raw data files when cue/gdi exists)
-        val launchableDiscFiles = filterToLaunchableDiscs(rootDiscFiles)
-        Log.d(TAG, "Launchable disc files: ${launchableDiscFiles.size}")
-
-        // For single-disc games, don't use m3u - just use the disc file directly
-        // M3U is only needed for multi-disc games to allow disc swapping
-        val m3uFile = when {
-            launchableDiscFiles.size <= 1 -> {
-                Log.d(TAG, "Single disc game - skipping m3u, will use disc file directly")
-                null
-            }
-            existingM3u != null && isValidM3u(existingM3u, launchableDiscFiles) -> {
-                Log.d(TAG, "Using validated existing m3u")
-                existingM3u
-            }
-            launchableDiscFiles.size > 1 -> {
-                Log.d(TAG, "Generating new m3u for ${launchableDiscFiles.size} discs")
-                generateM3uFile(gameFolder, sanitizedTitle, launchableDiscFiles)
-            }
-            else -> null
+    private inline fun classifyExtractedFile(
+        fileName: String,
+        extension: String,
+        isRootFile: Boolean,
+        targetFile: File,
+        rootDiscFiles: MutableList<File>,
+        setPrimaryFile: (File) -> Unit,
+        setExistingM3u: (File) -> Unit,
+        isPrimaryFileNull: () -> Boolean
+    ) {
+        val isMacOsResourceFork = fileName.startsWith("._")
+        when {
+            isMacOsResourceFork -> { }
+            extension == "m3u" && isRootFile -> setExistingM3u(targetFile)
+            extension in DISC_EXTENSIONS && isRootFile -> rootDiscFiles.add(targetFile)
+            isPrimaryFileNull() && isGameFile(extension) && isRootFile -> setPrimaryFile(targetFile)
         }
-
-        return ExtractedFolderRom(
-            primaryFile = primaryFile,
-            discFiles = rootDiscFiles.sortedBy { it.name },
-            m3uFile = m3uFile,
-            gameFolder = gameFolder,
-            allFiles = allFiles
-        )
     }
 
     private fun filterToLaunchableDiscs(discFiles: List<File>): List<File> {

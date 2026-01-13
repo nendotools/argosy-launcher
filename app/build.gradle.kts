@@ -145,6 +145,10 @@ dependencies {
     // Color extraction
     implementation(libs.androidx.palette)
 
+    // Archive extraction (7z, tar, etc.)
+    implementation(libs.commons.compress)
+    implementation(libs.xz)
+
     // WorkManager
     implementation(libs.work.runtime.ktx)
     implementation(libs.hilt.work)
