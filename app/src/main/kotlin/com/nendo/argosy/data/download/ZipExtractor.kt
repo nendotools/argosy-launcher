@@ -57,7 +57,8 @@ private val ZIP_AS_ROM_PLATFORMS = setOf(
     "cps1", "cps2", "cps3",
     "naomi", "naomi2", "atomiswave",
     "model2", "model3",
-    "hyperneogeo64"
+    "hyperneogeo64",
+    "vita", "psvita"
 )
 
 data class PlatformExtractConfig(
@@ -225,15 +226,15 @@ object ZipExtractor {
     fun shouldExtractArchive(archiveFile: File, platformSlug: String? = null): Boolean {
         if (archiveFile.extension.equals("apk", ignoreCase = true)) return false
 
-        val isArcadePlatform = platformSlug?.let { usesZipAsRomFormat(it) } ?: false
+        val zipIsRomFormat = platformSlug?.let { usesZipAsRomFormat(it) } ?: false
 
         return when {
             isSevenZFile(archiveFile) -> {
                 // 7z always needs extraction - standalone emulators don't support it
                 // Only exception would be arcade, but arcade ROMs use zip not 7z
-                if (!isArcadePlatform) true else shouldExtractSevenZInternal(archiveFile)
+                if (!zipIsRomFormat) true else shouldExtractSevenZInternal(archiveFile)
             }
-            isZipFile(archiveFile) -> shouldExtractZipInternal(archiveFile)
+            isZipFile(archiveFile) -> !zipIsRomFormat && shouldExtractZipInternal(archiveFile)
             else -> false
         }
     }
