@@ -123,9 +123,6 @@ class GameLaunchDelegate @Inject constructor(
                         is LaunchResult.NoAndroidApp -> {
                             notificationManager.showError("Android app not installed: ${result.packageName}")
                         }
-                        is LaunchResult.RomInPrivateDirectory -> {
-                            notificationManager.showError("ROM in private directory. ${result.emulatorName} cannot access it.")
-                        }
                     }
                     return@launch
                 }
@@ -200,9 +197,6 @@ class GameLaunchDelegate @Inject constructor(
                     }
                     is LaunchResult.NoAndroidApp -> {
                         notificationManager.showError("Android app not installed: ${result.packageName}")
-                    }
-                    is LaunchResult.RomInPrivateDirectory -> {
-                        notificationManager.showError("ROM in private directory. ${result.emulatorName} cannot access it.")
                     }
                 }
             } finally {

@@ -123,42 +123,6 @@ object EmulatorRegistry {
             downloadUrl = "https://play.google.com/store/apps/details?id=com.retroarch.aarch64"
         ),
 
-        // NOTE: Mupen64Plus-based emulators require special handling for external ROM launches
-        // Problem: The emulator calls `new File(romPath).exists()` - content:// URIs fail this check
-        // Solution: Pass absolute file path via extras (not URI), so File.exists() returns true
-        // The emulator then calls launchGameOnCreation() which scans and caches the ROM properly
-        EmulatorDef(
-            id = "mupen64plus_fz",
-            packageName = "org.mupen64plusae.v3.fzurita",
-            displayName = "Mupen64Plus FZ",
-            supportedPlatforms = setOf("n64"),
-            launchAction = Intent.ACTION_MAIN,
-            launchConfig = LaunchConfig.Custom(
-                activityClass = "paulscode.android.mupen64plusae.SplashActivity",
-                intentExtras = mapOf(
-                    // Key derived from: ActivityHelper.Keys.ROM_PATH = Keys.class.getCanonicalName() + ".ROM_PATH"
-                    // Source: https://github.com/mupen64plus-ae/mupen64plus-ae/blob/master/app/src/main/java/paulscode/android/mupen64plusae/ActivityHelper.java
-                    "paulscode.android.mupen64plusae.ActivityHelper.Keys.ROM_PATH" to ExtraValue.FilePath
-                )
-            ),
-            downloadUrl = "https://play.google.com/store/apps/details?id=org.mupen64plusae.v3.fzurita"
-        ),
-        // NOTE: M64Pro FZX Plus+ is a Mupen64Plus fork, uses same launch pattern
-        EmulatorDef(
-            id = "m64pro_fzx_plus",
-            packageName = "com.m64.fx.plus.emulate",
-            displayName = "M64Pro FZX Plus+",
-            supportedPlatforms = setOf("n64"),
-            launchAction = Intent.ACTION_MAIN,
-            launchConfig = LaunchConfig.Custom(
-                activityClass = "paulscode.android.mupen64plusae.SplashActivity",
-                intentExtras = mapOf(
-                    // Same key as mupen64plus_fz - see source reference above
-                    "paulscode.android.mupen64plusae.ActivityHelper.Keys.ROM_PATH" to ExtraValue.FilePath
-                )
-            ),
-            downloadUrl = "https://play.google.com/store/apps/details?id=com.m64.fx.plus.emulate"
-        ),
         EmulatorDef(
             id = "dolphin",
             packageName = "org.dolphinemu.dolphinemu",
@@ -560,7 +524,7 @@ object EmulatorRegistry {
         "psp" to listOf("ppsspp_gold", "ppsspp", "retroarch", "retroarch_64"),
         "vita" to listOf("vita3k-zx", "vita3k"),
         "psvita" to listOf("vita3k-zx", "vita3k"),
-        "n64" to listOf("m64pro_fzx_plus", "mupen64plus_fz", "retroarch", "retroarch_64"),
+        "n64" to listOf("mupen64plus_fz", "m64pro_fzx_plus", "retroarch", "retroarch_64"),
         "nds" to listOf("drastic", "melonds", "retroarch", "retroarch_64"),
         "3ds" to listOf("azahar_plus", "azahar", "citra_mmj", "borked3ds", "citra", "retroarch", "retroarch_64"),
         "gc" to listOf("dolphin", "dolphin_handheld", "retroarch", "retroarch_64"),
@@ -879,6 +843,21 @@ object EmulatorRegistry {
             packagePatterns = listOf("org.citra.*", "org.gamerytb.citra.*"),
             supportedPlatforms = setOf("3ds"),
             downloadUrl = "https://citra-emu.org/"
+        ),
+        // Mupen64Plus derivatives need file path via extras (content:// URIs fail File.exists() check)
+        EmulatorFamily(
+            baseId = "mupen64plus",
+            displayNamePrefix = "Mupen64Plus",
+            packagePatterns = listOf("org.mupen64plusae.*", "com.m64.fx.plus.emulate"),
+            supportedPlatforms = setOf("n64"),
+            launchAction = Intent.ACTION_MAIN,
+            launchConfig = LaunchConfig.Custom(
+                activityClass = "paulscode.android.mupen64plusae.SplashActivity",
+                intentExtras = mapOf(
+                    "paulscode.android.mupen64plusae.ActivityHelper.Keys.ROM_PATH" to ExtraValue.FilePath
+                )
+            ),
+            downloadUrl = "https://play.google.com/store/apps/details?id=org.mupen64plusae.v3.fzurita"
         ),
         EmulatorFamily(
             baseId = "azahar",
