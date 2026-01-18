@@ -492,16 +492,18 @@ class GameLauncher @Inject constructor(
             val shouldSkipExtras = emulator.launchAction == Intent.ACTION_VIEW && usesIntentDataUri
             if (!shouldSkipExtras) {
                 config.intentExtras.forEach { (key, extraValue) ->
-                    val value = when (extraValue) {
-                        is ExtraValue.FilePath -> romFile.absolutePath
+                    // Using when as expression enforces compile-time exhaustiveness for sealed class
+                    @Suppress("UNUSED_VARIABLE")
+                    val handled: Unit = when (extraValue) {
+                        is ExtraValue.FilePath -> putExtra(key, romFile.absolutePath)
                         is ExtraValue.FileUri -> {
                             hasFileUri = true
-                            getFileUri(romFile).toString()
+                            putExtra(key, getFileUri(romFile).toString())
                         }
-                        is ExtraValue.Platform -> platformSlug
-                        is ExtraValue.Literal -> extraValue.value
-                    }
-                    putExtra(key, value)
+                        is ExtraValue.Platform -> putExtra(key, platformSlug)
+                        is ExtraValue.Literal -> putExtra(key, extraValue.value)
+                        is ExtraValue.BooleanLiteral -> putExtra(key, extraValue.value)
+                    }.let { Unit }
                 }
             }
 
