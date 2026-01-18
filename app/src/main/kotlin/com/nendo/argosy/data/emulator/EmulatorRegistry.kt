@@ -144,7 +144,6 @@ object EmulatorRegistry {
             downloadUrl = "https://play.google.com/store/apps/details?id=com.m64.fx.plus.emulate"
         ),
 
-
         EmulatorDef(
             id = "dolphin",
             packageName = "org.dolphinemu.dolphinemu",
