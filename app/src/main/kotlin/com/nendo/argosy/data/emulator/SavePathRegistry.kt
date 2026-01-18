@@ -1,5 +1,6 @@
 package com.nendo.argosy.data.emulator
 
+import android.os.Environment
 import com.nendo.argosy.data.platform.PlatformDefinitions
 
 data class SavePathConfig(
@@ -20,8 +21,8 @@ object SavePathRegistry {
         "retroarch" to SavePathConfig(
             emulatorId = "retroarch",
             defaultPaths = listOf(
-                "/storage/emulated/0/RetroArch/saves/{core}",
-                "/storage/emulated/0/Android/data/com.retroarch/files/saves/{core}",
+                "{extStorage}/RetroArch/saves/{core}",
+                "{extStorage}/Android/data/com.retroarch/files/saves/{core}",
                 "/data/data/com.retroarch/saves/{core}"
             ),
             saveExtensions = listOf("srm", "sav"),
@@ -30,8 +31,8 @@ object SavePathRegistry {
         "retroarch_64" to SavePathConfig(
             emulatorId = "retroarch_64",
             defaultPaths = listOf(
-                "/storage/emulated/0/RetroArch/saves/{core}",
-                "/storage/emulated/0/Android/data/com.retroarch.aarch64/files/saves/{core}",
+                "{extStorage}/RetroArch/saves/{core}",
+                "{extStorage}/Android/data/com.retroarch.aarch64/files/saves/{core}",
                 "/data/data/com.retroarch.aarch64/saves/{core}"
             ),
             saveExtensions = listOf("srm", "sav"),
@@ -41,7 +42,7 @@ object SavePathRegistry {
         "mupen64plus_fz" to SavePathConfig(
             emulatorId = "mupen64plus_fz",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/org.mupen64plusae.v3.fzurita/files/GameData"
+                "{extStorage}/Android/data/org.mupen64plusae.v3.fzurita/files/GameData"
             ),
             saveExtensions = listOf("sra", "eep", "fla", "mpk"),
             usesGameIdSubfolder = true
@@ -59,8 +60,8 @@ object SavePathRegistry {
         "dolphin" to SavePathConfig(
             emulatorId = "dolphin",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/org.dolphinemu.dolphinemu/files/GC",
-                "/storage/emulated/0/dolphin-emu/GC"
+                "{extStorage}/Android/data/org.dolphinemu.dolphinemu/files/GC",
+                "{extStorage}/dolphin-emu/GC"
             ),
             saveExtensions = listOf("raw", "gci"),
             usesSharedMemoryCard = true,
@@ -71,7 +72,7 @@ object SavePathRegistry {
         "citra" to SavePathConfig(
             emulatorId = "citra",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/org.citra.citra_emu/files/sdmc/Nintendo 3DS"
+                "{extStorage}/Android/data/org.citra.citra_emu/files/sdmc/Nintendo 3DS"
             ),
             saveExtensions = listOf("*"),
             usesFolderBasedSaves = true
@@ -79,7 +80,7 @@ object SavePathRegistry {
         "citra_mmj" to SavePathConfig(
             emulatorId = "citra_mmj",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/org.citra.emu/files/sdmc/Nintendo 3DS"
+                "{extStorage}/Android/data/org.citra.emu/files/sdmc/Nintendo 3DS"
             ),
             saveExtensions = listOf("*"),
             usesFolderBasedSaves = true
@@ -87,7 +88,7 @@ object SavePathRegistry {
         "lime3ds" to SavePathConfig(
             emulatorId = "lime3ds",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/io.github.lime3ds.android/files/sdmc/Nintendo 3DS"
+                "{extStorage}/Android/data/io.github.lime3ds.android/files/sdmc/Nintendo 3DS"
             ),
             saveExtensions = listOf("*"),
             usesFolderBasedSaves = true
@@ -95,7 +96,7 @@ object SavePathRegistry {
         "azahar" to SavePathConfig(
             emulatorId = "azahar",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/io.github.azahar_emu.azahar/files/sdmc/Nintendo 3DS"
+                "{extStorage}/Android/data/io.github.azahar_emu.azahar/files/sdmc/Nintendo 3DS"
             ),
             saveExtensions = listOf("*"),
             usesFolderBasedSaves = true
@@ -103,7 +104,7 @@ object SavePathRegistry {
         "borked3ds" to SavePathConfig(
             emulatorId = "borked3ds",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/io.github.borked3ds.android/files/sdmc/Nintendo 3DS"
+                "{extStorage}/Android/data/io.github.borked3ds.android/files/sdmc/Nintendo 3DS"
             ),
             saveExtensions = listOf("*"),
             usesFolderBasedSaves = true
@@ -113,7 +114,7 @@ object SavePathRegistry {
         "yuzu" to SavePathConfig(
             emulatorId = "yuzu",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/{package}/files/nand/user/save"
+                "{extStorage}/Android/data/{package}/files/nand/user/save"
             ),
             saveExtensions = listOf("*"),
             usesFolderBasedSaves = true,
@@ -122,7 +123,7 @@ object SavePathRegistry {
         "ryujinx" to SavePathConfig(
             emulatorId = "ryujinx",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/{package}/files/nand/user/save"
+                "{extStorage}/Android/data/{package}/files/nand/user/save"
             ),
             saveExtensions = listOf("*"),
             usesFolderBasedSaves = true,
@@ -131,7 +132,7 @@ object SavePathRegistry {
         "citron" to SavePathConfig(
             emulatorId = "citron",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/{package}/files/nand/user/save"
+                "{extStorage}/Android/data/{package}/files/nand/user/save"
             ),
             saveExtensions = listOf("*"),
             usesFolderBasedSaves = true,
@@ -140,7 +141,7 @@ object SavePathRegistry {
         "strato" to SavePathConfig(
             emulatorId = "strato",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/{package}/files/nand/user/save"
+                "{extStorage}/Android/data/{package}/files/nand/user/save"
             ),
             saveExtensions = listOf("*"),
             usesFolderBasedSaves = true,
@@ -149,7 +150,7 @@ object SavePathRegistry {
         "eden" to SavePathConfig(
             emulatorId = "eden",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/{package}/files/nand/user/save"
+                "{extStorage}/Android/data/{package}/files/nand/user/save"
             ),
             saveExtensions = listOf("*"),
             usesFolderBasedSaves = true,
@@ -158,7 +159,7 @@ object SavePathRegistry {
         "skyline" to SavePathConfig(
             emulatorId = "skyline",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/{package}/files/nand/user/save"
+                "{extStorage}/Android/data/{package}/files/nand/user/save"
             ),
             saveExtensions = listOf("*"),
             usesFolderBasedSaves = true,
@@ -167,7 +168,7 @@ object SavePathRegistry {
         "sudachi" to SavePathConfig(
             emulatorId = "sudachi",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/{package}/files/nand/user/save"
+                "{extStorage}/Android/data/{package}/files/nand/user/save"
             ),
             saveExtensions = listOf("*"),
             usesFolderBasedSaves = true,
@@ -176,7 +177,7 @@ object SavePathRegistry {
         "kenjinx" to SavePathConfig(
             emulatorId = "kenjinx",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/{package}/files/nand/user/save"
+                "{extStorage}/Android/data/{package}/files/nand/user/save"
             ),
             saveExtensions = listOf("*"),
             usesFolderBasedSaves = true,
@@ -186,16 +187,16 @@ object SavePathRegistry {
         "drastic" to SavePathConfig(
             emulatorId = "drastic",
             defaultPaths = listOf(
-                "/storage/emulated/0/DraStic/backup",
-                "/storage/emulated/0/Android/data/com.dsemu.drastic/files/backup"
+                "{extStorage}/DraStic/backup",
+                "{extStorage}/Android/data/com.dsemu.drastic/files/backup"
             ),
             saveExtensions = listOf("dsv", "sav")
         ),
         "melonds" to SavePathConfig(
             emulatorId = "melonds",
             defaultPaths = listOf(
-                "/storage/emulated/0/melonDS/saves",
-                "/storage/emulated/0/Android/data/me.magnum.melonds/files/saves"
+                "{extStorage}/melonDS/saves",
+                "{extStorage}/Android/data/me.magnum.melonds/files/saves"
             ),
             saveExtensions = listOf("sav")
         ),
@@ -203,16 +204,16 @@ object SavePathRegistry {
         "pizza_boy_gba" to SavePathConfig(
             emulatorId = "pizza_boy_gba",
             defaultPaths = listOf(
-                "/storage/emulated/0/PizzaBoyGBA/saves",
-                "/storage/emulated/0/Android/data/it.dbtecno.pizzaboygba/files/saves"
+                "{extStorage}/PizzaBoyGBA/saves",
+                "{extStorage}/Android/data/it.dbtecno.pizzaboygba/files/saves"
             ),
             saveExtensions = listOf("sav")
         ),
         "pizza_boy_gb" to SavePathConfig(
             emulatorId = "pizza_boy_gb",
             defaultPaths = listOf(
-                "/storage/emulated/0/PizzaBoy/saves",
-                "/storage/emulated/0/Android/data/it.dbtecno.pizzaboy/files/saves"
+                "{extStorage}/PizzaBoy/saves",
+                "{extStorage}/Android/data/it.dbtecno.pizzaboy/files/saves"
             ),
             saveExtensions = listOf("sav")
         ),
@@ -221,8 +222,8 @@ object SavePathRegistry {
         "duckstation" to SavePathConfig(
             emulatorId = "duckstation",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/com.github.stenzek.duckstation/files/memcards",
-                "/storage/emulated/0/duckstation/memcards"
+                "{extStorage}/Android/data/com.github.stenzek.duckstation/files/memcards",
+                "{extStorage}/duckstation/memcards"
             ),
             saveExtensions = listOf("mcd", "mcr"),
             usesSharedMemoryCard = true,
@@ -233,7 +234,7 @@ object SavePathRegistry {
         "nethersx2" to SavePathConfig(
             emulatorId = "nethersx2",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/xyz.aethersx2.android/files/memcards"
+                "{extStorage}/Android/data/xyz.aethersx2.android/files/memcards"
             ),
             saveExtensions = listOf("ps2"),
             usesSharedMemoryCard = true,
@@ -242,7 +243,7 @@ object SavePathRegistry {
         "aethersx2" to SavePathConfig(
             emulatorId = "aethersx2",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/xyz.aethersx2.android/files/memcards"
+                "{extStorage}/Android/data/xyz.aethersx2.android/files/memcards"
             ),
             saveExtensions = listOf("ps2"),
             usesSharedMemoryCard = true,
@@ -251,7 +252,7 @@ object SavePathRegistry {
         "pcsx2" to SavePathConfig(
             emulatorId = "pcsx2",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/net.pcsx2.emulator/files/memcards"
+                "{extStorage}/Android/data/net.pcsx2.emulator/files/memcards"
             ),
             saveExtensions = listOf("ps2"),
             usesSharedMemoryCard = true,
@@ -262,8 +263,8 @@ object SavePathRegistry {
         "ppsspp" to SavePathConfig(
             emulatorId = "ppsspp",
             defaultPaths = listOf(
-                "/storage/emulated/0/PSP/SAVEDATA",
-                "/storage/emulated/0/Android/data/org.ppsspp.ppsspp/files/PSP/SAVEDATA"
+                "{extStorage}/PSP/SAVEDATA",
+                "{extStorage}/Android/data/org.ppsspp.ppsspp/files/PSP/SAVEDATA"
             ),
             saveExtensions = listOf("*"),
             usesFolderBasedSaves = true
@@ -271,8 +272,8 @@ object SavePathRegistry {
         "ppsspp_gold" to SavePathConfig(
             emulatorId = "ppsspp_gold",
             defaultPaths = listOf(
-                "/storage/emulated/0/PSP/SAVEDATA",
-                "/storage/emulated/0/Android/data/org.ppsspp.ppssppgold/files/PSP/SAVEDATA"
+                "{extStorage}/PSP/SAVEDATA",
+                "{extStorage}/Android/data/org.ppsspp.ppssppgold/files/PSP/SAVEDATA"
             ),
             saveExtensions = listOf("*"),
             usesFolderBasedSaves = true
@@ -282,7 +283,7 @@ object SavePathRegistry {
         "vita3k" to SavePathConfig(
             emulatorId = "vita3k",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/org.vita3k.emulator/files/ux0/user/00/savedata"
+                "{extStorage}/Android/data/org.vita3k.emulator/files/ux0/user/00/savedata"
             ),
             saveExtensions = listOf("*"),
             usesFolderBasedSaves = true
@@ -290,7 +291,7 @@ object SavePathRegistry {
         "vita3k-zx" to SavePathConfig(
             emulatorId = "vita3k-zx",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/org.vita3k.emulator.ikhoeyZX/files/ux0/user/00/savedata"
+                "{extStorage}/Android/data/org.vita3k.emulator.ikhoeyZX/files/ux0/user/00/savedata"
             ),
             saveExtensions = listOf("*"),
             usesFolderBasedSaves = true
@@ -300,7 +301,7 @@ object SavePathRegistry {
         "cemu" to SavePathConfig(
             emulatorId = "cemu",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/info.cemu.cemu/files/mlc01/usr/save/00050000"
+                "{extStorage}/Android/data/info.cemu.cemu/files/mlc01/usr/save/00050000"
             ),
             saveExtensions = listOf("*"),
             usesFolderBasedSaves = true
@@ -308,7 +309,7 @@ object SavePathRegistry {
         "cemu_dualscreen" to SavePathConfig(
             emulatorId = "cemu_dualscreen",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/info.cemu.cemu/files/mlc01/usr/save/00050000"
+                "{extStorage}/Android/data/info.cemu.cemu/files/mlc01/usr/save/00050000"
             ),
             saveExtensions = listOf("*"),
             usesFolderBasedSaves = true
@@ -318,7 +319,7 @@ object SavePathRegistry {
         "redream" to SavePathConfig(
             emulatorId = "redream",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/io.recompiled.redream/files"
+                "{extStorage}/Android/data/io.recompiled.redream/files"
             ),
             saveExtensions = listOf("bin"),
             usesSharedMemoryCard = true,
@@ -327,8 +328,8 @@ object SavePathRegistry {
         "flycast" to SavePathConfig(
             emulatorId = "flycast",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/com.flycast.emulator/files/data",
-                "/storage/emulated/0/Flycast/data"
+                "{extStorage}/Android/data/com.flycast.emulator/files/data",
+                "{extStorage}/Flycast/data"
             ),
             saveExtensions = listOf("bin"),
             usesSharedMemoryCard = true,
@@ -339,7 +340,7 @@ object SavePathRegistry {
         "saturn_emu" to SavePathConfig(
             emulatorId = "saturn_emu",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/com.explusalpha.SaturnEmu/files"
+                "{extStorage}/Android/data/com.explusalpha.SaturnEmu/files"
             ),
             saveExtensions = listOf("srm", "sav"),
             supported = false
@@ -349,7 +350,7 @@ object SavePathRegistry {
         "md_emu" to SavePathConfig(
             emulatorId = "md_emu",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/com.explusalpha.MdEmu/files"
+                "{extStorage}/Android/data/com.explusalpha.MdEmu/files"
             ),
             saveExtensions = listOf("srm", "sav")
         ),
@@ -358,7 +359,7 @@ object SavePathRegistry {
         "mame4droid" to SavePathConfig(
             emulatorId = "mame4droid",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/com.seleuco.mame4droid/files/nvram"
+                "{extStorage}/Android/data/com.seleuco.mame4droid/files/nvram"
             ),
             saveExtensions = listOf("nv"),
             supported = false
@@ -368,7 +369,7 @@ object SavePathRegistry {
         "scummvm" to SavePathConfig(
             emulatorId = "scummvm",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/org.scummvm.scummvm/files/saves"
+                "{extStorage}/Android/data/org.scummvm.scummvm/files/saves"
             ),
             saveExtensions = listOf("*"),
             supported = false
@@ -376,7 +377,7 @@ object SavePathRegistry {
         "dosbox_turbo" to SavePathConfig(
             emulatorId = "dosbox_turbo",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/com.fishstix.dosbox/files"
+                "{extStorage}/Android/data/com.fishstix.dosbox/files"
             ),
             saveExtensions = listOf("*"),
             supported = false
@@ -384,7 +385,7 @@ object SavePathRegistry {
         "magic_dosbox" to SavePathConfig(
             emulatorId = "magic_dosbox",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/bruenor.magicbox/files"
+                "{extStorage}/Android/data/bruenor.magicbox/files"
             ),
             saveExtensions = listOf("*"),
             supported = false
@@ -416,35 +417,53 @@ object SavePathRegistry {
         return EmulatorRegistry.getRetroArchCorePatterns()[canonical]?.firstOrNull()
     }
 
+    @Suppress("DEPRECATION")
+    private fun getExternalStoragePath(): String {
+        return Environment.getExternalStorageDirectory().absolutePath
+    }
+
+    private fun expandPath(path: String, packageName: String? = null, core: String? = null): String {
+        var result = path.replace("{extStorage}", getExternalStoragePath())
+        if (packageName != null) {
+            result = result.replace("{package}", packageName)
+        }
+        if (core != null) {
+            result = result.replace("{core}", core)
+        }
+        return result
+    }
+
     fun resolvePath(
         config: SavePathConfig,
         platformId: String
     ): List<String> {
-        if (!config.usesCore) return config.defaultPaths
-
         val canonical = PlatformDefinitions.getCanonicalSlug(platformId)
-        val core = getRetroArchCore(canonical) ?: return config.defaultPaths
-        val withCore = config.defaultPaths.map { path ->
-            path.replace("{core}", core)
+        val core = if (config.usesCore) getRetroArchCore(canonical) else null
+
+        val paths = config.defaultPaths.map { path ->
+            expandPath(path, core = core)
         }
-        val withoutCore = config.defaultPaths.map { path ->
-            path.replace("/{core}", "").replace("{core}", "")
+
+        if (core != null) {
+            val withoutCore = config.defaultPaths.map { path ->
+                expandPath(path.replace("/{core}", "").replace("{core}", ""))
+            }
+            return paths + withoutCore
         }
-        return withCore + withoutCore
+
+        return paths
     }
 
     fun resolvePathWithPackage(
         config: SavePathConfig,
         emulatorPackage: String?
     ): List<String> {
-        if (!config.usesPackageTemplate) return config.defaultPaths
-
-        val packageName = emulatorPackage
-            ?: EmulatorRegistry.getById(config.emulatorId)?.packageName
-            ?: return config.defaultPaths
+        val packageName = if (config.usesPackageTemplate) {
+            emulatorPackage ?: EmulatorRegistry.getById(config.emulatorId)?.packageName
+        } else null
 
         return config.defaultPaths.map { path ->
-            path.replace("{package}", packageName)
+            expandPath(path, packageName = packageName)
         }
     }
 }

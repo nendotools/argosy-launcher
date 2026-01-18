@@ -1,5 +1,6 @@
 package com.nendo.argosy.data.emulator
 
+import android.os.Environment
 import com.nendo.argosy.data.platform.PlatformDefinitions
 import java.io.File
 
@@ -89,11 +90,11 @@ object StatePathRegistry {
         "retroarch" to StatePathConfig(
             emulatorId = "retroarch",
             defaultPaths = listOf(
-                "/storage/emulated/0/RetroArch/states/{core}",
-                "/storage/emulated/0/Android/data/com.retroarch/files/states/{core}",
+                "{extStorage}/RetroArch/states/{core}",
+                "{extStorage}/Android/data/com.retroarch/files/states/{core}",
                 "/data/data/com.retroarch/states/{core}",
-                "/storage/emulated/0/RetroArch/states",
-                "/storage/emulated/0/Android/data/com.retroarch/files/states",
+                "{extStorage}/RetroArch/states",
+                "{extStorage}/Android/data/com.retroarch/files/states",
                 "/data/data/com.retroarch/states"
             ),
             slotPattern = StateSlotPattern.SuffixNumber(
@@ -106,8 +107,8 @@ object StatePathRegistry {
         "retroarch_64" to StatePathConfig(
             emulatorId = "retroarch_64",
             defaultPaths = listOf(
-                "/storage/emulated/0/RetroArch/states/{core}",
-                "/storage/emulated/0/Android/data/com.retroarch.aarch64/files/states/{core}",
+                "{extStorage}/RetroArch/states/{core}",
+                "{extStorage}/Android/data/com.retroarch.aarch64/files/states/{core}",
                 "/data/data/com.retroarch.aarch64/states/{core}"
             ),
             slotPattern = StateSlotPattern.SuffixNumber(
@@ -121,8 +122,8 @@ object StatePathRegistry {
         "ppsspp" to StatePathConfig(
             emulatorId = "ppsspp",
             defaultPaths = listOf(
-                "/storage/emulated/0/PSP/PPSSPP_STATE",
-                "/storage/emulated/0/Android/data/org.ppsspp.ppsspp/files/PSP/PPSSPP_STATE"
+                "{extStorage}/PSP/PPSSPP_STATE",
+                "{extStorage}/Android/data/org.ppsspp.ppsspp/files/PSP/PPSSPP_STATE"
             ),
             slotPattern = StateSlotPattern.SerialAndSlot(
                 separator = "_",
@@ -133,8 +134,8 @@ object StatePathRegistry {
         "ppsspp_gold" to StatePathConfig(
             emulatorId = "ppsspp_gold",
             defaultPaths = listOf(
-                "/storage/emulated/0/PSP/PPSSPP_STATE",
-                "/storage/emulated/0/Android/data/org.ppsspp.ppssppgold/files/PSP/PPSSPP_STATE"
+                "{extStorage}/PSP/PPSSPP_STATE",
+                "{extStorage}/Android/data/org.ppsspp.ppssppgold/files/PSP/PPSSPP_STATE"
             ),
             slotPattern = StateSlotPattern.SerialAndSlot(
                 separator = "_",
@@ -146,8 +147,8 @@ object StatePathRegistry {
         "drastic" to StatePathConfig(
             emulatorId = "drastic",
             defaultPaths = listOf(
-                "/storage/emulated/0/DraStic/savestates",
-                "/storage/emulated/0/Android/data/com.dsemu.drastic/files/savestates"
+                "{extStorage}/DraStic/savestates",
+                "{extStorage}/Android/data/com.dsemu.drastic/files/savestates"
             ),
             slotPattern = StateSlotPattern.NameAndSlot(
                 separator = "_",
@@ -159,8 +160,8 @@ object StatePathRegistry {
         "melonds" to StatePathConfig(
             emulatorId = "melonds",
             defaultPaths = listOf(
-                "/storage/emulated/0/melonDS/states",
-                "/storage/emulated/0/Android/data/me.magnum.melonds/files/states"
+                "{extStorage}/melonDS/states",
+                "{extStorage}/Android/data/me.magnum.melonds/files/states"
             ),
             slotPattern = StateSlotPattern.NameAndSlot(
                 separator = ".",
@@ -172,8 +173,8 @@ object StatePathRegistry {
         "duckstation" to StatePathConfig(
             emulatorId = "duckstation",
             defaultPaths = listOf(
-                "/storage/emulated/0/duckstation/savestates",
-                "/storage/emulated/0/Android/data/com.github.stenzek.duckstation/files/savestates"
+                "{extStorage}/duckstation/savestates",
+                "{extStorage}/Android/data/com.github.stenzek.duckstation/files/savestates"
             ),
             slotPattern = StateSlotPattern.SerialAndSlot(
                 separator = "_",
@@ -185,8 +186,8 @@ object StatePathRegistry {
         "dolphin" to StatePathConfig(
             emulatorId = "dolphin",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/org.dolphinemu.dolphinemu/files/StateSaves",
-                "/storage/emulated/0/dolphin-emu/StateSaves"
+                "{extStorage}/Android/data/org.dolphinemu.dolphinemu/files/StateSaves",
+                "{extStorage}/dolphin-emu/StateSaves"
             ),
             slotPattern = StateSlotPattern.NameAndSlot(
                 separator = ".s",
@@ -199,7 +200,7 @@ object StatePathRegistry {
         "mupen64plus_fz" to StatePathConfig(
             emulatorId = "mupen64plus_fz",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/org.mupen64plusae.v3.fzurita/files/GameData"
+                "{extStorage}/Android/data/org.mupen64plusae.v3.fzurita/files/GameData"
             ),
             slotPattern = StateSlotPattern.SuffixNumber(extension = "st"),
             maxSlots = 10,
@@ -208,7 +209,7 @@ object StatePathRegistry {
         "m64pro_fzx_plus" to StatePathConfig(
             emulatorId = "m64pro_fzx_plus",
             defaultPaths = listOf(
-                "/storage/emulated/0/Android/data/com.m64.fx.plus.emulate/files/GameData"
+                "{extStorage}/Android/data/com.m64.fx.plus.emulate/files/GameData"
             ),
             slotPattern = StateSlotPattern.SuffixNumber(extension = "st"),
             maxSlots = 10,
@@ -218,8 +219,8 @@ object StatePathRegistry {
         "pizza_boy_gba" to StatePathConfig(
             emulatorId = "pizza_boy_gba",
             defaultPaths = listOf(
-                "/storage/emulated/0/PizzaBoyGBA/states",
-                "/storage/emulated/0/Android/data/it.dbtecno.pizzaboygba/files/states"
+                "{extStorage}/PizzaBoyGBA/states",
+                "{extStorage}/Android/data/it.dbtecno.pizzaboygba/files/states"
             ),
             slotPattern = StateSlotPattern.NameAndSlot(
                 separator = "_",
@@ -230,8 +231,8 @@ object StatePathRegistry {
         "pizza_boy_gb" to StatePathConfig(
             emulatorId = "pizza_boy_gb",
             defaultPaths = listOf(
-                "/storage/emulated/0/PizzaBoy/states",
-                "/storage/emulated/0/Android/data/it.dbtecno.pizzaboy/files/states"
+                "{extStorage}/PizzaBoy/states",
+                "{extStorage}/Android/data/it.dbtecno.pizzaboy/files/states"
             ),
             slotPattern = StateSlotPattern.NameAndSlot(
                 separator = "_",
@@ -255,21 +256,38 @@ object StatePathRegistry {
         return EmulatorRegistry.getRetroArchCorePatterns()[canonical]?.firstOrNull()
     }
 
+    @Suppress("DEPRECATION")
+    private fun getExternalStoragePath(): String {
+        return Environment.getExternalStorageDirectory().absolutePath
+    }
+
+    private fun expandPath(path: String, core: String? = null): String {
+        var result = path.replace("{extStorage}", getExternalStoragePath())
+        if (core != null) {
+            result = result.replace("{core}", core)
+        }
+        return result
+    }
+
     fun resolvePath(
         config: StatePathConfig,
         platformId: String
     ): List<String> {
-        if (!config.usesCore) return config.defaultPaths
-
         val canonical = PlatformDefinitions.getCanonicalSlug(platformId)
-        val core = getRetroArchCore(canonical) ?: return config.defaultPaths
-        val withCore = config.defaultPaths.map { path ->
-            path.replace("{core}", core)
+        val core = if (config.usesCore) getRetroArchCore(canonical) else null
+
+        val paths = config.defaultPaths.map { path ->
+            expandPath(path, core)
         }
-        val withoutCore = config.defaultPaths.map { path ->
-            path.replace("/{core}", "").replace("{core}", "")
+
+        if (core != null) {
+            val withoutCore = config.defaultPaths.map { path ->
+                expandPath(path.replace("/{core}", "").replace("{core}", ""))
+            }
+            return paths + withoutCore
         }
-        return withCore + withoutCore
+
+        return paths
     }
 
     fun discoverStates(
