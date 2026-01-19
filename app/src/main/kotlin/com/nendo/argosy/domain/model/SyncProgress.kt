@@ -109,7 +109,7 @@ sealed class SyncProgress {
             is PostSession.CheckingSave -> when (found) {
                 null -> "Checking save file..."
                 true -> "Save found"
-                false -> "No save file"
+                false -> "Save not found"
             }
             is PostSession.Connecting -> when (success) {
                 null -> "Connecting..."

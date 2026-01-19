@@ -106,11 +106,6 @@ class TitleDbRepository @Inject constructor(
             val json = stringListAdapter.toJson(titleIds)
             gameDao.updateTitleIdCandidates(gameId, json)
 
-            if (result.bestMatch != null) {
-                Logger.debug(TAG, "Setting best match titleId=${result.bestMatch.titleId} for game=$gameId")
-                gameDao.updateTitleId(gameId, result.bestMatch.titleId)
-            }
-
             return titleIds
         }
 
@@ -136,6 +131,7 @@ class TitleDbRepository @Inject constructor(
         return when (platform.lowercase()) {
             "switch", "nintendo_switch", "ns" -> "switch"
             "wiiu", "wii_u", "wup" -> "wiiu"
+            "3ds", "nintendo_3ds", "n3ds" -> "3ds"
             else -> null
         }
     }

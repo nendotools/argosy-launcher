@@ -40,6 +40,7 @@ data class SyncOverlayState(
     val syncState: SyncState = SyncState.Idle,
     val onGrantPermission: (() -> Unit)? = null,
     val onDisableSync: (() -> Unit)? = null,
+    val onOpenSettings: (() -> Unit)? = null,
     val onSkip: (() -> Unit)? = null
 )
 
@@ -269,18 +270,6 @@ class GameLaunchDelegate @Inject constructor(
                         )
                         return@launch
                     }
-                    is TitleIdDetector.ValidationResult.SavePathNotFound -> {
-                        showBlockedOverlay(
-                            gameTitle = gameTitle,
-                            progress = SyncProgress.BlockedReason.SavePathNotFound(
-                                emulatorName,
-                                validationResult.checkedPaths.firstOrNull()
-                            ),
-                            scope = scope,
-                            onSyncComplete = onSyncComplete
-                        )
-                        return@launch
-                    }
                     is TitleIdDetector.ValidationResult.AccessDenied -> {
                         showBlockedOverlay(
                             gameTitle = gameTitle,
@@ -293,7 +282,12 @@ class GameLaunchDelegate @Inject constructor(
                         )
                         return@launch
                     }
-                    else -> { /* Valid or not folder-based, proceed */ }
+                    is TitleIdDetector.ValidationResult.SavePathNotFound,
+                    is TitleIdDetector.ValidationResult.Valid,
+                    is TitleIdDetector.ValidationResult.NotFolderBased,
+                    is TitleIdDetector.ValidationResult.NoConfig -> {
+                        // Proceed to actual sync - it has retry logic and will determine real result
+                    }
                 }
 
                 _syncOverlayState.value = SyncOverlayState(

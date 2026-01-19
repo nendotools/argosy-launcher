@@ -213,6 +213,21 @@ class SaveSyncRepository @Inject constructor(
         val isRetroArch = emulatorId == "retroarch" || emulatorId == "retroarch_64"
 
         if (userConfig?.isUserOverride == true && !isRetroArch) {
+            if (config.usesFolderBasedSaves && romPath != null) {
+                if (!isFolderSaveSyncEnabled()) {
+                    return@withContext null
+                }
+                return@withContext discoverFolderSavePath(
+                    config = config,
+                    platformSlug = platformSlug,
+                    romPath = romPath,
+                    cachedTitleId = cachedTitleId,
+                    emulatorPackage = emulatorPackage,
+                    gameId = gameId,
+                    gameTitle = gameTitle,
+                    basePathOverride = userConfig.savePathPattern
+                )
+            }
             if (romPath != null) {
                 val savePath = findSaveByRomName(userConfig.savePathPattern, romPath, config.saveExtensions)
                 if (savePath != null) return@withContext savePath
@@ -307,10 +322,20 @@ class SaveSyncRepository @Inject constructor(
         cachedTitleId: String? = null,
         emulatorPackage: String? = null,
         gameId: Long? = null,
-        gameTitle: String? = null
+        gameTitle: String? = null,
+        basePathOverride: String? = null,
+        allowCacheRefresh: Boolean = true
     ): String? {
         val romFile = File(romPath)
-        val resolvedPaths = SavePathRegistry.resolvePathWithPackage(config, emulatorPackage)
+        val resolvedPaths = if (basePathOverride != null) {
+            val effectivePath = when (platformSlug) {
+                "3ds" -> "$basePathOverride/sdmc/Nintendo 3DS"
+                else -> basePathOverride
+            }
+            listOf(effectivePath)
+        } else {
+            SavePathRegistry.resolvePathWithPackage(config, emulatorPackage)
+        }
         val triedTitleIds = mutableSetOf<String>()
 
         // 1. Try confirmed titleId first
@@ -340,38 +365,57 @@ class SaveSyncRepository @Inject constructor(
             }
         }
 
-        // 3. Try each cached candidate
+        // 3. Collect all candidates (cached + remote)
+        val allCandidates = mutableListOf<String>()
         if (gameId != null) {
-            val candidates = titleDbRepository.getCachedCandidates(gameId)
-            for (candidate in candidates) {
-                if (candidate.uppercase() in triedTitleIds) continue
-                triedTitleIds.add(candidate.uppercase())
-                Logger.debug(TAG, "[SaveSync] DISCOVER | Trying cached candidate titleId=$candidate")
-                for (basePath in resolvedPaths) {
-                    val saveFolder = findSaveFolderByTitleId(basePath, candidate, platformSlug)
-                    if (saveFolder != null) {
-                        gameDao.updateTitleId(gameId, candidate)
-                        return saveFolder
-                    }
+            allCandidates.addAll(titleDbRepository.getCachedCandidates(gameId))
+        }
+        if (gameId != null && gameTitle != null) {
+            val remoteCandidates = titleDbRepository.resolveTitleIdCandidates(gameId, gameTitle, platformSlug)
+            allCandidates.addAll(remoteCandidates.filter { it !in allCandidates })
+        }
+
+        // 4. Find all matching saves and pick the most recently modified
+        data class SaveMatch(val path: String, val titleId: String, val modTime: Long)
+        val matches = mutableListOf<SaveMatch>()
+
+        for (candidate in allCandidates) {
+            if (candidate.uppercase() in triedTitleIds) continue
+            triedTitleIds.add(candidate.uppercase())
+            Logger.debug(TAG, "[SaveSync] DISCOVER | Trying candidate titleId=$candidate")
+            for (basePath in resolvedPaths) {
+                val saveFolder = findSaveFolderByTitleId(basePath, candidate, platformSlug)
+                if (saveFolder != null) {
+                    val modTime = findNewestFileTime(File(saveFolder))
+                    Logger.debug(TAG, "[SaveSync] DISCOVER | Found match | titleId=$candidate, path=$saveFolder, modTime=$modTime")
+                    matches.add(SaveMatch(saveFolder, candidate, modTime))
                 }
             }
         }
 
-        // 4. Query remote for new candidates
-        if (gameId != null && gameTitle != null) {
-            val newCandidates = titleDbRepository.resolveTitleIdCandidates(gameId, gameTitle, platformSlug)
-            for (candidate in newCandidates) {
-                if (candidate.uppercase() in triedTitleIds) continue
-                triedTitleIds.add(candidate.uppercase())
-                Logger.debug(TAG, "[SaveSync] DISCOVER | Trying remote candidate titleId=$candidate")
-                for (basePath in resolvedPaths) {
-                    val saveFolder = findSaveFolderByTitleId(basePath, candidate, platformSlug)
-                    if (saveFolder != null) {
-                        gameDao.updateTitleId(gameId, candidate)
-                        return saveFolder
-                    }
-                }
+        if (matches.isNotEmpty()) {
+            val best = matches.maxByOrNull { it.modTime }!!
+            Logger.debug(TAG, "[SaveSync] DISCOVER | Selected best match | titleId=${best.titleId}, path=${best.path}, modTime=${best.modTime}")
+            if (gameId != null) {
+                gameDao.updateTitleId(gameId, best.titleId)
             }
+            return best.path
+        }
+
+        if (allowCacheRefresh && gameId != null) {
+            Logger.debug(TAG, "[SaveSync] DISCOVER | No match found, clearing cache and retrying once")
+            titleDbRepository.clearTitleIdCache(gameId)
+            return discoverFolderSavePath(
+                config = config,
+                platformSlug = platformSlug,
+                romPath = romPath,
+                cachedTitleId = null,
+                emulatorPackage = emulatorPackage,
+                gameId = gameId,
+                gameTitle = gameTitle,
+                basePathOverride = basePathOverride,
+                allowCacheRefresh = false
+            )
         }
 
         Logger.debug(TAG, "[SaveSync] DISCOVER | No save folder found after trying ${triedTitleIds.size} titleIds")
@@ -435,17 +479,26 @@ class SaveSyncRepository @Inject constructor(
                 }
             }
             "3ds" -> {
+                val shortTitleId = if (normalizedTitleId.length > 8) {
+                    normalizedTitleId.takeLast(8)
+                } else {
+                    normalizedTitleId
+                }
+                Logger.debug(TAG, "[SaveSync] DISCOVER | 3DS lookup | fullId=$normalizedTitleId, shortId=$shortTitleId")
                 baseDir.listFiles()?.forEach { folder1 ->
                     if (folder1.isDirectory) {
                         folder1.listFiles()?.forEach { folder2 ->
                             if (folder2.isDirectory) {
                                 val titleDir = File(folder2, "title/00040000")
+                                val availableTitles = titleDir.listFiles()?.filter { it.isDirectory }?.map { it.name } ?: emptyList()
+                                Logger.debug(TAG, "[SaveSync] DISCOVER | 3DS available titles: $availableTitles, looking for: $shortTitleId")
                                 val matchingFolder = titleDir.listFiles()?.firstOrNull {
-                                    it.isDirectory && it.name.equals(titleId, ignoreCase = true)
+                                    it.isDirectory && it.name.equals(shortTitleId, ignoreCase = true)
                                 }
                                 if (matchingFolder != null) {
                                     val dataDir = File(matchingFolder, "data")
                                     if (dataDir.exists() && dataDir.isDirectory) {
+                                        Logger.debug(TAG, "[SaveSync] DISCOVER | 3DS save found | path=${dataDir.absolutePath}")
                                         return dataDir.absolutePath
                                     }
                                 }
@@ -1214,9 +1267,22 @@ class SaveSyncRepository @Inject constructor(
                     Logger.debug(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | Switch emulator, will discover active profile")
                 }
             } else {
-                (syncEntity.localSavePath
-                    ?: constructFolderSavePath(resolvedEmulatorId, game.platformSlug, game.localPath)).also {
-                    Logger.debug(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | Folder save path | cached=${syncEntity.localSavePath != null}, path=$it")
+                val cached = syncEntity.localSavePath
+                val discovered = if (cached == null) {
+                    discoverSavePath(
+                        emulatorId = resolvedEmulatorId,
+                        gameTitle = game.title,
+                        platformSlug = game.platformSlug,
+                        romPath = game.localPath,
+                        cachedTitleId = game.titleId,
+                        gameId = gameId
+                    )
+                } else null
+                val constructed = if (cached == null && discovered == null) {
+                    constructFolderSavePathWithOverride(resolvedEmulatorId, game.platformSlug, game.localPath, gameId, game.title, game.titleId)
+                } else null
+                (cached ?: discovered ?: constructed).also {
+                    Logger.debug(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | Folder save path | cached=${cached != null}, discovered=${discovered != null}, constructed=${constructed != null}, path=$it")
                 }
             }
         } else {
@@ -1622,6 +1688,64 @@ class SaveSyncRepository @Inject constructor(
                 if (folder2 != null) {
                     "${folder2.absolutePath}/title/00040000/$titleId/data"
                 } else {
+                    null
+                }
+            }
+            "psp" -> "$baseDir/$titleId"
+            else -> null
+        }
+    }
+
+    private suspend fun constructFolderSavePathWithOverride(
+        emulatorId: String,
+        platformSlug: String,
+        romPath: String?,
+        gameId: Long,
+        gameTitle: String,
+        cachedTitleId: String? = null
+    ): String? {
+        val config = SavePathRegistry.getConfigIncludingUnsupported(emulatorId) ?: return null
+        if (!config.usesFolderBasedSaves) return null
+
+        val userConfig = emulatorSaveConfigDao.getByEmulator(emulatorId)
+        val baseDir = if (userConfig?.isUserOverride == true) {
+            when (platformSlug) {
+                "3ds" -> "${userConfig.savePathPattern}/sdmc/Nintendo 3DS"
+                else -> userConfig.savePathPattern
+            }
+        } else {
+            config.defaultPaths.firstOrNull { File(it).exists() }
+                ?: config.defaultPaths.firstOrNull()
+        } ?: return null
+
+        val baseDirFile = File(baseDir)
+        if (!baseDirFile.exists()) {
+            Logger.debug(TAG, "[SaveSync] CONSTRUCT | Base dir does not exist | path=$baseDir")
+            return null
+        }
+
+        val titleId = cachedTitleId
+            ?: (romPath?.let { titleIdExtractor.extractTitleId(File(it), platformSlug) })
+            ?: titleDbRepository.resolveTitleId(gameId, gameTitle, platformSlug)
+
+        if (titleId == null) {
+            Logger.debug(TAG, "[SaveSync] CONSTRUCT | Cannot determine titleId | gameId=$gameId")
+            return null
+        }
+
+        Logger.debug(TAG, "[SaveSync] CONSTRUCT | Building path | baseDir=$baseDir, titleId=$titleId, platform=$platformSlug")
+
+        return when (platformSlug) {
+            "vita", "psvita" -> "$baseDir/$titleId"
+            "3ds" -> {
+                val shortTitleId = if (titleId.length > 8) titleId.takeLast(8) else titleId
+                val userFolders = baseDirFile.listFiles()?.filter { it.isDirectory }
+                val folder1 = userFolders?.firstOrNull()
+                val folder2 = folder1?.listFiles()?.firstOrNull { it.isDirectory }
+                if (folder2 != null) {
+                    "${folder2.absolutePath}/title/00040000/$shortTitleId/data"
+                } else {
+                    Logger.debug(TAG, "[SaveSync] CONSTRUCT | 3DS folder structure not found | baseDir=$baseDir")
                     null
                 }
             }

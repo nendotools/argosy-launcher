@@ -65,6 +65,7 @@ fun SyncOverlay(
     gameTitle: String? = null,
     onGrantPermission: (() -> Unit)? = null,
     onDisableSync: (() -> Unit)? = null,
+    onOpenSettings: (() -> Unit)? = null,
     onSkip: (() -> Unit)? = null
 ) {
     val isVisible = syncProgress != null &&
@@ -122,6 +123,7 @@ fun SyncOverlay(
                     gameTitle = gameTitle,
                     onGrantPermission = onGrantPermission,
                     onDisableSync = onDisableSync,
+                    onOpenSettings = onOpenSettings,
                     onSkip = onSkip
                 )
             } else {
@@ -204,10 +206,12 @@ private fun BlockedSyncContent(
     gameTitle: String?,
     onGrantPermission: (() -> Unit)?,
     onDisableSync: (() -> Unit)?,
+    onOpenSettings: (() -> Unit)?,
     onSkip: (() -> Unit)?
 ) {
     val isPermissionIssue = syncProgress is SyncProgress.BlockedReason.PermissionRequired
     val isAccessDenied = syncProgress is SyncProgress.BlockedReason.AccessDenied
+    val isSavePathNotFound = syncProgress is SyncProgress.BlockedReason.SavePathNotFound
 
     val icon = when {
         isPermissionIssue -> Icons.Default.Lock
@@ -269,7 +273,14 @@ private fun BlockedSyncContent(
                 }
             }
 
-            if (onDisableSync != null) {
+            if (isSavePathNotFound && onOpenSettings != null) {
+                Button(
+                    onClick = onOpenSettings,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Configure Save Path")
+                }
+            } else if (onDisableSync != null && !isSavePathNotFound) {
                 OutlinedButton(
                     onClick = onDisableSync,
                     modifier = Modifier.weight(1f)

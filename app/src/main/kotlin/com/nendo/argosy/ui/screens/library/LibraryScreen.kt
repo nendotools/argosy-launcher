@@ -453,6 +453,7 @@ fun LibraryScreen(
             gameTitle = uiState.syncOverlayState?.gameTitle,
             onGrantPermission = uiState.syncOverlayState?.onGrantPermission,
             onDisableSync = uiState.syncOverlayState?.onDisableSync,
+            onOpenSettings = uiState.syncOverlayState?.onOpenSettings,
             onSkip = uiState.syncOverlayState?.onSkip
         )
 
