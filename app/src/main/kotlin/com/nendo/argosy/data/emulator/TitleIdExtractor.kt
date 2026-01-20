@@ -78,7 +78,8 @@ class TitleIdExtractor @Inject constructor() {
     fun extract3DSTitleId(romFile: File): String? {
         val ext = romFile.extension.lowercase()
 
-        if (ext == "3ds") {
+        // .3ds and .cci files both use NCSD format with Program ID at same offset
+        if (ext == "3ds" || ext == "cci") {
             extract3DSTitleIdFromBinary(romFile)?.let { return it }
         }
 

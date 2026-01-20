@@ -125,7 +125,13 @@ class TitleIdDetector @Inject constructor(
         return if (userConfig?.isUserOverride == true) {
             val basePath = userConfig.savePathPattern
             val effectivePath = when (platformSlug) {
-                "3ds" -> "$basePath/sdmc/Nintendo 3DS"
+                "3ds" -> {
+                    if (basePath.endsWith("/sdmc/Nintendo 3DS") || basePath.endsWith("/sdmc/Nintendo 3DS/")) {
+                        basePath.trimEnd('/')
+                    } else {
+                        "$basePath/sdmc/Nintendo 3DS"
+                    }
+                }
                 else -> basePath
             }
             listOf(effectivePath)
@@ -167,8 +173,9 @@ class TitleIdDetector @Inject constructor(
                     scannedFolders++
                     if (!isValidSwitchTitleId(titleFolder.name)) return@forEach
 
-                    val modified = titleFolder.lastModified()
-                    if (mostRecent == null || modified > mostRecent!!.modifiedAt) {
+                    val modified = findNewestFileTime(titleFolder)
+                    Logger.debug(TAG, "[SaveSync] DETECT | Switch found titleId=${titleFolder.name} | modified=$modified, sessionStart=$sessionStartTime, isNewer=${modified > sessionStartTime}")
+                    if (modified > sessionStartTime && (mostRecent == null || modified > mostRecent!!.modifiedAt)) {
                         mostRecent = DetectedTitleId(
                             titleId = titleFolder.name.uppercase(),
                             modifiedAt = modified,
@@ -179,8 +186,7 @@ class TitleIdDetector @Inject constructor(
             }
         }
 
-        val deltaMs = mostRecent?.let { it.modifiedAt - sessionStartTime }
-        Logger.debug(TAG, "[SaveSync] DETECT | Switch scan complete | basePath=${baseDir.absolutePath}, scannedFolders=$scannedFolders, selected=${mostRecent?.titleId}, deltaSinceSession=${deltaMs}ms")
+        Logger.debug(TAG, "[SaveSync] DETECT | Switch scan complete | basePath=${baseDir.absolutePath}, scannedFolders=$scannedFolders, selected=${mostRecent?.titleId}")
         return mostRecent
     }
 
@@ -191,8 +197,9 @@ class TitleIdDetector @Inject constructor(
             if (!titleFolder.isDirectory) return@forEach
             if (!isValidVitaTitleId(titleFolder.name)) return@forEach
 
-            val modified = titleFolder.lastModified()
-            if (mostRecent == null || modified > mostRecent!!.modifiedAt) {
+            val modified = findNewestFileTime(titleFolder)
+            Logger.debug(TAG, "[SaveSync] DETECT | Vita found titleId=${titleFolder.name} | modified=$modified, sessionStart=$sessionStartTime, isNewer=${modified > sessionStartTime}")
+            if (modified > sessionStartTime && (mostRecent == null || modified > mostRecent!!.modifiedAt)) {
                 mostRecent = DetectedTitleId(
                     titleId = titleFolder.name.uppercase(),
                     modifiedAt = modified,
@@ -201,6 +208,7 @@ class TitleIdDetector @Inject constructor(
             }
         }
 
+        Logger.debug(TAG, "[SaveSync] DETECT | Vita scan complete | basePath=${baseDir.absolutePath}, selected=${mostRecent?.titleId}")
         return mostRecent
     }
 
@@ -212,8 +220,9 @@ class TitleIdDetector @Inject constructor(
 
             val titleId = extractPspTitleIdFromFolder(saveFolder.name)
             if (titleId != null) {
-                val modified = saveFolder.lastModified()
-                if (mostRecent == null || modified > mostRecent!!.modifiedAt) {
+                val modified = findNewestFileTime(saveFolder)
+                Logger.debug(TAG, "[SaveSync] DETECT | PSP found titleId=$titleId | modified=$modified, sessionStart=$sessionStartTime, isNewer=${modified > sessionStartTime}")
+                if (modified > sessionStartTime && (mostRecent == null || modified > mostRecent!!.modifiedAt)) {
                     mostRecent = DetectedTitleId(
                         titleId = titleId,
                         modifiedAt = modified,
@@ -223,6 +232,7 @@ class TitleIdDetector @Inject constructor(
             }
         }
 
+        Logger.debug(TAG, "[SaveSync] DETECT | PSP scan complete | basePath=${baseDir.absolutePath}, selected=${mostRecent?.titleId}")
         return mostRecent
     }
 
@@ -303,8 +313,9 @@ class TitleIdDetector @Inject constructor(
             val userFolder = File(titleFolder, "user")
             val folderToCheck = if (userFolder.exists()) userFolder else titleFolder
 
-            val modified = folderToCheck.lastModified()
-            if (mostRecent == null || modified > mostRecent!!.modifiedAt) {
+            val modified = findNewestFileTime(folderToCheck)
+            Logger.debug(TAG, "[SaveSync] DETECT | WiiU found titleId=${titleFolder.name} | modified=$modified, sessionStart=$sessionStartTime, isNewer=${modified > sessionStartTime}")
+            if (modified > sessionStartTime && (mostRecent == null || modified > mostRecent!!.modifiedAt)) {
                 mostRecent = DetectedTitleId(
                     titleId = titleFolder.name.uppercase(),
                     modifiedAt = modified,
@@ -313,6 +324,7 @@ class TitleIdDetector @Inject constructor(
             }
         }
 
+        Logger.debug(TAG, "[SaveSync] DETECT | WiiU scan complete | basePath=${baseDir.absolutePath}, selected=${mostRecent?.titleId}")
         return mostRecent
     }
 

@@ -329,7 +329,13 @@ class SaveSyncRepository @Inject constructor(
         val romFile = File(romPath)
         val resolvedPaths = if (basePathOverride != null) {
             val effectivePath = when (platformSlug) {
-                "3ds" -> "$basePathOverride/sdmc/Nintendo 3DS"
+                "3ds" -> {
+                    if (basePathOverride.endsWith("/sdmc/Nintendo 3DS") || basePathOverride.endsWith("/sdmc/Nintendo 3DS/")) {
+                        basePathOverride.trimEnd('/')
+                    } else {
+                        "$basePathOverride/sdmc/Nintendo 3DS"
+                    }
+                }
                 else -> basePathOverride
             }
             listOf(effectivePath)
@@ -1723,7 +1729,14 @@ class SaveSyncRepository @Inject constructor(
         val userConfig = emulatorSaveConfigDao.getByEmulator(emulatorId)
         val baseDir = if (userConfig?.isUserOverride == true) {
             when (platformSlug) {
-                "3ds" -> "${userConfig.savePathPattern}/sdmc/Nintendo 3DS"
+                "3ds" -> {
+                    val basePath = userConfig.savePathPattern
+                    if (basePath.endsWith("/sdmc/Nintendo 3DS") || basePath.endsWith("/sdmc/Nintendo 3DS/")) {
+                        basePath.trimEnd('/')
+                    } else {
+                        "$basePath/sdmc/Nintendo 3DS"
+                    }
+                }
                 else -> userConfig.savePathPattern
             }
         } else {
