@@ -41,6 +41,7 @@ class DeleteGameUseCase @Inject constructor(
         }
 
         val path = game.localPath ?: return false
+        val platformFolder = gameRepository.getDownloadDirForPlatform(game.platformSlug)
 
         gameRepository.clearLocalPath(gameId)
         downloadQueueDao.deleteByGameId(gameId)
@@ -61,9 +62,10 @@ class DeleteGameUseCase @Inject constructor(
                     file.deleteRecursively()
                 } else {
                     val parent = file.parentFile
-                    val grandparent = parent?.parentFile
+                    val isPlatformFolder = parent != null &&
+                        parent.absolutePath == platformFolder.absolutePath
 
-                    if (parent != null && grandparent != null && grandparent.exists()) {
+                    if (parent != null && !isPlatformFolder) {
                         parent.deleteRecursively()
                     } else {
                         file.delete()
