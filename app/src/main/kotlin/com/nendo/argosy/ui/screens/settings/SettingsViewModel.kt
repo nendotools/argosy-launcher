@@ -330,12 +330,12 @@ class SettingsViewModel @Inject constructor(
                     emptyList()
                 }
 
-                val selectedCore = if (isRetroArch && defaultConfig?.coreName != null) {
-                    defaultConfig.coreName
-                } else if (isRetroArch) {
-                    EmulatorRegistry.getDefaultCore(platform.slug)?.id
-                } else {
-                    null
+                val storedCore = defaultConfig?.coreName
+                val defaultCore = EmulatorRegistry.getDefaultCore(platform.slug)?.id
+                val selectedCore = when {
+                    !isRetroArch -> null
+                    storedCore != null && availableCores.any { it.id == storedCore } -> storedCore
+                    else -> defaultCore ?: availableCores.firstOrNull()?.id
                 }
 
                 val emulatorId = effectiveEmulatorDef?.id

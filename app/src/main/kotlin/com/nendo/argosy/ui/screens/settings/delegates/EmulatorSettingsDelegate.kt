@@ -168,7 +168,7 @@ class EmulatorSettingsDelegate @Inject constructor(
         scope.launch {
             val currentIndex = config.selectedCore?.let { selectedId ->
                 config.availableCores.indexOfFirst { it.id == selectedId }.takeIf { it >= 0 }
-            } ?: -1
+            } ?: 0
             val nextIndex = (currentIndex + direction + config.availableCores.size) % config.availableCores.size
             val nextCore = config.availableCores[nextIndex]
             configureEmulatorUseCase.setCoreForPlatform(config.platform.id, nextCore.id)

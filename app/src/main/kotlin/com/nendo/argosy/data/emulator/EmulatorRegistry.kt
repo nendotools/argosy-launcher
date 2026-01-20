@@ -643,7 +643,7 @@ object EmulatorRegistry {
     fun getRetroArchCorePatterns(): Map<String, List<String>> = mapOf(
         "nes" to listOf("fceumm", "nestopia", "quicknes", "mesen"),
         "snes" to listOf("snes9x", "bsnes", "mesen"),
-        "n64" to listOf("mupen64plus_next"),
+        "n64" to listOf("mupen64plus_next", "parallel_n64"),
         "gc" to listOf("dolphin"),
         "ngc" to listOf("dolphin"),
         "gb" to listOf("gambatte", "mgba", "sameboy", "gearboy", "tgbdual"),
@@ -697,7 +697,8 @@ object EmulatorRegistry {
         ),
         "n64" to listOf(
             RetroArchCore("mupen64plus_next_gles3", "Mupen64Plus-Next (GLES3)"),
-            RetroArchCore("mupen64plus_next_gles2", "Mupen64Plus-Next (GLES2)")
+            RetroArchCore("mupen64plus_next_gles2", "Mupen64Plus-Next (GLES2)"),
+            RetroArchCore("parallel_n64", "ParaLLEl N64")
         ),
         "gb" to listOf(
             RetroArchCore("gambatte", "Gambatte"),
