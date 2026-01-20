@@ -344,6 +344,7 @@ class PlaySessionTracker @Inject constructor(
                 romPath = game.localPath,
                 cachedTitleId = game.titleId,
                 coreName = session.coreName,
+                emulatorPackage = session.emulatorPackage,
                 gameId = session.gameId
             )
 

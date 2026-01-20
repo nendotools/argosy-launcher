@@ -1,6 +1,7 @@
 package com.nendo.argosy.domain.usecase.save
 
 import android.util.Log
+import com.nendo.argosy.data.emulator.EmulatorResolver
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.repository.SaveCacheManager
 import com.nendo.argosy.data.repository.SaveSyncRepository
@@ -11,7 +12,8 @@ import javax.inject.Inject
 class RestoreCachedSaveUseCase @Inject constructor(
     private val saveCacheManager: SaveCacheManager,
     private val saveSyncRepository: SaveSyncRepository,
-    private val gameDao: GameDao
+    private val gameDao: GameDao,
+    private val emulatorResolver: EmulatorResolver
 ) {
     private val TAG = "RestoreCachedSaveUseCase"
 
@@ -30,12 +32,15 @@ class RestoreCachedSaveUseCase @Inject constructor(
         val game = gameDao.getById(gameId)
             ?: return Result.Error("Game not found")
 
+        val emulatorPackage = emulatorResolver.getEmulatorPackageForGame(gameId, game.platformId, game.platformSlug)
+
         val targetPath = saveSyncRepository.discoverSavePath(
             emulatorId = emulatorId,
             gameTitle = game.title,
             platformSlug = game.platformSlug,
             romPath = game.localPath,
             cachedTitleId = game.titleId,
+            emulatorPackage = emulatorPackage,
             gameId = gameId
         ) ?: saveSyncRepository.constructSavePath(
             emulatorId, game.title, game.platformSlug, game.localPath
@@ -51,7 +56,7 @@ class RestoreCachedSaveUseCase @Inject constructor(
             UnifiedSaveEntry.Source.SERVER -> {
                 val serverSaveId = entry.serverSaveId
                     ?: return Result.Error("No server save ID")
-                downloadServerSave(serverSaveId, targetPath, emulatorId)
+                saveSyncRepository.downloadSaveById(serverSaveId, targetPath, emulatorId, emulatorPackage)
             }
         }
 
@@ -75,13 +80,5 @@ class RestoreCachedSaveUseCase @Inject constructor(
         }
 
         return Result.Restored
-    }
-
-    private suspend fun downloadServerSave(
-        serverSaveId: Long,
-        targetPath: String,
-        emulatorId: String
-    ): Boolean {
-        return saveSyncRepository.downloadSaveById(serverSaveId, targetPath, emulatorId)
     }
 }

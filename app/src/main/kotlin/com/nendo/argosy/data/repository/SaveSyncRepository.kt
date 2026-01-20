@@ -1037,6 +1037,8 @@ class SaveSyncRepository @Inject constructor(
         }
         Logger.debug(TAG, "[SaveSync] UPLOAD gameId=$gameId | Using emulator=$resolvedEmulatorId (original=$emulatorId)")
 
+        val emulatorPackage = emulatorResolver.getEmulatorPackageForGame(gameId, game.platformId, game.platformSlug)
+
         var localPath = syncEntity?.localSavePath
             ?: discoverSavePath(
                 emulatorId = resolvedEmulatorId,
@@ -1044,6 +1046,7 @@ class SaveSyncRepository @Inject constructor(
                 platformSlug = game.platformSlug,
                 romPath = game.localPath,
                 cachedTitleId = game.titleId,
+                emulatorPackage = emulatorPackage,
                 gameId = gameId
             )
 
@@ -1057,6 +1060,7 @@ class SaveSyncRepository @Inject constructor(
                 platformSlug = game.platformSlug,
                 romPath = game.localPath,
                 cachedTitleId = null,
+                emulatorPackage = emulatorPackage,
                 gameId = gameId
             )
         }
@@ -1256,6 +1260,8 @@ class SaveSyncRepository @Inject constructor(
         }
         Logger.debug(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | Using emulator=$resolvedEmulatorId (original=$emulatorId)")
 
+        val emulatorPackage = emulatorResolver.getEmulatorPackageForGame(gameId, game.platformId, game.platformSlug)
+
         val serverSave = try {
             api.getSave(saveId).body()
         } catch (e: Exception) {
@@ -1292,6 +1298,7 @@ class SaveSyncRepository @Inject constructor(
                         platformSlug = game.platformSlug,
                         romPath = game.localPath,
                         cachedTitleId = game.titleId,
+                        emulatorPackage = emulatorPackage,
                         gameId = gameId
                     )
                 } else null
@@ -1310,6 +1317,7 @@ class SaveSyncRepository @Inject constructor(
                     platformSlug = game.platformSlug,
                     romPath = game.localPath,
                     cachedTitleId = game.titleId,
+                    emulatorPackage = emulatorPackage,
                     gameId = gameId
                 )
 
@@ -1323,6 +1331,7 @@ class SaveSyncRepository @Inject constructor(
                     platformSlug = game.platformSlug,
                     romPath = game.localPath,
                     cachedTitleId = null,
+                    emulatorPackage = emulatorPackage,
                     gameId = gameId
                 )
             } else discovered
@@ -1384,7 +1393,7 @@ class SaveSyncRepository @Inject constructor(
 
                 targetPath = if (isSwitchEmulator && config != null) {
                     val resolved = preDownloadTargetPath
-                        ?: resolveSwitchSaveTargetPath(tempZipFile, config)
+                        ?: resolveSwitchSaveTargetPath(tempZipFile, config, emulatorPackage)
                         ?: constructFolderSavePath(resolvedEmulatorId, game.platformSlug, game.localPath)
                     if (resolved == null) {
                         Logger.error(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | Cannot determine Switch save path from ZIP or ROM")
@@ -1512,7 +1521,8 @@ class SaveSyncRepository @Inject constructor(
     suspend fun downloadSaveById(
         serverSaveId: Long,
         targetPath: String,
-        emulatorId: String
+        emulatorId: String,
+        emulatorPackage: String? = null
     ): Boolean = withContext(Dispatchers.IO) {
         val api = this@SaveSyncRepository.api ?: return@withContext false
 
@@ -1553,7 +1563,7 @@ class SaveSyncRepository @Inject constructor(
                 }
 
                 val resolvedTargetPath = if (isSwitchEmulator && config != null) {
-                    resolveSwitchSaveTargetPath(tempZipFile, config) ?: targetPath
+                    resolveSwitchSaveTargetPath(tempZipFile, config, emulatorPackage) ?: targetPath
                 } else {
                     targetPath
                 }
@@ -1589,15 +1599,16 @@ class SaveSyncRepository @Inject constructor(
         }
     }
 
-    private fun resolveSwitchSaveTargetPath(zipFile: File, config: SavePathConfig): String? {
+    private fun resolveSwitchSaveTargetPath(zipFile: File, config: SavePathConfig, emulatorPackage: String?): String? {
         val titleId = saveArchiver.peekRootFolderName(zipFile)
         if (titleId == null || !isValidSwitchHexId(titleId)) {
             Logger.debug(TAG, "resolveSwitchSaveTargetPath: invalid titleId from ZIP: $titleId")
             return null
         }
 
-        val basePath = config.defaultPaths.firstOrNull { File(it).exists() }
-            ?: config.defaultPaths.firstOrNull()
+        val resolvedPaths = SavePathRegistry.resolvePathWithPackage(config, emulatorPackage)
+        val basePath = resolvedPaths.firstOrNull { File(it).exists() }
+            ?: resolvedPaths.firstOrNull()
             ?: return null
 
         val normalizedTitleId = titleId.uppercase()
