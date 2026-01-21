@@ -66,6 +66,7 @@ import com.nendo.argosy.ui.common.savechannel.SaveChannelModal
 import com.nendo.argosy.ui.components.AddToCollectionModal
 import com.nendo.argosy.ui.components.CollectionItem
 import com.nendo.argosy.ui.screens.collections.dialogs.CreateCollectionDialog
+import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.LocalLauncherTheme
 import com.nendo.argosy.ui.theme.Motion
 import kotlinx.coroutines.flow.collectLatest
@@ -333,18 +334,18 @@ private fun GameDetailContent(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(scrollState)
-                        .padding(start = 32.dp, top = 32.dp, end = 32.dp, bottom = 32.dp)
+                        .padding(start = Dimens.spacingXl, top = Dimens.spacingXl, end = Dimens.spacingXl, bottom = Dimens.spacingXl)
                 ) {
                     GameHeader(game = game, uiState = uiState, viewModel = viewModel)
 
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(Dimens.spacingXl))
 
                     if (!game.description.isNullOrBlank()) {
                         DescriptionSection(
                             description = game.description,
                             onPositioned = onDescriptionPositioned
                         )
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(Dimens.spacingLg))
                     }
 
                     if (game.screenshots.isNotEmpty()) {
@@ -356,7 +357,7 @@ private fun GameDetailContent(
                             onScreenshotTap = { index -> viewModel.openScreenshotViewer(index) },
                             onPositioned = onScreenshotPositioned
                         )
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(Dimens.spacingLg))
                     }
 
                     if (game.achievements.isNotEmpty()) {
@@ -366,7 +367,7 @@ private fun GameDetailContent(
                             currentSnapState = currentSnapState,
                             onPositioned = onAchievementPositioned
                         )
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(Dimens.spacingLg))
                     }
                 }
 
@@ -375,7 +376,7 @@ private fun GameDetailContent(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .height(48.dp)
+                        .height(Dimens.spacingXxl)
                         .background(
                             Brush.verticalGradient(
                                 colors = listOf(

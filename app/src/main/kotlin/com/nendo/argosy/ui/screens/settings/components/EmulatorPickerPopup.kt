@@ -30,7 +30,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import com.nendo.argosy.ui.components.FooterBar
 import com.nendo.argosy.ui.components.InputButton
 import com.nendo.argosy.ui.screens.settings.EmulatorPickerInfo
@@ -90,7 +89,7 @@ fun EmulatorPickerPopup(
     ) {
         Column(
             modifier = Modifier
-                .width(400.dp)
+                .width(Dimens.modalWidthLg)
                 .clip(RoundedCornerShape(Dimens.radiusLg))
                 .background(MaterialTheme.colorScheme.surface)
                 .clickable(enabled = false, onClick = {})
@@ -112,7 +111,7 @@ fun EmulatorPickerPopup(
 
             LazyColumn(
                 state = listState,
-                modifier = Modifier.heightIn(max = 300.dp),
+                modifier = Modifier.heightIn(max = Dimens.headerHeightLg + Dimens.headerHeightLg + Dimens.iconSm),
                 verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
             ) {
                 if (installedCount > 0) {
@@ -238,14 +237,14 @@ private fun EmulatorPickerItem(
                 contentDescription = null,
                 tint = if (isHighlighted) MaterialTheme.colorScheme.onPrimaryContainer
                        else MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(Dimens.iconSm)
             )
             isDownload -> Icon(
                 imageVector = Icons.Default.Cloud,
                 contentDescription = null,
                 tint = if (isHighlighted) MaterialTheme.colorScheme.onPrimaryContainer
                        else MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(Dimens.iconSm)
             )
         }
     }

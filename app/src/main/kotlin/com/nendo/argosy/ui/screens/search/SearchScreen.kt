@@ -49,6 +49,7 @@ import com.nendo.argosy.ui.input.LocalInputDispatcher
 import com.nendo.argosy.ui.navigation.Screen
 import com.nendo.argosy.ui.components.FooterBar
 import com.nendo.argosy.ui.components.InputButton
+import com.nendo.argosy.ui.theme.Dimens
 
 @Composable
 fun SearchScreen(
@@ -135,7 +136,7 @@ private fun SearchHeader(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
-            .padding(16.dp),
+            .padding(Dimens.spacingMd),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
@@ -143,18 +144,18 @@ private fun SearchHeader(
                 .weight(1f)
                 .background(
                     MaterialTheme.colorScheme.surfaceVariant,
-                    RoundedCornerShape(12.dp)
+                    RoundedCornerShape(Dimens.radiusLg)
                 )
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = Dimens.spacingMd, vertical = Dimens.radiusLg),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 Icons.Default.Search,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(Dimens.iconSm)
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(Dimens.radiusLg))
 
             Box(modifier = Modifier.weight(1f)) {
                 if (query.isEmpty()) {
@@ -180,9 +181,9 @@ private fun SearchHeader(
             }
 
             if (isSearching) {
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(Dimens.radiusLg))
                 CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(Dimens.iconSm),
                     strokeWidth = 2.dp
                 )
             }
@@ -197,10 +198,10 @@ private fun SearchResults(
     onSelect: (Long) -> Unit
 ) {
     LazyColumn(
-        modifier = Modifier.padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = Modifier.padding(horizontal = Dimens.spacingMd),
+        verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
-        item { Spacer(modifier = Modifier.height(8.dp)) }
+        item { Spacer(modifier = Modifier.height(Dimens.spacingSm)) }
 
         itemsIndexed(results, key = { _, result -> result.id }) { index, result ->
             SearchResultItem(
@@ -210,7 +211,7 @@ private fun SearchResults(
             )
         }
 
-        item { Spacer(modifier = Modifier.height(8.dp)) }
+        item { Spacer(modifier = Modifier.height(Dimens.spacingSm)) }
     }
 }
 
@@ -225,15 +226,15 @@ private fun SearchResultItem(
             .fillMaxWidth()
             .then(
                 if (isFocused) {
-                    Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                    Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(Dimens.radiusLg))
                 } else Modifier
             )
             .background(
                 if (isFocused) MaterialTheme.colorScheme.primaryContainer
                 else MaterialTheme.colorScheme.surface,
-                RoundedCornerShape(12.dp)
+                RoundedCornerShape(Dimens.radiusLg)
             )
-            .padding(12.dp),
+            .padding(Dimens.radiusLg),
         verticalAlignment = Alignment.CenterVertically
     ) {
         val imageData = result.coverPath?.let { path ->
@@ -245,11 +246,11 @@ private fun SearchResultItem(
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .size(56.dp)
-                .clip(RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(Dimens.radiusMd))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         )
 
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(Dimens.spacingMd))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -258,7 +259,7 @@ private fun SearchResultItem(
                 color = MaterialTheme.colorScheme.onSurface
             )
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -300,7 +301,7 @@ private fun EmptyState(message: String) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(32.dp),
+            .padding(Dimens.spacingXl),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -316,7 +317,7 @@ private fun LoadingState() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(32.dp),
+            .padding(Dimens.spacingXl),
         contentAlignment = Alignment.Center
     ) {
         CircularProgressIndicator()

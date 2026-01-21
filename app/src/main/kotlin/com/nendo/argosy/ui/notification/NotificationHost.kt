@@ -49,11 +49,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.LocalLauncherTheme
 import kotlinx.coroutines.delay
 
-private val PERSISTENT_BAR_HEIGHT = 52.dp
-private val FOOTER_CLEARANCE = 56.dp
+private val PERSISTENT_BAR_HEIGHT = 52.dp  // Static: matches specific UI design spec
+private val FOOTER_CLEARANCE = 56.dp  // Static: matches specific UI design spec
 
 @Composable
 fun NotificationHost(
@@ -85,8 +86,8 @@ fun NotificationHost(
                    scaleOut(targetScale = 0.95f),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 16.dp)
-                .padding(bottom = if (persistent != null) PERSISTENT_BAR_HEIGHT + FOOTER_CLEARANCE + 8.dp else FOOTER_CLEARANCE)
+                .padding(end = Dimens.spacingMd)
+                .padding(bottom = if (persistent != null) PERSISTENT_BAR_HEIGHT + FOOTER_CLEARANCE + Dimens.spacingSm else FOOTER_CLEARANCE)
         ) {
             current?.let { notification ->
                 NotificationBar(notification = notification)
@@ -101,7 +102,7 @@ fun NotificationHost(
                    fadeOut(animationSpec = tween(150)),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = FOOTER_CLEARANCE)
+                .padding(end = Dimens.spacingMd, bottom = FOOTER_CLEARANCE)
         ) {
             persistent?.let { notification ->
                 PersistentNotificationBar(notification = notification)
@@ -123,10 +124,10 @@ private fun NotificationBar(
 
     Row(
         modifier = modifier
-            .widthIn(max = if (isError) 360.dp else 280.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .widthIn(max = if (isError) Dimens.modalWidth + Dimens.spacingSm + Dimens.borderMedium else Dimens.modalWidth - Dimens.headerHeight + Dimens.spacingSm)
+            .clip(RoundedCornerShape(Dimens.spacingSm + Dimens.borderMedium))
             .background(backgroundColor)
-            .padding(8.dp),
+            .padding(Dimens.spacingSm),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (notification.imagePath != null) {
@@ -135,19 +136,19 @@ private fun NotificationBar(
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(32.dp)
-                    .clip(RoundedCornerShape(6.dp))
+                    .size(Dimens.iconLg)
+                    .clip(RoundedCornerShape(Dimens.spacingSm - Dimens.borderMedium))
             )
         } else {
             Icon(
                 imageVector = notificationIcon(notification.type),
                 contentDescription = null,
                 tint = colors.icon,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(Dimens.iconMd)
             )
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(Dimens.spacingSm))
 
         Column(modifier = Modifier.weight(1f)) {
             val isError = notification.type == NotificationType.ERROR
@@ -184,21 +185,21 @@ private fun PersistentNotificationBar(
 
     Column(
         modifier = modifier
-            .widthIn(max = 280.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .widthIn(max = Dimens.modalWidth - Dimens.headerHeight + Dimens.spacingSm)
+            .clip(RoundedCornerShape(Dimens.spacingSm + Dimens.borderMedium))
             .background(backgroundColor)
     ) {
         Row(
-            modifier = Modifier.padding(8.dp),
+            modifier = Modifier.padding(Dimens.spacingSm),
             verticalAlignment = Alignment.CenterVertically
         ) {
             CircularProgressIndicator(
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(Dimens.iconSm + Dimens.borderMedium),
                 color = accentColor,
-                strokeWidth = 2.dp
+                strokeWidth = Dimens.borderMedium
             )
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(Dimens.spacingSm))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -234,7 +235,7 @@ private fun PersistentNotificationBar(
                 progress = { progress.fraction },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(2.dp),
+                    .height(Dimens.borderMedium),
                 color = accentColor,
                 trackColor = textColor.copy(alpha = 0.12f)
             )

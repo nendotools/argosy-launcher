@@ -48,7 +48,7 @@ fun PlatformSettingsModal(
 ) {
     Modal(
         title = config.platformName,
-        width = 480.dp,
+        baseWidth = Dimens.modalWidthXl,
         onDismiss = onDismiss
     ) {
         ToggleOptionItem(
@@ -95,7 +95,7 @@ fun PlatformSettingsModal(
         }
 
         HorizontalDivider(
-            modifier = Modifier.padding(vertical = 8.dp),
+            modifier = Modifier.padding(vertical = Dimens.spacingSm),
             color = MaterialTheme.colorScheme.outlineVariant
         )
 
@@ -135,14 +135,14 @@ private fun ToggleOptionItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(backgroundColor, RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(Dimens.radiusMd))
+            .background(backgroundColor, RoundedCornerShape(Dimens.radiusMd))
             .clickable(
                 onClick = onToggle,
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             )
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = Dimens.radiusLg, vertical = Dimens.spacingXs),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -191,8 +191,8 @@ private fun PathConfigItem(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(backgroundColor, RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(Dimens.radiusMd))
+            .background(backgroundColor, RoundedCornerShape(Dimens.radiusMd))
             .then(
                 if (enabled) {
                     Modifier.clickable(
@@ -202,7 +202,7 @@ private fun PathConfigItem(
                     )
                 } else Modifier
             )
-            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .padding(horizontal = Dimens.radiusLg, vertical = Dimens.spacingSm)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -210,7 +210,7 @@ private fun PathConfigItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -228,13 +228,13 @@ private fun PathConfigItem(
             }
             if (enabled && isFocused) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (onReset != null) {
                         Button(
                             onClick = onReset,
-                            modifier = Modifier.height(28.dp),
+                            modifier = Modifier.height(Dimens.iconLg - Dimens.spacingXs),
                             contentPadding = PaddingValues(horizontal = Dimens.spacingMd, vertical = 0.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (resetFocused) {
@@ -254,7 +254,7 @@ private fun PathConfigItem(
                     }
                     Button(
                         onClick = onChange,
-                        modifier = Modifier.height(28.dp),
+                        modifier = Modifier.height(Dimens.iconLg - Dimens.spacingXs),
                         contentPadding = PaddingValues(horizontal = Dimens.spacingMd, vertical = 0.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (changeFocused) {
@@ -284,14 +284,14 @@ private fun PathConfigItem(
                     isCustom -> MaterialTheme.colorScheme.primary
                     else -> secondaryColor
                 },
-                modifier = Modifier.padding(top = 4.dp)
+                modifier = Modifier.padding(top = Dimens.spacingXs)
             )
         } else if (enabled) {
             Text(
                 text = "(auto)",
                 style = MaterialTheme.typography.bodySmall,
                 color = secondaryColor,
-                modifier = Modifier.padding(top = 4.dp)
+                modifier = Modifier.padding(top = Dimens.spacingXs)
             )
         }
     }

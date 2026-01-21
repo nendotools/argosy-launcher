@@ -19,7 +19,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.nendo.argosy.ui.theme.Dimens
 
-private val infoDisplayShape = RoundedCornerShape(Dimens.radiusLg)
 private const val INFO_DISPLAY_ALPHA = 0.45f
 
 @Composable
@@ -28,6 +27,7 @@ fun InfoDisplay(
     value: String,
     icon: ImageVector? = null
 ) {
+    val infoDisplayShape = RoundedCornerShape(Dimens.radiusLg)
     val backgroundColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
     val contentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = INFO_DISPLAY_ALPHA)
 

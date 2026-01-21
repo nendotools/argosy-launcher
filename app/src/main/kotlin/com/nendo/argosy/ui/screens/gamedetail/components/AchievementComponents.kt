@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.nendo.argosy.ui.screens.gamedetail.AchievementUi
+import com.nendo.argosy.ui.theme.Dimens
 
 @Composable
 fun AchievementRow(achievement: AchievementUi) {
@@ -39,18 +40,18 @@ fun AchievementRow(achievement: AchievementUi) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp),
+            .padding(vertical = Dimens.radiusSm),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(Dimens.radiusLg)
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.width(56.dp)
+            modifier = Modifier.width(Dimens.settingsItemMinHeight)
         ) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(4.dp))
+                    .size(Dimens.iconXl)
+                    .clip(RoundedCornerShape(Dimens.radiusSm))
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
@@ -71,7 +72,7 @@ fun AchievementRow(achievement: AchievementUi) {
                         imageVector = Icons.Filled.EmojiEvents,
                         contentDescription = null,
                         tint = if (achievement.isUnlocked) goldColor else Color.Gray,
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(Dimens.iconLg)
                     )
                 }
             }
@@ -79,7 +80,7 @@ fun AchievementRow(achievement: AchievementUi) {
                 text = "${achievement.points} pts",
                 style = MaterialTheme.typography.labelSmall,
                 color = goldColor.copy(alpha = 0.8f),
-                modifier = Modifier.padding(top = 2.dp)
+                modifier = Modifier.padding(top = Dimens.borderMedium)
             )
         }
 

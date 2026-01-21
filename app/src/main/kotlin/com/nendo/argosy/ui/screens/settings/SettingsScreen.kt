@@ -41,6 +41,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.nendo.argosy.ui.theme.Dimens
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.nendo.argosy.ui.components.FooterBar
@@ -391,7 +392,7 @@ fun SettingsScreen(
                 }
             },
             dismissButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
                     TextButton(onClick = { viewModel.cancelMigration() }) {
                         Text("Cancel")
                     }
@@ -416,7 +417,7 @@ fun SettingsScreen(
                 }
             },
             dismissButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)) {
                     TextButton(onClick = { viewModel.cancelPlatformMigration() }) {
                         Text("Cancel")
                     }
@@ -557,7 +558,7 @@ private fun SettingsHeader(title: String) {
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
-            .padding(horizontal = 24.dp, vertical = 16.dp),
+            .padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingMd),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(

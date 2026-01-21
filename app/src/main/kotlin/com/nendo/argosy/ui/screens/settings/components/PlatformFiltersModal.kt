@@ -26,7 +26,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import com.nendo.argosy.ui.components.FooterBar
 import com.nendo.argosy.ui.components.InputButton
 import com.nendo.argosy.ui.components.SwitchPreference
@@ -77,7 +76,7 @@ fun PlatformFiltersModal(
     ) {
         Column(
             modifier = Modifier
-                .width(500.dp)
+                .width(Dimens.modalWidthXl)
                 .clip(RoundedCornerShape(Dimens.radiusLg))
                 .background(MaterialTheme.colorScheme.surface)
                 .clickable(enabled = false, onClick = {})
@@ -100,7 +99,7 @@ fun PlatformFiltersModal(
             if (isLoading) {
                 Box(
                     modifier = Modifier
-                        .height(200.dp)
+                        .height(Dimens.headerHeightLg + Dimens.spacingXxl + Dimens.spacingSm)
                         .fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
@@ -108,7 +107,7 @@ fun PlatformFiltersModal(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(Dimens.spacingMd)
                     ) {
-                        CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                        CircularProgressIndicator(modifier = Modifier.size(Dimens.iconLg))
                         Text(
                             text = "Fetching platforms...",
                             style = MaterialTheme.typography.bodyMedium,
@@ -119,7 +118,7 @@ fun PlatformFiltersModal(
             } else if (platforms.isEmpty()) {
                 Box(
                     modifier = Modifier
-                        .height(100.dp)
+                        .height(Dimens.headerHeightLg - Dimens.iconXl)
                         .fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
@@ -132,7 +131,7 @@ fun PlatformFiltersModal(
             } else {
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier.height(300.dp),
+                    modifier = Modifier.height(Dimens.headerHeightLg + Dimens.headerHeightLg + Dimens.iconSm),
                     verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
                 ) {
                     itemsIndexed(platforms) { index, platform ->

@@ -30,7 +30,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import com.nendo.argosy.ui.components.FooterBar
 import com.nendo.argosy.ui.components.InputButton
 import com.nendo.argosy.ui.theme.LocalLauncherTheme
@@ -85,7 +84,7 @@ fun SoundPickerPopup(
 
         Column(
             modifier = Modifier
-                .width(400.dp)
+                .width(Dimens.modalWidthLg)
                 .heightIn(max = maxModalHeight)
                 .clip(RoundedCornerShape(Dimens.radiusLg))
                 .background(MaterialTheme.colorScheme.surface)
@@ -167,7 +166,7 @@ private fun SoundPickerItem(
                 contentDescription = null,
                 tint = if (isFocused) MaterialTheme.colorScheme.onPrimaryContainer
                        else MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(Dimens.iconSm)
             )
         }
     }

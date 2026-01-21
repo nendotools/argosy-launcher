@@ -138,8 +138,9 @@ class SettingsInputHandler(
             when (state.focusedIndex) {
                 1 -> { viewModel.adjustHue(-HUE_STEP); return InputResult.HANDLED }
                 2 -> { viewModel.adjustSecondaryHue(-HUE_STEP); return InputResult.HANDLED }
-                8 -> { viewModel.adjustScreenDimmerTimeout(-1); return InputResult.HANDLED }
-                9 -> { viewModel.adjustScreenDimmerLevel(-1); return InputResult.HANDLED }
+                4 -> { viewModel.adjustUiScale(-5); return InputResult.HANDLED }
+                9 -> { viewModel.adjustScreenDimmerTimeout(-1); return InputResult.HANDLED }
+                10 -> { viewModel.adjustScreenDimmerLevel(-1); return InputResult.HANDLED }
             }
         }
 
@@ -325,8 +326,9 @@ class SettingsInputHandler(
             when (state.focusedIndex) {
                 1 -> { viewModel.adjustHue(HUE_STEP); return InputResult.HANDLED }
                 2 -> { viewModel.adjustSecondaryHue(HUE_STEP); return InputResult.HANDLED }
-                8 -> { viewModel.adjustScreenDimmerTimeout(1); return InputResult.HANDLED }
-                9 -> { viewModel.adjustScreenDimmerLevel(1); return InputResult.HANDLED }
+                4 -> { viewModel.adjustUiScale(5); return InputResult.HANDLED }
+                9 -> { viewModel.adjustScreenDimmerTimeout(1); return InputResult.HANDLED }
+                10 -> { viewModel.adjustScreenDimmerLevel(1); return InputResult.HANDLED }
             }
         }
 

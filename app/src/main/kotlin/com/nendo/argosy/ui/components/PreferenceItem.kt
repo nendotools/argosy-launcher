@@ -42,14 +42,13 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.nendo.argosy.ui.theme.Dimens
 
-private val preferenceShape = RoundedCornerShape(Dimens.radiusLg)
-
 @Composable
 private fun preferenceModifier(
     isFocused: Boolean,
     isDangerous: Boolean = false,
     onClick: (() -> Unit)? = null
 ): Modifier {
+    val preferenceShape = RoundedCornerShape(Dimens.radiusLg)
     val backgroundColor = when {
         isDangerous && isFocused -> MaterialTheme.colorScheme.errorContainer
         isFocused -> MaterialTheme.colorScheme.primaryContainer
@@ -174,6 +173,7 @@ fun SliderPreference(
     maxValue: Int,
     isFocused: Boolean,
     step: Int = 1,
+    suffix: String? = null,
     onClick: (() -> Unit)? = null
 ) {
     Row(
@@ -190,6 +190,13 @@ fun SliderPreference(
             horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            if (suffix != null) {
+                Text(
+                    text = "$value$suffix",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (isFocused) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
+                )
+            }
             for (i in minValue..maxValue step step) {
                 val isSelected = i <= value
                 val dotColor = when {
@@ -219,6 +226,7 @@ fun SwitchPreference(
     subtitle: String? = null,
     onLabelClick: (() -> Unit)? = null
 ) {
+    val preferenceShape = RoundedCornerShape(Dimens.radiusLg)
     val backgroundColor = if (isFocused) {
         MaterialTheme.colorScheme.primaryContainer
     } else {
@@ -611,6 +619,7 @@ fun ImageCachePreference(
     onChange: () -> Unit,
     onReset: () -> Unit
 ) {
+    val preferenceShape = RoundedCornerShape(Dimens.radiusLg)
     val backgroundColor = if (isFocused) {
         MaterialTheme.colorScheme.primaryContainer
     } else {

@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.nendo.argosy.domain.model.CompletionStatus
+import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.components.CenteredModal
 import com.nendo.argosy.ui.components.InputButton
 import com.nendo.argosy.ui.screens.gamedetail.components.OptionItem
@@ -22,7 +23,7 @@ fun StatusPickerModal(
 
     CenteredModal(
         title = "SET STATUS",
-        width = 320.dp,
+        baseWidth = 320.dp,
         onDismiss = onDismiss,
         footerHints = listOf(
             InputButton.SOUTH to "Confirm",
@@ -30,7 +31,7 @@ fun StatusPickerModal(
         )
     ) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(Dimens.spacingXs),
             modifier = Modifier.fillMaxWidth()
         ) {
             for (status in CompletionStatus.entries) {

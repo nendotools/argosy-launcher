@@ -76,6 +76,7 @@ fun WideGameCard(
         Modifier.border(3.dp, MaterialTheme.colorScheme.primary, shape)
     } else Modifier
 
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -100,7 +101,7 @@ fun WideGameCard(
                     modifier = Modifier
                         .width(80.dp)
                         .aspectRatio(boxArtStyle.aspectRatio)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(Dimens.radiusMd))
                         .background(MaterialTheme.colorScheme.surface)
                 ) {
                     if (coverPath != null) {
@@ -132,7 +133,7 @@ fun WideGameCard(
 
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
                 ) {
                     Text(
                         text = title,
@@ -144,7 +145,7 @@ fun WideGameCard(
 
                     if (developer != null || releaseYear != null || genre != null) {
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             developer?.let {
@@ -342,14 +343,14 @@ private fun FooterStat(
 ) {
     val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
     Row(
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             tint = contentColor,
-            modifier = Modifier.size(14.dp)
+            modifier = Modifier.size(Dimens.iconXs)
         )
         Text(
             text = value,

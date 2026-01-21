@@ -36,15 +36,15 @@ fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
     val storage = uiState.storage
 
     val sections = listOf(
-        ListSection(listStartIndex = 0, listEndIndex = 6, focusStartIndex = 0, focusEndIndex = 5),
-        ListSection(listStartIndex = 7, listEndIndex = 8, focusStartIndex = 6, focusEndIndex = 6),
-        ListSection(listStartIndex = 9, listEndIndex = 12, focusStartIndex = 7, focusEndIndex = 9)
+        ListSection(listStartIndex = 0, listEndIndex = 7, focusStartIndex = 0, focusEndIndex = 6),
+        ListSection(listStartIndex = 8, listEndIndex = 9, focusStartIndex = 7, focusEndIndex = 7),
+        ListSection(listStartIndex = 10, listEndIndex = 13, focusStartIndex = 8, focusEndIndex = 10)
     )
 
     val focusToListIndex: (Int) -> Int = { focus ->
         when {
-            focus <= 5 -> focus + 1
-            focus == 6 -> focus + 2
+            focus <= 6 -> focus + 1
+            focus == 7 -> focus + 2
             else -> focus + 3
         }
     }
@@ -123,11 +123,23 @@ fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
             )
         }
         item {
+            SliderPreference(
+                title = "UI Scale",
+                value = uiState.display.uiScale,
+                minValue = 75,
+                maxValue = 150,
+                isFocused = uiState.focusedIndex == 4,
+                step = 5,
+                suffix = "%",
+                onClick = { viewModel.adjustUiScale(5) }
+            )
+        }
+        item {
             NavigationPreference(
                 icon = Icons.Outlined.Image,
                 title = "Box Art",
                 subtitle = "Customize card appearance",
-                isFocused = uiState.focusedIndex == 4,
+                isFocused = uiState.focusedIndex == 5,
                 onClick = { viewModel.navigateToBoxArt() }
             )
         }
@@ -136,7 +148,7 @@ fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 icon = Icons.Outlined.Home,
                 title = "Home Screen",
                 subtitle = "Background and footer settings",
-                isFocused = uiState.focusedIndex == 5,
+                isFocused = uiState.focusedIndex == 6,
                 onClick = { viewModel.navigateToHomeScreen() }
             )
         }
@@ -150,7 +162,7 @@ fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                     DefaultView.HOME -> "Home"
                     DefaultView.LIBRARY -> "Library"
                 },
-                isFocused = uiState.focusedIndex == 6,
+                isFocused = uiState.focusedIndex == 7,
                 onClick = { viewModel.cycleDefaultView() }
             )
         }
@@ -162,7 +174,7 @@ fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 title = "Screen Dimmer",
                 subtitle = "Dims screen after inactivity to prevent burn-in",
                 isEnabled = storage.screenDimmerEnabled,
-                isFocused = uiState.focusedIndex == 7,
+                isFocused = uiState.focusedIndex == 8,
                 onToggle = { viewModel.toggleScreenDimmer() }
             )
         }
@@ -170,7 +182,7 @@ fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
             CyclePreference(
                 title = "Dim After",
                 value = "${storage.screenDimmerTimeoutMinutes} min",
-                isFocused = uiState.focusedIndex == 8,
+                isFocused = uiState.focusedIndex == 9,
                 onClick = { viewModel.cycleScreenDimmerTimeout() }
             )
         }
@@ -180,7 +192,7 @@ fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 value = storage.screenDimmerLevel,
                 minValue = 40,
                 maxValue = 70,
-                isFocused = uiState.focusedIndex == 9,
+                isFocused = uiState.focusedIndex == 10,
                 step = 10,
                 onClick = { viewModel.cycleScreenDimmerLevel() }
             )

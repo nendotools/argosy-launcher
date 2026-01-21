@@ -87,9 +87,9 @@ private fun CreateCollectionRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val shape = RoundedCornerShape(8.dp)
+    val shape = RoundedCornerShape(Dimens.radiusMd)
     val borderModifier = if (isFocused) {
-        Modifier.border(2.dp, MaterialTheme.colorScheme.primary, shape)
+        Modifier.border(Dimens.borderMedium, MaterialTheme.colorScheme.primary, shape)
     } else Modifier
 
     Row(
@@ -112,7 +112,7 @@ private fun CreateCollectionRow(
             Icons.Default.Add,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(Dimens.iconMd)
         )
 
         Spacer(modifier = Modifier.width(Dimens.spacingMd))
@@ -132,15 +132,15 @@ private fun CollectionCheckRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val shape = RoundedCornerShape(8.dp)
+    val shape = RoundedCornerShape(Dimens.radiusMd)
     val borderModifier = if (isFocused) {
-        Modifier.border(2.dp, MaterialTheme.colorScheme.primary, shape)
+        Modifier.border(Dimens.borderMedium, MaterialTheme.colorScheme.primary, shape)
     } else Modifier
 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 2.dp)
+            .padding(vertical = Dimens.borderMedium)
             .then(borderModifier)
             .background(
                 if (isFocused) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
@@ -158,7 +158,7 @@ private fun CollectionCheckRow(
             Icons.Default.Folder,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(Dimens.iconMd)
         )
 
         Spacer(modifier = Modifier.width(Dimens.spacingMd))
@@ -175,7 +175,7 @@ private fun CollectionCheckRow(
                 Icons.Default.Check,
                 contentDescription = "In collection",
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(Dimens.iconMd)
             )
         }
     }

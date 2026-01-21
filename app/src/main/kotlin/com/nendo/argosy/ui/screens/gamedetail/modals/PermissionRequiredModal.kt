@@ -49,9 +49,9 @@ fun PermissionRequiredModal(
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(Dimens.radiusXl),
             color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 8.dp,
+            tonalElevation = Dimens.elevationLg,
             modifier = Modifier
                 .padding(Dimens.spacingLg)
                 .fillMaxWidth(0.85f)
@@ -64,7 +64,7 @@ fun PermissionRequiredModal(
                     imageVector = Icons.Default.FolderOff,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(Dimens.iconXl)
                 )
 
                 Spacer(modifier = Modifier.height(Dimens.spacingMd))
@@ -88,7 +88,7 @@ fun PermissionRequiredModal(
                 Spacer(modifier = Modifier.height(Dimens.spacingLg))
 
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Button(

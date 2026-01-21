@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.nendo.argosy.ui.components.CenteredModal
+import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.components.InputButton
 import com.nendo.argosy.ui.screens.gamedetail.RatingType
 
@@ -39,7 +40,7 @@ fun RatingPickerModal(
 
     CenteredModal(
         title = title,
-        width = 420.dp,
+        baseWidth = 420.dp,
         onDismiss = onDismiss,
         footerHints = listOf(
             InputButton.DPAD_HORIZONTAL to "Adjust",
@@ -48,7 +49,7 @@ fun RatingPickerModal(
         )
     ) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs),
             modifier = Modifier.align(Alignment.CenterHorizontally)
         ) {
             for (i in 1..10) {
@@ -58,7 +59,7 @@ fun RatingPickerModal(
                     contentDescription = null,
                     tint = if (isFilled) filledColor else outlineColor,
                     modifier = Modifier
-                        .size(32.dp)
+                        .size(Dimens.iconLg)
                         .clickable(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() }

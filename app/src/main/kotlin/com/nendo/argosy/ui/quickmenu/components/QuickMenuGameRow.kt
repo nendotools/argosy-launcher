@@ -41,14 +41,14 @@ fun QuickMenuGameRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val shape = RoundedCornerShape(12.dp)
+    val shape = RoundedCornerShape(Dimens.radiusLg)
 
     Row(
         modifier = modifier
             .fillMaxWidth()
             .then(
                 if (isFocused) {
-                    Modifier.border(2.dp, MaterialTheme.colorScheme.primary, shape)
+                    Modifier.border(Dimens.borderMedium, MaterialTheme.colorScheme.primary, shape)
                 } else Modifier
             )
             .background(
@@ -62,7 +62,7 @@ fun QuickMenuGameRow(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             )
-            .padding(12.dp),
+            .padding(Dimens.radiusLg),
         verticalAlignment = Alignment.CenterVertically
     ) {
         val imageData = game.coverPath?.let { path ->
@@ -73,8 +73,8 @@ fun QuickMenuGameRow(
             contentDescription = game.title,
             contentScale = ContentScale.Crop,
             modifier = Modifier
-                .size(56.dp)
-                .clip(RoundedCornerShape(8.dp))
+                .size(Dimens.iconXl + Dimens.spacingSm)
+                .clip(RoundedCornerShape(Dimens.radiusMd))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         )
 
@@ -104,7 +104,7 @@ fun QuickMenuGameRow(
                         Icons.Default.CheckCircle,
                         contentDescription = "Downloaded",
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(Dimens.iconXs)
                     )
                 }
             }
@@ -114,14 +114,14 @@ fun QuickMenuGameRow(
             Spacer(modifier = Modifier.width(Dimens.spacingMd))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
             ) {
                 if (game.metadataType == MetadataType.RATING) {
                     Icon(
                         Icons.Default.People,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(Dimens.spacingMd)
                     )
                 }
                 Text(

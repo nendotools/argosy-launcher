@@ -228,7 +228,7 @@ private fun BlockedSyncContent(
             imageVector = icon,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.error,
-            modifier = Modifier.size(56.dp)
+            modifier = Modifier.size(Dimens.iconXl + Dimens.spacingSm)
         )
 
         Spacer(modifier = Modifier.height(Dimens.spacingLg))
@@ -354,7 +354,7 @@ fun SyncOverlay(
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
-                        .size(64.dp)
+                        .size(Dimens.iconXl + Dimens.spacingMd)
                         .rotate(displayRotation)
                 )
                 Spacer(modifier = Modifier.height(Dimens.spacingMd))

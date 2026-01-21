@@ -171,6 +171,28 @@ class DisplaySettingsDelegate @Inject constructor(
         setGridDensity(scope, next)
     }
 
+    fun setUiScale(scope: CoroutineScope, scale: Int) {
+        val newValue = scale.coerceIn(75, 150)
+        scope.launch {
+            preferencesRepository.setUiScale(newValue)
+            _state.update { it.copy(uiScale = newValue) }
+        }
+    }
+
+    fun adjustUiScale(scope: CoroutineScope, delta: Int) {
+        val current = _state.value.uiScale
+        val newValue = (current + delta).coerceIn(75, 150)
+        if (newValue != current) {
+            setUiScale(scope, newValue)
+        }
+    }
+
+    fun cycleUiScale(scope: CoroutineScope) {
+        val current = _state.value.uiScale
+        val newValue = if (current >= 150) 75 else current + 5
+        setUiScale(scope, newValue)
+    }
+
     fun adjustBackgroundBlur(scope: CoroutineScope, delta: Int) {
         val current = _state.value.backgroundBlur
         val newValue = (current + delta).coerceIn(0, 100)

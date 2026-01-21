@@ -133,9 +133,9 @@ private fun SearchContent(
     onGameSelect: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val inputShape = RoundedCornerShape(12.dp)
+    val inputShape = RoundedCornerShape(Dimens.radiusLg)
     val inputBorderModifier = if (isInputFocused) {
-        Modifier.border(2.dp, MaterialTheme.colorScheme.primary, inputShape)
+        Modifier.border(Dimens.borderMedium, MaterialTheme.colorScheme.primary, inputShape)
     } else Modifier
 
     Column(modifier = modifier.fillMaxSize()) {
@@ -148,16 +148,16 @@ private fun SearchContent(
                     else MaterialTheme.colorScheme.surfaceVariant,
                     inputShape
                 )
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = Dimens.spacingMd, vertical = Dimens.radiusLg),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 Icons.Default.Search,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(Dimens.iconSm + Dimens.borderMedium)
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(Dimens.radiusLg))
 
             Box(modifier = Modifier.weight(1f)) {
                 if (query.isEmpty()) {
@@ -218,9 +218,9 @@ private fun RandomContent(
         return
     }
 
-    val shape = RoundedCornerShape(16.dp)
+    val shape = RoundedCornerShape(Dimens.radiusXl)
     val borderModifier = if (isFocused) {
-        Modifier.border(2.dp, MaterialTheme.colorScheme.primary, shape)
+        Modifier.border(Dimens.borderMedium, MaterialTheme.colorScheme.primary, shape)
     } else Modifier
 
     Row(
@@ -251,7 +251,7 @@ private fun RandomContent(
             modifier = Modifier
                 .fillMaxHeight()
                 .aspectRatio(0.75f)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(Dimens.radiusLg))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         )
 
@@ -309,13 +309,13 @@ private fun RandomContent(
                 game.rating?.let { rating ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
                     ) {
                         Icon(
                             Icons.Default.People,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(Dimens.iconSm + Dimens.borderMedium)
                         )
                         Text(
                             text = "${rating.toInt()}%",
@@ -330,7 +330,7 @@ private fun RandomContent(
                         Icons.Default.CheckCircle,
                         contentDescription = "Downloaded",
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(Dimens.iconMd)
                     )
                 }
             }
@@ -449,9 +449,9 @@ private fun RecentSearchRow(
     isFocused: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val shape = RoundedCornerShape(8.dp)
+    val shape = RoundedCornerShape(Dimens.radiusMd)
     val borderModifier = if (isFocused) {
-        Modifier.border(2.dp, MaterialTheme.colorScheme.primary, shape)
+        Modifier.border(Dimens.borderMedium, MaterialTheme.colorScheme.primary, shape)
     } else Modifier
 
     Row(
@@ -472,7 +472,7 @@ private fun RecentSearchRow(
             contentDescription = null,
             tint = if (isFocused) MaterialTheme.colorScheme.onPrimaryContainer
             else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(18.dp)
+            modifier = Modifier.size(Dimens.iconSm)
         )
         Text(
             text = query,

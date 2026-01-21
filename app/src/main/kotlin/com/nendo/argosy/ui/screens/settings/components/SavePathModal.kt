@@ -38,7 +38,7 @@ fun SavePathModal(
 ) {
     Modal(
         title = "${info.platformName} - ${info.emulatorName}",
-        width = 480.dp,
+        baseWidth = Dimens.modalWidthXl,
         onDismiss = onDismiss
     ) {
         Text(
@@ -46,7 +46,7 @@ fun SavePathModal(
                 "This doesn't change where your emulator stores saves.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 12.dp)
+            modifier = Modifier.padding(bottom = Dimens.radiusLg)
         )
 
         SavePathOptionItem(
@@ -104,8 +104,8 @@ private fun SavePathOptionItem(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(backgroundColor, RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(Dimens.radiusMd))
+            .background(backgroundColor, RoundedCornerShape(Dimens.radiusMd))
             .then(
                 if (enabled) {
                     Modifier.clickable(
@@ -115,7 +115,7 @@ private fun SavePathOptionItem(
                     )
                 } else Modifier
             )
-            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .padding(horizontal = Dimens.radiusLg, vertical = Dimens.spacingSm)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -123,7 +123,7 @@ private fun SavePathOptionItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -148,13 +148,13 @@ private fun SavePathOptionItem(
             }
             if (enabled) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (onReset != null) {
                         Button(
                             onClick = onReset,
-                            modifier = Modifier.height(28.dp),
+                            modifier = Modifier.height(Dimens.iconLg - Dimens.spacingXs),
                             contentPadding = PaddingValues(horizontal = Dimens.spacingMd, vertical = 0.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (resetFocused) {
@@ -174,7 +174,7 @@ private fun SavePathOptionItem(
                     }
                     Button(
                         onClick = onClick,
-                        modifier = Modifier.height(28.dp),
+                        modifier = Modifier.height(Dimens.iconLg - Dimens.spacingXs),
                         contentPadding = PaddingValues(horizontal = Dimens.spacingMd, vertical = 0.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (changeFocused) {
@@ -199,14 +199,14 @@ private fun SavePathOptionItem(
                 text = path,
                 style = MaterialTheme.typography.bodySmall,
                 color = if (isCustom && isFocused) MaterialTheme.colorScheme.onPrimaryContainer else if (isCustom) MaterialTheme.colorScheme.primary else secondaryColor,
-                modifier = Modifier.padding(top = 4.dp)
+                modifier = Modifier.padding(top = Dimens.spacingXs)
             )
         } else if (enabled) {
             Text(
                 text = "Not configured",
                 style = MaterialTheme.typography.bodySmall,
                 color = secondaryColor.copy(alpha = 0.6f),
-                modifier = Modifier.padding(top = 4.dp)
+                modifier = Modifier.padding(top = Dimens.spacingXs)
             )
         }
     }

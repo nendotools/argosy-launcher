@@ -24,6 +24,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import com.nendo.argosy.ui.theme.Dimens
 import java.time.Duration
 import java.time.Instant
 
@@ -79,13 +80,13 @@ fun SaveStatusRow(
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
         Icon(
             imageVector = status.effectiveStatus.icon,
             contentDescription = null,
             tint = status.effectiveStatus.color(),
-            modifier = Modifier.size(16.dp)
+            modifier = Modifier.size(Dimens.spacingMd)
         )
 
         Text(

@@ -47,6 +47,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.nendo.argosy.domain.model.UnifiedSaveEntry
+import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.domain.model.UnifiedStateEntry
 import com.nendo.argosy.ui.components.FooterBarWithState
 import com.nendo.argosy.ui.components.FooterHintItem
@@ -68,7 +69,7 @@ fun SaveChannelModal(
     if (!state.isVisible) return
 
     val listState = rememberLazyListState()
-    val itemHeight = 56.dp
+    val itemHeight = Dimens.settingsItemMinHeight
     val maxVisibleItems = 5
     val entries = state.currentTabEntries
     val focusRequester = remember { FocusRequester() }
@@ -103,11 +104,11 @@ fun SaveChannelModal(
             modifier = Modifier
                 .background(
                     MaterialTheme.colorScheme.surface,
-                    RoundedCornerShape(12.dp)
+                    RoundedCornerShape(Dimens.radiusLg)
                 )
-                .width(450.dp)
+                .width(Dimens.modalWidthLg)
                 .clickable(enabled = false, onClick = {})
-                .padding(24.dp)
+                .padding(Dimens.spacingLg)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -134,7 +135,7 @@ fun SaveChannelModal(
                 ActiveSaveIndicator(activeChannel = state.activeChannel)
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingMd))
 
             TabBar(
                 selectedTab = state.selectedTab,
@@ -144,7 +145,7 @@ fun SaveChannelModal(
                 onTabSelect = onTabSelect
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(Dimens.radiusLg))
 
             if (state.isLoading) {
                 Box(
@@ -211,7 +212,7 @@ fun SaveChannelModal(
                     state = listState,
                     modifier = Modifier
                         .heightIn(max = itemHeight * maxVisibleItems)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(Dimens.radiusMd))
                 ) {
                     items(
                         count = entries.size,
@@ -235,7 +236,7 @@ fun SaveChannelModal(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingMd))
 
             val hints = buildFooterHints(state)
             FooterBarWithState(hints = hints)
@@ -288,7 +289,7 @@ fun SaveChannelModal(
 private fun ActiveSaveIndicator(activeChannel: String?) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
     ) {
         Text(
             text = "\u25C6",
@@ -313,7 +314,7 @@ private fun TabBar(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
         TabButton(
             label = "Save Slots",
@@ -358,7 +359,7 @@ private fun TabButton(
 
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(Dimens.radiusMd))
             .background(backgroundColor)
             .clickable(
                 enabled = isEnabled && !isSelected,
@@ -366,7 +367,7 @@ private fun TabButton(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             )
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = Dimens.spacingMd, vertical = Dimens.spacingSm)
     ) {
         Text(
             text = label,
@@ -465,8 +466,8 @@ private fun SaveCacheEntryRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .height(Dimens.settingsItemMinHeight)
+            .clip(RoundedCornerShape(Dimens.radiusMd))
             .background(backgroundColor)
             .combinedClickable(
                 onClick = onClick,
@@ -474,9 +475,9 @@ private fun SaveCacheEntryRow(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             )
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = Dimens.radiusLg),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(Dimens.radiusLg)
     ) {
         when {
             entry.isChannel -> {
@@ -484,7 +485,7 @@ private fun SaveCacheEntryRow(
                     imageVector = Icons.Default.Lock,
                     contentDescription = "Channel",
                     tint = if (isActiveChannel) MaterialTheme.colorScheme.primary else contentColor.copy(alpha = 0.7f),
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(Dimens.iconSm + Dimens.borderMedium)
                 )
             }
             entry.isActive -> {
@@ -492,18 +493,18 @@ private fun SaveCacheEntryRow(
                     imageVector = Icons.Default.Save,
                     contentDescription = "Active",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(Dimens.iconSm + Dimens.borderMedium)
                 )
             }
             else -> {
-                Spacer(modifier = Modifier.width(20.dp))
+                Spacer(modifier = Modifier.width(Dimens.iconSm + Dimens.borderMedium))
             }
         }
 
         Column(modifier = Modifier.weight(1f)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
             ) {
                 Text(
                     text = entry.displayName,
@@ -522,7 +523,7 @@ private fun SaveCacheEntryRow(
                 }
             }
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
             ) {
                 Text(
                     text = formattedDate,
@@ -666,7 +667,7 @@ private fun StateSlotRow(
 ) {
     val isEmpty = entry.localCacheId == null
     val hasScreenshot = entry.screenshotPath != null
-    val rowHeight = if (hasScreenshot) 72.dp else 56.dp
+    val rowHeight = if (hasScreenshot) Dimens.headerHeight else Dimens.settingsItemMinHeight
 
     val dateFormatter = remember {
         java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy HH:mm")
@@ -702,7 +703,7 @@ private fun StateSlotRow(
         modifier = Modifier
             .fillMaxWidth()
             .height(rowHeight)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(Dimens.radiusMd))
             .background(backgroundColor)
             .combinedClickable(
                 onClick = onClick,
@@ -710,9 +711,9 @@ private fun StateSlotRow(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             )
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = Dimens.radiusLg, vertical = Dimens.spacingSm),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(Dimens.radiusLg)
     ) {
         if (hasScreenshot) {
             AsyncImage(
@@ -724,8 +725,8 @@ private fun StateSlotRow(
                 contentDescription = "State screenshot",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(width = 80.dp, height = 56.dp)
-                    .clip(RoundedCornerShape(4.dp))
+                    .size(width = Dimens.iconXl + Dimens.iconLg, height = Dimens.settingsItemMinHeight)
+                    .clip(RoundedCornerShape(Dimens.radiusSm))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             )
         }
@@ -736,12 +737,12 @@ private fun StateSlotRow(
                     imageVector = Icons.Default.Warning,
                     contentDescription = "Version mismatch",
                     tint = LocalLauncherTheme.current.semanticColors.warning,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(Dimens.iconSm + Dimens.borderMedium)
                 )
             }
             else -> {
                 if (!hasScreenshot) {
-                    Spacer(modifier = Modifier.width(20.dp))
+                    Spacer(modifier = Modifier.width(Dimens.iconSm + Dimens.borderMedium))
                 }
             }
         }
@@ -749,7 +750,7 @@ private fun StateSlotRow(
         Column(modifier = Modifier.weight(1f)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
             ) {
                 Text(
                     text = slotLabel,
@@ -768,7 +769,7 @@ private fun StateSlotRow(
                 }
             }
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
             ) {
                 Text(
                     text = formattedDate,
@@ -831,7 +832,7 @@ fun VersionMismatchOverlay(
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingSm))
 
         Text(
             text = "Current core version:",
@@ -846,7 +847,7 @@ fun VersionMismatchOverlay(
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(Dimens.radiusLg))
 
         Text(
             text = "Loading may cause crashes or corruption.",

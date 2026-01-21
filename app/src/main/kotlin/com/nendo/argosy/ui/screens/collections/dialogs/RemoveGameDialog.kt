@@ -9,6 +9,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
+import com.nendo.argosy.ui.theme.Dimens
 
 @Composable
 fun RemoveGameDialog(
@@ -46,6 +47,6 @@ fun RemoveGameDialog(
                 Text("Cancel")
             }
         },
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(Dimens.radiusXl)
     )
 }

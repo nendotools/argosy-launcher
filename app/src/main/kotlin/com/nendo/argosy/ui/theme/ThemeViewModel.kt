@@ -42,7 +42,8 @@ data class ThemeState(
     val gradientPreset: GradientPreset = GradientPreset.BALANCED,
     val systemIconPosition: SystemIconPosition = SystemIconPosition.TOP_LEFT,
     val systemIconPadding: SystemIconPadding = SystemIconPadding.MEDIUM,
-    val useAccentColorFooter: Boolean = false
+    val useAccentColorFooter: Boolean = false,
+    val uiScale: Int = 100
 )
 
 @HiltViewModel
@@ -70,7 +71,8 @@ class ThemeViewModel @Inject constructor(
                 gradientPreset = prefs.gradientPreset,
                 systemIconPosition = prefs.systemIconPosition,
                 systemIconPadding = prefs.systemIconPadding,
-                useAccentColorFooter = prefs.useAccentColorFooter
+                useAccentColorFooter = prefs.useAccentColorFooter,
+                uiScale = prefs.uiScale
             )
         }
         .stateIn(
@@ -88,6 +90,12 @@ class ThemeViewModel @Inject constructor(
     fun setCustomColors(primary: Int?, secondary: Int?, tertiary: Int?) {
         viewModelScope.launch {
             preferencesRepository.setCustomColors(primary, secondary, tertiary)
+        }
+    }
+
+    fun setUiScale(scale: Int) {
+        viewModelScope.launch {
+            preferencesRepository.setUiScale(scale)
         }
     }
 }

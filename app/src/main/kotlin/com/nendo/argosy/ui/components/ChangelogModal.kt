@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.nendo.argosy.domain.model.ChangelogEntry
+import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.domain.model.RequiredAction
 
 @Composable
@@ -44,13 +45,13 @@ fun ChangelogModal(
 
     CenteredModal(
         title = "What's New in ${entry.version}",
-        width = 450.dp,
+        baseWidth = Dimens.modalWidthLg,
         onDismiss = if (hasRequiredAction) null else onDismiss,
         footerHints = footerHints
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
         ) {
             entry.highlights.forEach { highlight ->
                 Row(
@@ -61,11 +62,11 @@ fun ChangelogModal(
                         imageVector = Icons.Default.Circle,
                         contentDescription = null,
                         modifier = Modifier
-                            .padding(top = 6.dp)
-                            .size(6.dp),
+                            .padding(top = Dimens.spacingSm - Dimens.borderMedium)
+                            .size(Dimens.spacingSm - Dimens.borderMedium),
                         tint = MaterialTheme.colorScheme.primary
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(Dimens.radiusLg))
                     Text(
                         text = highlight,
                         style = MaterialTheme.typography.bodyMedium,
@@ -76,24 +77,24 @@ fun ChangelogModal(
         }
 
         if (hasRequiredAction) {
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(Dimens.radiusLg))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
                         MaterialTheme.colorScheme.errorContainer,
-                        RoundedCornerShape(6.dp)
+                        RoundedCornerShape(Dimens.spacingSm - Dimens.borderMedium)
                     )
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                    .padding(horizontal = Dimens.spacingSm + Dimens.borderMedium, vertical = Dimens.spacingSm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = Icons.Default.Warning,
                     contentDescription = null,
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(Dimens.spacingMd),
                     tint = MaterialTheme.colorScheme.onErrorContainer
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Dimens.spacingSm))
                 Text(
                     text = "Action required: ${entry.requiredActions.joinToString(", ") { it.label }}",
                     style = MaterialTheme.typography.bodySmall,

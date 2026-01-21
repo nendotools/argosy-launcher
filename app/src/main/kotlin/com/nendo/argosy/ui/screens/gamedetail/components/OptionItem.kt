@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import com.nendo.argosy.ui.theme.Dimens
 
 @Composable
 fun OptionItem(
@@ -47,8 +48,8 @@ fun OptionItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(backgroundColor, RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(Dimens.radiusMd))
+            .background(backgroundColor, RoundedCornerShape(Dimens.radiusMd))
             .then(
                 if (onClick != null) Modifier.clickable(
                     onClick = onClick,
@@ -56,16 +57,16 @@ fun OptionItem(
                     interactionSource = remember { MutableInteractionSource() }
                 ) else Modifier
             )
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = Dimens.radiusLg, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(Dimens.radiusLg)
     ) {
         if (icon != null) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = iconTint ?: contentColor,
-                modifier = Modifier.width(20.dp)
+                modifier = Modifier.width(Dimens.iconSm)
             )
         }
         Text(

@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.nendo.argosy.ui.components.CenteredModal
+import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.components.InputButton
 import com.nendo.argosy.ui.screens.gamedetail.ExtractionFailedInfo
 
@@ -44,11 +45,11 @@ fun ExtractionFailedModal(
             contentDescription = null,
             tint = MaterialTheme.colorScheme.error,
             modifier = Modifier
-                .size(48.dp)
+                .size(Dimens.iconXl)
                 .align(Alignment.CenterHorizontally)
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingSm))
 
         Text(
             text = "Failed to extract ${info.fileName}",
@@ -58,11 +59,11 @@ fun ExtractionFailedModal(
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingMd))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
+            horizontalArrangement = Arrangement.spacedBy(Dimens.radiusLg, Alignment.CenterHorizontally)
         ) {
             if (focusIndex == 0) {
                 Button(

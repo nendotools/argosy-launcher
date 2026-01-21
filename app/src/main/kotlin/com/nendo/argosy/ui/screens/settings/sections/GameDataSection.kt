@@ -36,7 +36,6 @@ import androidx.compose.ui.Modifier
 import com.nendo.argosy.ui.components.ListSection
 import com.nendo.argosy.ui.components.SectionFocusedScroll
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
@@ -384,8 +383,8 @@ private fun AddSteamGameDialog(uiState: SettingsUiState, viewModel: SettingsView
             ) {
                 if (uiState.steam.isAddingGame) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp
+                        modifier = Modifier.size(Dimens.spacingMd),
+                        strokeWidth = Dimens.borderMedium
                     )
                 } else {
                     Text("Add")

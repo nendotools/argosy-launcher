@@ -70,6 +70,7 @@ import com.nendo.argosy.ui.input.LocalInputDispatcher
 import com.nendo.argosy.ui.navigation.Screen
 import com.nendo.argosy.ui.components.FooterBar
 import com.nendo.argosy.ui.components.InputButton
+import com.nendo.argosy.ui.theme.Dimens
 
 @Composable
 fun DownloadsScreen(
@@ -123,16 +124,16 @@ fun DownloadsScreen(
                 Icon(
                     imageVector = Icons.Default.Download,
                     contentDescription = null,
-                    modifier = Modifier.size(64.dp),
+                    modifier = Modifier.size(Dimens.iconXl),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Dimens.spacingMd))
                 Text(
                     text = "No Downloads",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Dimens.spacingSm))
                 Text(
                     text = "Downloads will appear here",
                     style = MaterialTheme.typography.bodyMedium,
@@ -150,8 +151,8 @@ fun DownloadsScreen(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 80.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            contentPadding = PaddingValues(start = Dimens.spacingLg, end = Dimens.spacingLg, top = Dimens.spacingLg, bottom = 80.dp),
+            verticalArrangement = Arrangement.spacedBy(Dimens.radiusLg)
         ) {
             if (activeItems.isNotEmpty()) {
                 val hasExtracting = activeItems.any { it.state == DownloadState.EXTRACTING }
@@ -241,8 +242,8 @@ fun DownloadsScreen(
 @Composable
 private fun SectionHeader(title: String, speedSuffix: String? = null) {
     Row(
-        modifier = Modifier.padding(bottom = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(bottom = Dimens.spacingSm),
+        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
         verticalAlignment = Alignment.Bottom
     ) {
         Text(
@@ -315,9 +316,9 @@ private fun DownloadItem(
             .border(
                 width = 2.dp,
                 color = borderColor,
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(Dimens.radiusLg)
             ),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(Dimens.radiusLg),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
@@ -325,11 +326,11 @@ private fun DownloadItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(Dimens.spacingMd),
             verticalAlignment = Alignment.CenterVertically
         ) {
             DownloadCover(download)
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(Dimens.spacingMd))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = download.displayTitle,
@@ -345,11 +346,11 @@ private fun DownloadItem(
 
                 when {
                     isExtracting -> {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(Dimens.spacingSm))
                         ShimmerProgressBar()
                     }
                     isActiveDownload -> {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(Dimens.spacingSm))
                         LinearProgressIndicator(
                             progress = { download.progressPercent },
                             modifier = Modifier.fillMaxWidth(),
@@ -357,7 +358,7 @@ private fun DownloadItem(
                         )
                     }
                     download.totalBytes > 0 -> {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(Dimens.spacingSm))
                         LinearProgressIndicator(
                             progress = { download.progressPercent },
                             modifier = Modifier.fillMaxWidth(),
@@ -366,7 +367,7 @@ private fun DownloadItem(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(Dimens.spacingXs))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -394,7 +395,7 @@ private fun DownloadItem(
                 imageVector = statusIcon,
                 contentDescription = null,
                 tint = statusColor,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(Dimens.iconMd)
             )
         }
     }
@@ -423,9 +424,9 @@ private fun CompletedDownloadItem(
             .border(
                 width = 2.dp,
                 color = borderColor,
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(Dimens.radiusLg)
             ),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(Dimens.radiusLg),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
@@ -433,11 +434,11 @@ private fun CompletedDownloadItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(Dimens.spacingMd),
             verticalAlignment = Alignment.CenterVertically
         ) {
             DownloadCover(download)
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(Dimens.spacingMd))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = download.displayTitle,
@@ -451,7 +452,7 @@ private fun CompletedDownloadItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (download.state == DownloadState.FAILED && download.errorReason != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(Dimens.spacingXs))
                     Text(
                         text = download.errorReason,
                         style = MaterialTheme.typography.bodySmall,
@@ -483,20 +484,20 @@ private fun DownloadCover(download: DownloadProgress) {
             contentDescription = download.gameTitle,
             modifier = Modifier
                 .size(56.dp)
-                .clip(RoundedCornerShape(8.dp)),
+                .clip(RoundedCornerShape(Dimens.radiusMd)),
             contentScale = ContentScale.Crop
         )
     } else {
         Box(
             modifier = Modifier
                 .size(56.dp)
-                .clip(RoundedCornerShape(8.dp)),
+                .clip(RoundedCornerShape(Dimens.radiusMd)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.Download,
                 contentDescription = null,
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(Dimens.iconLg),
                 tint = MaterialTheme.colorScheme.primary
             )
         }
@@ -586,6 +587,6 @@ private fun FailedDownloadDialog(
                 Text("Clear")
             }
         },
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(Dimens.radiusXl)
     )
 }

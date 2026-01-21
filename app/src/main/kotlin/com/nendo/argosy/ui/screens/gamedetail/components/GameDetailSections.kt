@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import java.io.File
 import com.nendo.argosy.ui.theme.ALauncherColors
+import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.screens.gamedetail.GameDetailUi
 import com.nendo.argosy.ui.screens.gamedetail.GameDetailUiState
 import com.nendo.argosy.ui.screens.gamedetail.GameDetailViewModel
@@ -83,7 +84,7 @@ fun GameHeader(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(32.dp)
+        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXl)
     ) {
         val imageData = game.coverPath?.let { path ->
             if (path.startsWith("/")) File(path) else path
@@ -95,7 +96,7 @@ fun GameHeader(
             modifier = Modifier
                 .width(200.dp)
                 .height(280.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(Dimens.radiusLg))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         )
 
@@ -106,10 +107,10 @@ fun GameHeader(
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingSm))
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -128,10 +129,10 @@ fun GameHeader(
                 }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingXs))
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 game.developer?.let { dev ->
@@ -157,9 +158,9 @@ fun GameHeader(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingSm))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Dimens.radiusLg)) {
                 game.players?.let { players ->
                     MetadataChip(label = "Players", value = players)
                 }
@@ -184,10 +185,10 @@ fun GameHeader(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingLg))
 
             if (game.playTimeMinutes > 0 || game.status != null) {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Dimens.radiusLg)) {
                     if (game.playTimeMinutes > 0) {
                         PlayTimeChip(minutes = game.playTimeMinutes)
                     }
@@ -195,13 +196,13 @@ fun GameHeader(
                         StatusChip(statusValue = status)
                     }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(Dimens.radiusLg))
             }
 
             ActionButtons(game = game, uiState = uiState, viewModel = viewModel)
 
             uiState.saveStatusInfo?.let { statusInfo ->
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(Dimens.radiusLg))
                 SaveStatusRow(status = statusInfo)
             }
         }
@@ -239,7 +240,7 @@ fun ActionButtons(
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(Dimens.radiusLg)
     ) {
         Box(
             modifier = Modifier
@@ -297,17 +298,17 @@ fun ActionButtons(
                 when (uiState.downloadStatus) {
                     GameDownloadStatus.DOWNLOADED -> {
                         Icon(Icons.Default.PlayArrow, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(Dimens.spacingSm))
                         Text("PLAY")
                     }
                     GameDownloadStatus.NOT_DOWNLOADED -> {
                         Icon(Icons.Default.Download, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(Dimens.spacingSm))
                         Text("DOWNLOAD")
                     }
                     GameDownloadStatus.NEEDS_INSTALL -> {
                         Icon(Icons.Default.InstallMobile, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(Dimens.spacingSm))
                         Text("INSTALL")
                     }
                     GameDownloadStatus.QUEUED -> Text("QUEUED...")
@@ -354,7 +355,7 @@ fun DescriptionSection(
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingSm))
         Text(
             text = description,
             style = MaterialTheme.typography.bodyMedium,
@@ -388,7 +389,7 @@ fun ScreenshotsSection(
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary
         )
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(Dimens.radiusLg))
 
         var scrollDirection by remember { mutableIntStateOf(1) }
         val currentSnapStateUpdated by rememberUpdatedState(currentSnapState)
@@ -430,7 +431,7 @@ fun ScreenshotsSection(
 
         LazyRow(
             state = listState,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(Dimens.radiusLg)
         ) {
             itemsIndexed(screenshots) { index, screenshot ->
                 val isFocused = showFocus && index == focusedIndex
@@ -439,10 +440,10 @@ fun ScreenshotsSection(
                     modifier = Modifier
                         .width(240.dp)
                         .height(135.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(Dimens.radiusMd))
                         .then(
                             if (isFocused)
-                                Modifier.border(3.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                                Modifier.border(Dimens.borderThick, MaterialTheme.colorScheme.primary, RoundedCornerShape(Dimens.radiusMd))
                             else Modifier
                         )
                         .clickable(
@@ -487,13 +488,13 @@ fun AchievementsSection(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
         ) {
             Icon(
                 imageVector = Icons.Filled.EmojiEvents,
                 contentDescription = null,
                 tint = ALauncherColors.TrophyAmber,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(Dimens.iconSm)
             )
             Text(
                 text = "ACHIEVEMENTS",
@@ -506,7 +507,7 @@ fun AchievementsSection(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
             )
         }
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(Dimens.radiusLg))
 
         val achievementColumns = achievements.chunked(3)
         val currentSnapStateForAchievements by rememberUpdatedState(currentSnapState)
@@ -545,12 +546,12 @@ fun AchievementsSection(
 
             LazyRow(
                 state = listState,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd)
             ) {
                 items(achievementColumns) { columnAchievements ->
                     AchievementColumn(
                         achievements = columnAchievements,
-                        modifier = Modifier.width(columnWidth - 16.dp)
+                        modifier = Modifier.width(columnWidth - Dimens.spacingMd)
                     )
                 }
             }

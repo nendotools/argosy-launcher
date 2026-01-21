@@ -25,6 +25,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import com.nendo.argosy.ui.theme.Dimens
 
 @Composable
 fun CreateCollectionDialog(
@@ -80,6 +81,6 @@ fun CreateCollectionDialog(
                 Text("Cancel")
             }
         },
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(Dimens.radiusXl)
     )
 }

@@ -170,7 +170,7 @@ fun AppsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(24.dp)
+                    .padding(Dimens.spacingLg)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -183,7 +183,7 @@ fun AppsScreen(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     if (uiState.isReorderMode) {
-                        Spacer(modifier = Modifier.width(16.dp))
+                        Spacer(modifier = Modifier.width(Dimens.spacingMd))
                         Text(
                             text = "(Press A to save)",
                             style = MaterialTheme.typography.bodyMedium,
@@ -202,7 +202,7 @@ fun AppsScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(48.dp),
+                            modifier = Modifier.size(Dimens.spacingXxl),
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -225,9 +225,9 @@ fun AppsScreen(
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(uiState.columnsCount),
                         state = gridState,
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(horizontal = Dimens.spacingMd, vertical = Dimens.spacingMd),
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
+                        verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm),
                         modifier = Modifier.weight(1f)
                     ) {
                         itemsIndexed(
@@ -298,25 +298,25 @@ fun AppsScreen(
                 Surface(
                     shape = RoundedCornerShape(Dimens.radiusLg),
                     color = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 8.dp,
+                    tonalElevation = Dimens.elevationLg,
                     modifier = Modifier.clickable(enabled = false) {}
                 ) {
                     Column(
                         modifier = Modifier
                             .width(280.dp)
-                            .padding(vertical = 8.dp)
+                            .padding(vertical = Dimens.spacingSm)
                     ) {
                         Text(
                             text = uiState.focusedApp?.label ?: "",
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                            modifier = Modifier.padding(horizontal = Dimens.spacingMd, vertical = Dimens.radiusLg)
                         )
 
                         uiState.contextMenuItems.forEachIndexed { index, item ->
                             if (item == AppContextMenuItem.UNINSTALL) {
                                 HorizontalDivider(
-                                    modifier = Modifier.padding(vertical = 8.dp),
+                                    modifier = Modifier.padding(vertical = Dimens.spacingSm),
                                     color = MaterialTheme.colorScheme.outlineVariant
                                 )
                             }
@@ -384,16 +384,16 @@ private fun ContextMenuItem(
                 interactionSource = remember { MutableInteractionSource() }
             )
             .background(backgroundColor)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = Dimens.spacingMd, vertical = Dimens.radiusLg),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             tint = iconColor,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(Dimens.iconMd)
         )
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(Dimens.radiusLg))
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
@@ -442,7 +442,7 @@ private fun AppCard(
                 interactionSource = remember { MutableInteractionSource() }
             )
             .background(backgroundColor)
-            .padding(12.dp),
+            .padding(Dimens.radiusLg),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         SubcomposeAsyncImage(
@@ -468,7 +468,7 @@ private fun AppCard(
             }
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingSm))
 
         Text(
             text = label,

@@ -112,6 +112,7 @@ class UserPreferencesRepository @Inject constructor(
         val VIDEO_WALLPAPER_ENABLED = booleanPreferencesKey("video_wallpaper_enabled")
         val VIDEO_WALLPAPER_DELAY_SECONDS = intPreferencesKey("video_wallpaper_delay_seconds")
         val VIDEO_WALLPAPER_MUTED = booleanPreferencesKey("video_wallpaper_muted")
+        val UI_SCALE = intPreferencesKey("ui_scale")
     }
 
     val userPreferences: Flow<UserPreferences> = dataStore.data.map { prefs ->
@@ -222,7 +223,8 @@ class UserPreferencesRepository @Inject constructor(
             customBiosPath = prefs[Keys.CUSTOM_BIOS_PATH],
             videoWallpaperEnabled = prefs[Keys.VIDEO_WALLPAPER_ENABLED] ?: false,
             videoWallpaperDelaySeconds = prefs[Keys.VIDEO_WALLPAPER_DELAY_SECONDS] ?: 3,
-            videoWallpaperMuted = prefs[Keys.VIDEO_WALLPAPER_MUTED] ?: false
+            videoWallpaperMuted = prefs[Keys.VIDEO_WALLPAPER_MUTED] ?: false,
+            uiScale = prefs[Keys.UI_SCALE] ?: 100
         )
     }
 
@@ -806,6 +808,12 @@ class UserPreferencesRepository @Inject constructor(
             prefs[Keys.VIDEO_WALLPAPER_MUTED] = muted
         }
     }
+
+    suspend fun setUiScale(scale: Int) {
+        dataStore.edit { prefs ->
+            prefs[Keys.UI_SCALE] = scale.coerceIn(75, 150)
+        }
+    }
 }
 
 data class UserPreferences(
@@ -883,7 +891,8 @@ data class UserPreferences(
     val customBiosPath: String? = null,
     val videoWallpaperEnabled: Boolean = false,
     val videoWallpaperDelaySeconds: Int = 3,
-    val videoWallpaperMuted: Boolean = false
+    val videoWallpaperMuted: Boolean = false,
+    val uiScale: Int = 100
 )
 
 enum class ThemeMode(val displayName: String) {

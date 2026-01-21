@@ -23,6 +23,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.nendo.argosy.ui.components.FooterBar
+import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.components.InputButton
 import com.nendo.argosy.ui.screens.gamedetail.ScreenshotPair
 
@@ -51,7 +52,7 @@ fun ScreenshotViewerOverlay(
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(bottom = 56.dp)
+                    .padding(bottom = Dimens.settingsItemMinHeight)
             )
         } else {
             AsyncImage(
@@ -60,12 +61,12 @@ fun ScreenshotViewerOverlay(
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(bottom = 56.dp),
+                    .padding(bottom = Dimens.settingsItemMinHeight),
                 onError = { cacheLoadFailed = true }
             )
         }
 
-        Row(modifier = Modifier.fillMaxSize().padding(bottom = 56.dp)) {
+        Row(modifier = Modifier.fillMaxSize().padding(bottom = Dimens.settingsItemMinHeight)) {
             Box(
                 modifier = Modifier
                     .weight(0.25f)
@@ -104,7 +105,7 @@ fun ScreenshotViewerOverlay(
             color = Color.White,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 64.dp)
+                .padding(bottom = 64.dp)  // Keep as interaction threshold
         )
 
         Column(modifier = Modifier.align(Alignment.BottomCenter)) {

@@ -25,8 +25,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import com.nendo.argosy.ui.theme.Dimens
 
-private val preferenceShape = RoundedCornerShape(Dimens.radiusLg)
-
 @Composable
 fun ExpandablePreference(
     title: String,
@@ -35,6 +33,7 @@ fun ExpandablePreference(
     isFocused: Boolean,
     onToggle: () -> Unit
 ) {
+    val preferenceShape = RoundedCornerShape(Dimens.radiusLg)
     val backgroundColor = if (isFocused) {
         MaterialTheme.colorScheme.primaryContainer
     } else {
@@ -94,6 +93,7 @@ fun ExpandedChildItem(
     isFocused: Boolean,
     onClick: () -> Unit
 ) {
+    val preferenceShape = RoundedCornerShape(Dimens.radiusLg)
     val backgroundColor = if (isFocused) {
         MaterialTheme.colorScheme.primaryContainer
     } else {

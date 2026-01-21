@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.nendo.argosy.ui.theme.Dimens
 import kotlinx.coroutines.delay
 
 data class BatteryState(
@@ -103,7 +104,7 @@ fun SystemStatusBar(
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(Dimens.radiusLg)
     ) {
         Text(
             text = java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault())
@@ -130,13 +131,13 @@ private fun BatteryIndicator(
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
     ) {
         BatteryIcon(
             level = level,
             isCharging = isCharging,
             color = color,
-            modifier = Modifier.size(width = 24.dp, height = 12.dp)
+            modifier = Modifier.size(width = Dimens.iconMd, height = Dimens.radiusLg)
         )
         Text(
             text = "$level%",

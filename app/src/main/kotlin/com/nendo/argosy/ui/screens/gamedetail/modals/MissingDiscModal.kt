@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.nendo.argosy.ui.components.CenteredModal
+import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.components.InputButton
 
 @Composable
@@ -38,7 +39,7 @@ fun MissingDiscModal(
             contentDescription = null,
             tint = MaterialTheme.colorScheme.error,
             modifier = Modifier
-                .size(48.dp)
+                .size(Dimens.iconXl)
                 .align(Alignment.CenterHorizontally)
         )
 

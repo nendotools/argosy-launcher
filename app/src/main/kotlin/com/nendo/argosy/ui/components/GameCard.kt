@@ -743,7 +743,7 @@ fun GameCard(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(Dimens.spacingSm)
-                    .size(22.dp)
+                    .size(Dimens.iconSm + Dimens.spacingXs)
                     .background(
                         MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f),
                         CircleShape
@@ -754,7 +754,7 @@ fun GameCard(
                     imageVector = Icons.Default.Download,
                     contentDescription = "Downloading",
                     tint = Color.White,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(Dimens.iconXs)
                 )
             }
         }
@@ -775,7 +775,7 @@ fun GameCard(
                     if (game.isFavorite) {
                         Box(
                             modifier = Modifier
-                                .size(20.dp)
+                                .size(Dimens.iconSm + Dimens.borderMedium)
                                 .background(Color.Black.copy(alpha = 0.35f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
@@ -783,17 +783,17 @@ fun GameCard(
                                 imageVector = Icons.Default.Favorite,
                                 contentDescription = "Favorite",
                                 tint = Color.White,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(Dimens.iconXs)
                             )
                         }
                     } else {
-                        Box(modifier = Modifier.size(20.dp))
+                        Box(modifier = Modifier.size(Dimens.iconSm + Dimens.borderMedium))
                     }
 
                     if (game.isDownloaded) {
                         Box(
                             modifier = Modifier
-                                .size(20.dp)
+                                .size(Dimens.iconSm + Dimens.borderMedium)
                                 .background(Color.Black.copy(alpha = 0.35f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
@@ -801,11 +801,11 @@ fun GameCard(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = "Downloaded",
                                 tint = Color.White,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(Dimens.iconXs)
                             )
                         }
                     } else {
-                        Box(modifier = Modifier.size(20.dp))
+                        Box(modifier = Modifier.size(Dimens.iconSm + Dimens.borderMedium))
                     }
                 }
             }
@@ -817,7 +817,7 @@ fun GameCard(
                 } else {
                     secondaryColor
                 }
-                val progressBarHeight = 6.dp
+                val progressBarHeight = Dimens.spacingSm - Dimens.borderMedium
 
                 val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
                 val shimmerOffset by infiniteTransition.animateFloat(
@@ -1000,7 +1000,7 @@ fun SourceBadge(
                 color = color,
                 shape = RoundedCornerShape(Dimens.radiusSm)
             )
-            .padding(horizontal = 6.dp, vertical = 2.dp)
+            .padding(horizontal = Dimens.spacingSm - Dimens.borderMedium, vertical = Dimens.borderMedium)
     ) {
         Text(
             text = text,

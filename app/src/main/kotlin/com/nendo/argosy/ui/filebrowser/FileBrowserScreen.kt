@@ -112,7 +112,7 @@ fun FileBrowserScreen(
                     focusedIndex = state.volumeFocusIndex,
                     isFocused = state.focusedPane == FocusedPane.VOLUMES,
                     onVolumeClick = { viewModel.selectVolume(it) },
-                    modifier = Modifier.width(160.dp)
+                    modifier = Modifier.width(Dimens.modalWidth - 190.dp)
                 )
 
                 Spacer(modifier = Modifier.width(Dimens.spacingMd))
@@ -392,7 +392,7 @@ private fun FilePane(
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(32.dp),
+                        modifier = Modifier.size(Dimens.iconLg),
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -409,7 +409,7 @@ private fun FilePane(
                         imageVector = Icons.Default.Folder,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier.size(Dimens.iconXl)
                     )
                     Spacer(modifier = Modifier.height(Dimens.spacingSm))
                     Text(

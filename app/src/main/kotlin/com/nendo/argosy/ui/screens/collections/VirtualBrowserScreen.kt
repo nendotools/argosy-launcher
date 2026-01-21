@@ -207,9 +207,9 @@ private fun CategoryRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val shape = RoundedCornerShape(12.dp)
+    val shape = RoundedCornerShape(Dimens.radiusLg)
     val borderModifier = if (isFocused) {
-        Modifier.border(2.dp, MaterialTheme.colorScheme.primary, shape)
+        Modifier.border(Dimens.borderMedium, MaterialTheme.colorScheme.primary, shape)
     } else Modifier
 
     Card(
@@ -238,7 +238,7 @@ private fun CategoryRow(
         ) {
             CategoryCoverMosaic(
                 coverPaths = category.coverPaths,
-                modifier = Modifier.size(64.dp)
+                modifier = Modifier.size(Dimens.iconXl + Dimens.spacingMd)
             )
 
             Spacer(modifier = Modifier.width(Dimens.spacingMd))
@@ -257,11 +257,11 @@ private fun CategoryRow(
                             Icons.Default.PushPin,
                             contentDescription = "Pinned",
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(Dimens.spacingMd)
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(Dimens.spacingXs))
                 Text(
                     text = "${category.gameCount} games",
                     style = MaterialTheme.typography.bodyMedium,
@@ -277,7 +277,7 @@ private fun CategoryCoverMosaic(
     coverPaths: List<String>,
     modifier: Modifier = Modifier
 ) {
-    val shape = RoundedCornerShape(8.dp)
+    val shape = RoundedCornerShape(Dimens.radiusMd)
 
     Box(
         modifier = modifier
@@ -292,7 +292,7 @@ private fun CategoryCoverMosaic(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .size(32.dp)
+                        .size(Dimens.iconLg)
                 )
             }
             coverPaths.size == 1 -> {
@@ -376,7 +376,7 @@ private fun EmptyVirtualBrowser(type: String) {
                 Icons.Default.Category,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(64.dp)
+                modifier = Modifier.size(Dimens.iconXl + Dimens.spacingMd)
             )
             Text(
                 text = "No $type found",

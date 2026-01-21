@@ -19,7 +19,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.Color
 import com.nendo.argosy.ui.components.ListSection
 import com.nendo.argosy.ui.components.SectionFocusedScroll
 import com.nendo.argosy.data.cache.GradientExtractionConfig
@@ -390,7 +389,7 @@ fun BoxArtSection(
                     game = previewGame,
                     isFocused = true,
                     modifier = Modifier
-                        .width(180.dp)
+                        .width(Dimens.gameCardWidth)
                         .aspectRatio(display.boxArtShape.aspectRatio)
                 )
             }

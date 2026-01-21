@@ -125,7 +125,8 @@ data class DisplayState(
     val defaultView: DefaultView = DefaultView.HOME,
     val videoWallpaperEnabled: Boolean = false,
     val videoWallpaperDelaySeconds: Int = 3,
-    val videoWallpaperMuted: Boolean = false
+    val videoWallpaperMuted: Boolean = false,
+    val uiScale: Int = 100
 )
 
 data class ControlsState(

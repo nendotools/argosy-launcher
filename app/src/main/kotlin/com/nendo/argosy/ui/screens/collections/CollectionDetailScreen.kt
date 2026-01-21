@@ -256,7 +256,7 @@ private fun EmptyCollectionDetail() {
                 Icons.Default.Folder,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(64.dp)
+                modifier = Modifier.size(Dimens.iconXl + Dimens.spacingMd)
             )
             Spacer(modifier = Modifier.height(Dimens.spacingMd))
             Text(

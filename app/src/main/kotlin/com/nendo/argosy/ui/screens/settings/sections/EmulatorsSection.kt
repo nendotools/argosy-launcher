@@ -33,13 +33,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.unit.dp
 import com.nendo.argosy.ui.components.ActionPreference
 import com.nendo.argosy.ui.screens.settings.PlatformEmulatorConfig
 import com.nendo.argosy.ui.screens.settings.SettingsUiState
 import com.nendo.argosy.ui.screens.settings.SettingsViewModel
 import com.nendo.argosy.ui.screens.settings.components.EmulatorPickerPopup
 import com.nendo.argosy.ui.screens.settings.components.SavePathModal
+import androidx.compose.ui.unit.dp
 import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.Motion
 
@@ -195,8 +195,8 @@ private fun PlatformEmulatorItem(
                     emulatorSubFocused -> {
                         Button(
                             onClick = onEmulatorClick,
-                            modifier = Modifier.height(32.dp),
-                            contentPadding = PaddingValues(horizontal = Dimens.spacingMd, vertical = 0.dp),
+                            modifier = Modifier.height(Dimens.iconLg),
+                            contentPadding = PaddingValues(horizontal = Dimens.spacingMd, vertical = Dimens.elevationNone),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.onPrimaryContainer,
                                 contentColor = MaterialTheme.colorScheme.primaryContainer
@@ -208,8 +208,8 @@ private fun PlatformEmulatorItem(
                     isFocused -> {
                         Button(
                             onClick = onEmulatorClick,
-                            modifier = Modifier.height(32.dp),
-                            contentPadding = PaddingValues(horizontal = Dimens.spacingMd, vertical = 0.dp),
+                            modifier = Modifier.height(Dimens.iconLg),
+                            contentPadding = PaddingValues(horizontal = Dimens.spacingMd, vertical = Dimens.elevationNone),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.3f),
                                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -257,9 +257,9 @@ private fun PlatformEmulatorItem(
                         if (isSelected) {
                             OutlinedButton(
                                 onClick = { },
-                                modifier = Modifier.height(28.dp),
-                                contentPadding = PaddingValues(horizontal = Dimens.spacingSm, vertical = 0.dp),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.onPrimaryContainer)
+                                modifier = Modifier.height(Dimens.iconLg - Dimens.spacingXs),
+                                contentPadding = PaddingValues(horizontal = Dimens.spacingSm, vertical = Dimens.elevationNone),
+                                border = BorderStroke(Dimens.borderThin, MaterialTheme.colorScheme.onPrimaryContainer)
                             ) {
                                 Text(
                                     text = core.displayName,
@@ -274,8 +274,8 @@ private fun PlatformEmulatorItem(
                                     val targetIdx = config.availableCores.indexOf(core)
                                     onCycleCore(targetIdx - currentIdx)
                                 },
-                                modifier = Modifier.height(28.dp),
-                                contentPadding = PaddingValues(horizontal = Dimens.spacingSm, vertical = 0.dp)
+                                modifier = Modifier.height(Dimens.iconLg - Dimens.spacingXs),
+                                contentPadding = PaddingValues(horizontal = Dimens.spacingSm, vertical = Dimens.elevationNone)
                             ) {
                                 Text(
                                     text = core.displayName,
@@ -313,9 +313,9 @@ private fun PlatformEmulatorItem(
                         if (isSelected) {
                             OutlinedButton(
                                 onClick = { },
-                                modifier = Modifier.height(28.dp),
-                                contentPadding = PaddingValues(horizontal = Dimens.spacingSm, vertical = 0.dp),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.onPrimaryContainer)
+                                modifier = Modifier.height(Dimens.iconLg - Dimens.spacingXs),
+                                contentPadding = PaddingValues(horizontal = Dimens.spacingSm, vertical = Dimens.elevationNone),
+                                border = BorderStroke(Dimens.borderThin, MaterialTheme.colorScheme.onPrimaryContainer)
                             ) {
                                 Text(
                                     text = option.label,
@@ -326,8 +326,8 @@ private fun PlatformEmulatorItem(
                         } else {
                             TextButton(
                                 onClick = { onExtensionChange(option.extension) },
-                                modifier = Modifier.height(28.dp),
-                                contentPadding = PaddingValues(horizontal = Dimens.spacingSm, vertical = 0.dp)
+                                modifier = Modifier.height(Dimens.iconLg - Dimens.spacingXs),
+                                contentPadding = PaddingValues(horizontal = Dimens.spacingSm, vertical = Dimens.elevationNone)
                             ) {
                                 Text(
                                     text = option.label,
@@ -395,8 +395,8 @@ private fun PlatformEmulatorItem(
                 if (isFocused) {
                     Button(
                         onClick = onSavePathClick,
-                        modifier = Modifier.height(28.dp),
-                        contentPadding = PaddingValues(horizontal = Dimens.spacingMd, vertical = 0.dp),
+                        modifier = Modifier.height(Dimens.iconLg - Dimens.spacingXs),
+                        contentPadding = PaddingValues(horizontal = Dimens.spacingMd, vertical = Dimens.elevationNone),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (savesSubFocused) {
                                 MaterialTheme.colorScheme.onPrimaryContainer

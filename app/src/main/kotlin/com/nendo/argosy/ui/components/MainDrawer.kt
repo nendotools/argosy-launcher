@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.nendo.argosy.ui.DrawerItem
+import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.DrawerState
 import com.nendo.argosy.ui.navigation.Screen
 
@@ -57,11 +58,11 @@ fun MainDrawer(
         Column(
             modifier = Modifier
                 .fillMaxHeight()
-                .padding(vertical = 24.dp)
+                .padding(vertical = Dimens.spacingLg)
         ) {
             DrawerStatusBar()
             HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                modifier = Modifier.padding(horizontal = Dimens.spacingLg, vertical = Dimens.radiusLg),
                 color = MaterialTheme.colorScheme.outlineVariant
             )
 
@@ -73,7 +74,7 @@ fun MainDrawer(
                 items.forEachIndexed { index, item ->
                     if (index == items.lastIndex) {
                         HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingSm),
                             color = MaterialTheme.colorScheme.outlineVariant
                         )
                     }
@@ -103,7 +104,7 @@ private fun DrawerStatusBar() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 8.dp),
+            .padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingSm),
         verticalAlignment = Alignment.CenterVertically
     ) {
         SystemStatusBar(
@@ -118,15 +119,15 @@ private fun RomMStatusFooter(isConnected: Boolean) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 16.dp),
+            .padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingMd),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
         Icon(
             imageVector = if (isConnected) Icons.Default.Cloud else Icons.Default.CloudOff,
             contentDescription = null,
             tint = mutedColor,
-            modifier = Modifier.size(16.dp)
+            modifier = Modifier.size(Dimens.iconSm)
         )
         Text(
             text = if (isConnected) "Connected" else "Offline",
@@ -157,16 +158,16 @@ private fun DrawerMenuItem(
         else -> MaterialTheme.colorScheme.onSurface
     }
 
-    val indicatorWidth = if (isFocused) 4.dp else 0.dp
+    val indicatorWidth = if (isFocused) Dimens.spacingXs else 0.dp
 
-    val shape = RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp)
+    val shape = RoundedCornerShape(topEnd = Dimens.radiusMd, bottomEnd = Dimens.radiusMd)
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Start,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(end = 16.dp)
+            .padding(end = Dimens.spacingMd)
             .clip(shape)
             .background(backgroundColor)
             .clickable(
@@ -178,16 +179,16 @@ private fun DrawerMenuItem(
         Box(
             modifier = Modifier
                 .width(indicatorWidth)
-                .height(48.dp)
+                .height(Dimens.spacingXxl)
                 .background(MaterialTheme.colorScheme.primary)
         )
-        Spacer(modifier = Modifier.width(if (isFocused) 20.dp else 24.dp))
+        Spacer(modifier = Modifier.width(if (isFocused) (Dimens.spacingLg - Dimens.spacingXs) else Dimens.spacingLg))
         Icon(
             imageVector = icon,
             contentDescription = item.label,
             tint = contentColor
         )
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(Dimens.spacingMd))
         Text(
             text = item.label,
             style = MaterialTheme.typography.titleMedium,
@@ -197,7 +198,7 @@ private fun DrawerMenuItem(
         if (badge != null) {
             Box(
                 modifier = Modifier
-                    .size(24.dp)
+                    .size(Dimens.iconMd)
                     .background(MaterialTheme.colorScheme.primary, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
@@ -207,7 +208,7 @@ private fun DrawerMenuItem(
                     color = MaterialTheme.colorScheme.onPrimary
                 )
             }
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(Dimens.spacingSm))
         }
     }
 }

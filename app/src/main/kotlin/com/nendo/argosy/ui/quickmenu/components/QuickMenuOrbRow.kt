@@ -41,9 +41,9 @@ import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.LocalLauncherTheme
 import com.nendo.argosy.ui.theme.Motion
 
-private val ORB_SIZE = 56.dp
-private val ORB_SIZE_FOCUSED = 64.dp
-private val ORB_SPACING = 24.dp
+private val ORB_SIZE = 56.dp  // Static: orb-specific design spec
+private val ORB_SIZE_FOCUSED = 64.dp  // Static: orb-specific design spec
+private val ORB_SPACING = 24.dp  // Static: orb-specific design spec
 
 @Composable
 fun QuickMenuOrbRow(
@@ -169,7 +169,7 @@ private fun Orb(
                 )
                 .then(
                     if (isFocused) {
-                        Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                        Modifier.border(Dimens.borderMedium, MaterialTheme.colorScheme.primary, CircleShape)
                     } else Modifier
                 )
                 .size(ORB_SIZE)
@@ -183,7 +183,7 @@ private fun Orb(
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingSm))
 
         Text(
             text = orb.label,

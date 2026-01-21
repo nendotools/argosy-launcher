@@ -48,6 +48,7 @@ import com.nendo.argosy.ui.notification.NotificationHost
 import com.nendo.argosy.ui.quickmenu.QuickMenuInputHandler
 import com.nendo.argosy.ui.quickmenu.QuickMenuOverlay
 import com.nendo.argosy.ui.quickmenu.QuickMenuViewModel
+import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.LocalLauncherTheme
 import com.nendo.argosy.ui.theme.Motion
 import androidx.compose.ui.graphics.Color
@@ -412,7 +413,7 @@ private fun AppSplashScreen() {
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(24.dp)
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(Dimens.spacingLg)
         ) {
             androidx.compose.material3.Text(
                 text = "ARGOSY",
@@ -421,10 +422,10 @@ private fun AppSplashScreen() {
                 letterSpacing = 8.sp
             )
             androidx.compose.material3.CircularProgressIndicator(
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(Dimens.iconLg),
                 color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
                 trackColor = androidx.compose.material3.MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f),
-                strokeWidth = 2.dp
+                strokeWidth = Dimens.borderMedium
             )
         }
     }

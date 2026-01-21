@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.nendo.argosy.domain.model.CompletionStatus
+import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.components.Modal
 import com.nendo.argosy.ui.screens.gamedetail.GameDetailUi
 import com.nendo.argosy.ui.screens.gamedetail.MoreOptionAction
@@ -141,7 +142,7 @@ fun MoreOptionsModal(
         HorizontalDivider(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp),
+                .padding(vertical = Dimens.spacingSm),
             color = MaterialTheme.colorScheme.outlineVariant
         )
 

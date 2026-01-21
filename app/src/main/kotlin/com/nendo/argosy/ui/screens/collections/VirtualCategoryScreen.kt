@@ -181,22 +181,22 @@ private fun DownloadAllModal(
         contentAlignment = Alignment.Center
     ) {
         Card(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(Dimens.radiusXl),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
             ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = Dimens.elevationLg)
         ) {
             Column(
                 modifier = Modifier
                     .padding(Dimens.spacingLg)
-                    .width(280.dp),
+                    .width(Dimens.modalWidthLg - 170.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Icon(
                     imageVector = Icons.Default.Download,
                     contentDescription = null,
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(Dimens.iconXl),
                     tint = MaterialTheme.colorScheme.primary
                 )
 
@@ -276,7 +276,7 @@ private fun EmptyVirtualCategory() {
                 Icons.Default.Category,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(64.dp)
+                modifier = Modifier.size(Dimens.iconXl + Dimens.spacingMd)
             )
             Spacer(modifier = Modifier.height(Dimens.spacingMd))
             Text(

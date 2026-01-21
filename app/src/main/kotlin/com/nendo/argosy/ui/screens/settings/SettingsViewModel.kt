@@ -436,7 +436,8 @@ class SettingsViewModel @Inject constructor(
                 defaultView = prefs.defaultView,
                 videoWallpaperEnabled = prefs.videoWallpaperEnabled,
                 videoWallpaperDelaySeconds = prefs.videoWallpaperDelaySeconds,
-                videoWallpaperMuted = prefs.videoWallpaperMuted
+                videoWallpaperMuted = prefs.videoWallpaperMuted,
+                uiScale = prefs.uiScale
             ))
 
             val detectionResult = ControllerDetector.detectFromActiveGamepad()
@@ -1020,6 +1021,18 @@ class SettingsViewModel @Inject constructor(
 
     fun setGridDensity(density: GridDensity) {
         displayDelegate.setGridDensity(viewModelScope, density)
+    }
+
+    fun setUiScale(scale: Int) {
+        displayDelegate.setUiScale(viewModelScope, scale)
+    }
+
+    fun adjustUiScale(delta: Int) {
+        displayDelegate.adjustUiScale(viewModelScope, delta)
+    }
+
+    fun cycleUiScale() {
+        displayDelegate.cycleUiScale(viewModelScope)
     }
 
     fun adjustBackgroundBlur(delta: Int) {
@@ -2158,12 +2171,13 @@ class SettingsViewModel @Inject constructor(
                         }
                         setGridDensity(next)
                     }
-                    4 -> navigateToBoxArt()
-                    5 -> navigateToHomeScreen()
-                    6 -> cycleDefaultView()
-                    7 -> toggleScreenDimmer()
-                    8 -> cycleScreenDimmerTimeout()
-                    9 -> cycleScreenDimmerLevel()
+                    4 -> cycleUiScale()
+                    5 -> navigateToBoxArt()
+                    6 -> navigateToHomeScreen()
+                    7 -> cycleDefaultView()
+                    8 -> toggleScreenDimmer()
+                    9 -> cycleScreenDimmerTimeout()
+                    10 -> cycleScreenDimmerLevel()
                 }
                 InputResult.HANDLED
             }

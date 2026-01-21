@@ -610,7 +610,7 @@ fun HomeScreen(
                             .offset(y = videoModeFooterOffset)
                     )
                 } else {
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(Dimens.spacingXl))
                 }
             }
 
@@ -620,7 +620,7 @@ fun HomeScreen(
                 label = "gameInfoWidth"
             )
             val gameInfoTopPadding by animateDpAsState(
-                targetValue = if (uiState.isVideoPreviewActive) Dimens.spacingMd else 80.dp,
+                targetValue = if (uiState.isVideoPreviewActive) Dimens.spacingMd else Dimens.headerHeight,
                 animationSpec = tween(500),
                 label = "gameInfoTopPadding"
             )
@@ -649,7 +649,7 @@ fun HomeScreen(
                             )
                         )
                     )
-                    .height(72.dp)
+                    .height(Dimens.headerHeight)
             )
 
             GameInfo(
@@ -779,7 +779,7 @@ private fun SplashOverlay() {
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(Dimens.spacingLg)
         ) {
             Text(
                 text = "ARGOSY",
@@ -788,7 +788,7 @@ private fun SplashOverlay() {
                 letterSpacing = 8.sp
             )
             CircularProgressIndicator(
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(Dimens.iconLg),
                 color = MaterialTheme.colorScheme.onBackground,
                 trackColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f),
                 strokeWidth = 2.dp
@@ -803,17 +803,24 @@ private fun HomeHeader(
     showPlatformNav: Boolean,
     headerOffset: androidx.compose.ui.unit.Dp = 0.dp
 ) {
+    val aspectRatioClass = com.nendo.argosy.ui.theme.LocalUiScale.current.aspectRatioClass
+    val maxTitleLength = when (aspectRatioClass) {
+        com.nendo.argosy.ui.theme.AspectRatioClass.ULTRA_TALL -> 12
+        com.nendo.argosy.ui.theme.AspectRatioClass.TALL -> 16
+        else -> null
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(24.dp)
+            .padding(Dimens.spacingLg)
             .offset(y = headerOffset),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(Dimens.radiusLg)
         ) {
             AnimatedContent(
                 targetState = sectionTitle,
@@ -823,8 +830,13 @@ private fun HomeHeader(
                 },
                 label = "section"
             ) { title ->
+                val displayTitle = if (maxTitleLength != null && title.length > maxTitleLength) {
+                    title.take(maxTitleLength - 1) + "…"
+                } else {
+                    title
+                }
                 Text(
-                    text = title,
+                    text = displayTitle,
                     style = MaterialTheme.typography.headlineMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -833,19 +845,19 @@ private fun HomeHeader(
             if (showPlatformNav) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
                 ) {
                     Icon(
                         painter = InputIcons.BumperLeft,
                         contentDescription = "Previous platform",
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(Dimens.iconSm)
                     )
                     Icon(
                         painter = InputIcons.BumperRight,
                         contentDescription = "Next platform",
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(Dimens.iconSm)
                     )
                 }
             }
@@ -879,7 +891,7 @@ private fun GameInfo(
 
     Column(
         modifier = modifier
-            .padding(horizontal = 48.dp),
+            .padding(horizontal = Dimens.spacingXxl),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
@@ -890,7 +902,7 @@ private fun GameInfo(
         )
 
         if (developer != null) {
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingXs))
             Text(
                 text = developer,
                 style = MaterialTheme.typography.bodyMedium,
@@ -901,22 +913,22 @@ private fun GameInfo(
 
         val hasBadges = rating != null || userRating > 0 || userDifficulty > 0 || achievementCount > 0
         if (hasBadges) {
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingXs))
             Row(
                 modifier = Modifier.graphicsLayer { alpha = metadataAlpha },
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(Dimens.radiusLg)
             ) {
                 if (rating != null) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
                     ) {
                         Icon(
                             imageVector = Icons.Default.People,
                             contentDescription = null,
                             tint = textColorOverride ?: MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(Dimens.iconXs)
                         )
                         Text(
                             text = "${rating.toInt()}%",
@@ -928,13 +940,13 @@ private fun GameInfo(
                 if (userRating > 0) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Star,
                             contentDescription = null,
                             tint = textColorOverride ?: Color(0xFFFFD700),
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(Dimens.iconXs)
                         )
                         Text(
                             text = "$userRating/10",
@@ -946,13 +958,13 @@ private fun GameInfo(
                 if (userDifficulty > 0) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Whatshot,
                             contentDescription = null,
                             tint = textColorOverride ?: Color(0xFFE53935),
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(Dimens.iconXs)
                         )
                         Text(
                             text = "$userDifficulty/10",
@@ -964,13 +976,13 @@ private fun GameInfo(
                 if (achievementCount > 0) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.EmojiEvents,
                             contentDescription = null,
                             tint = textColorOverride ?: Color(0xFFFFB300),
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(Dimens.iconXs)
                         )
                         Text(
                             text = "$earnedAchievementCount/$achievementCount",
@@ -1132,9 +1144,9 @@ private fun ViewAllCard(
                         onSurfaceColor.copy(alpha = 0.05f)
                     )
                 ),
-                RoundedCornerShape(8.dp)
+                RoundedCornerShape(Dimens.radiusMd)
             )
-            .border(1.dp, borderColor, RoundedCornerShape(8.dp))
+            .border(Dimens.borderThin, borderColor, RoundedCornerShape(Dimens.radiusMd))
             .clickable(
                 onClick = onClick,
                 indication = null,
@@ -1144,17 +1156,17 @@ private fun ViewAllCard(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(12.dp)
+            modifier = Modifier.padding(Dimens.radiusLg)
         ) {
             Column(
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier.padding(bottom = 12.dp)
+                verticalArrangement = Arrangement.spacedBy(Dimens.spacingXs),
+                modifier = Modifier.padding(bottom = Dimens.radiusLg)
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)) {
                     GridBox()
                     GridBox()
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)) {
                     GridBox()
                     GridBox()
                 }
@@ -1173,10 +1185,10 @@ private fun ViewAllCard(
 private fun GridBox() {
     Box(
         modifier = Modifier
-            .size(24.dp)
+            .size(Dimens.iconMd)
             .background(
                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                RoundedCornerShape(4.dp)
+                RoundedCornerShape(Dimens.radiusSm)
             )
     )
 }
@@ -1186,11 +1198,11 @@ private fun LoadingState() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(240.dp),
+            .height(Dimens.gameCardHeight),
         contentAlignment = Alignment.Center
     ) {
         CircularProgressIndicator(
-            modifier = Modifier.size(48.dp),
+            modifier = Modifier.size(Dimens.iconXl),
             color = MaterialTheme.colorScheme.onSurface,
             trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
         )
@@ -1216,11 +1228,11 @@ private fun EmptyState(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(48.dp),
+                    .padding(Dimens.spacingXxl),
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(32.dp),
+                    modifier = Modifier.size(Dimens.iconLg),
                     color = MaterialTheme.colorScheme.onSurface,
                     trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
                 )
@@ -1230,7 +1242,7 @@ private fun EmptyState(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(48.dp),
+                    .padding(Dimens.spacingXxl),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -1244,7 +1256,7 @@ private fun EmptyState(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(48.dp),
+                    .padding(Dimens.spacingXxl),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
@@ -1252,7 +1264,7 @@ private fun EmptyState(
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Dimens.spacingSm))
                 Text(
                     text = if (isRommConfigured) {
                         "Sync your library to get started"
@@ -1264,7 +1276,7 @@ private fun EmptyState(
                     textAlign = TextAlign.Center
                 )
                 if (isRommConfigured) {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(Dimens.spacingMd))
                     FooterHint(button = InputButton.SOUTH, action = "Sync Library")
                 }
             }
@@ -1316,16 +1328,16 @@ private fun GameSelectOverlay(
     ) {
         Column(
             modifier = Modifier
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-                .padding(24.dp)
-                .width(350.dp)
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(Dimens.radiusLg))
+                .padding(Dimens.spacingLg)
+                .width(Dimens.modalWidth)
         ) {
             Text(
                 text = "QUICK ACTIONS",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingMd))
 
             MenuOption(
                 icon = primaryIcon,
@@ -1412,17 +1424,17 @@ private fun MenuOption(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             )
-            .background(backgroundColor, RoundedCornerShape(8.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .background(backgroundColor, RoundedCornerShape(Dimens.radiusMd))
+            .padding(horizontal = Dimens.radiusLg, vertical = Dimens.spacingSm + Dimens.borderMedium),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(Dimens.radiusLg)
     ) {
         if (icon != null) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = contentColor,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(Dimens.iconSm)
             )
         }
         Text(

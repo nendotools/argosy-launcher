@@ -38,6 +38,7 @@ import com.nendo.argosy.ui.components.FooterBar
 import com.nendo.argosy.ui.components.InputButton
 import com.nendo.argosy.ui.screens.gamedetail.UpdateFileType
 import com.nendo.argosy.ui.screens.gamedetail.UpdateFileUi
+import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.LocalLauncherTheme
 
 @Composable
@@ -75,36 +76,36 @@ fun UpdatesPickerModal(
     ) {
         Column(
             modifier = Modifier
-                .width(500.dp)
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+                .width(Dimens.modalWidthXl)
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(Dimens.radiusLg))
                 .clickable(
                     enabled = false,
                     onClick = {},
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() }
                 )
-                .padding(24.dp)
+                .padding(Dimens.spacingLg)
         ) {
             Text(
                 text = "UPDATES & DLC",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingXs))
             Text(
                 text = "Must be installed through the emulator manually",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingMd))
 
             LazyColumn(
                 state = listState,
                 modifier = Modifier
                     .heightIn(max = itemHeight * maxVisibleItems)
-                    .clip(RoundedCornerShape(8.dp)),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                    .clip(RoundedCornerShape(Dimens.radiusMd)),
+                verticalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
             ) {
                 itemsIndexed(files) { index, file ->
                     UpdateFileItem(
@@ -119,7 +120,7 @@ fun UpdatesPickerModal(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingMd))
 
             FooterBar(
                 hints = listOfNotNull(
@@ -166,10 +167,10 @@ private fun UpdateFileItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(backgroundColor, RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(Dimens.radiusMd))
+            .background(backgroundColor, RoundedCornerShape(Dimens.radiusMd))
             .clickable(enabled = !file.isDownloaded, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = Dimens.radiusLg, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -180,9 +181,9 @@ private fun UpdateFileItem(
             } else {
                 secondaryColor
             },
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(Dimens.iconSm)
         )
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(Dimens.radiusLg))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = file.fileName,
@@ -191,7 +192,7 @@ private fun UpdateFileItem(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingXs))
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -200,11 +201,11 @@ private fun UpdateFileItem(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onTertiary,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(RoundedCornerShape(Dimens.radiusSm))
                         .background(typeBgColor)
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .padding(horizontal = Dimens.radiusSm, vertical = Dimens.borderMedium)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Dimens.spacingSm))
                 Text(
                     text = formatFileSize(file.sizeBytes),
                     style = MaterialTheme.typography.labelSmall,

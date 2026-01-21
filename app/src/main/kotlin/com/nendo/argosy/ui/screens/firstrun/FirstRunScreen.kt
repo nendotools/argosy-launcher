@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -263,21 +264,21 @@ private fun WelcomeStep(isFocused: Boolean, onGetStarted: () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
-        modifier = Modifier.padding(32.dp)
+        modifier = Modifier.padding(Dimens.spacingXl)
     ) {
         Text(
             text = "ARGOSY",
             style = MaterialTheme.typography.displayMedium,
             color = MaterialTheme.colorScheme.primary
         )
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingLg))
         Text(
             text = "Welcome! Let's get you set up.",
             style = MaterialTheme.typography.titleLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurface
         )
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingXxl))
         FocusableButton(
             text = "Get Started",
             isFocused = isFocused,
@@ -302,7 +303,7 @@ private fun RommLoginStep(
     onBack: () -> Unit,
     onClearFocusField: () -> Unit
 ) {
-    val inputShape = RoundedCornerShape(8.dp)
+    val inputShape = RoundedCornerShape(Dimens.radiusMd)
     val urlFocusRequester = remember { FocusRequester() }
     val usernameFocusRequester = remember { FocusRequester() }
     val passwordFocusRequester = remember { FocusRequester() }
@@ -320,10 +321,10 @@ private fun RommLoginStep(
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(32.dp)
+        modifier = Modifier.padding(Dimens.spacingXl)
     ) {
         StepHeader(step = 1, title = "Rom Manager Login", totalSteps = 4)
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingLg))
 
         OutlinedTextField(
             value = url,
@@ -341,7 +342,7 @@ private fun RommLoginStep(
                     else Modifier
                 )
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingMd))
 
         OutlinedTextField(
             value = username,
@@ -358,7 +359,7 @@ private fun RommLoginStep(
                     else Modifier
                 )
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingMd))
 
         OutlinedTextField(
             value = password,
@@ -379,7 +380,7 @@ private fun RommLoginStep(
         )
 
         if (error != null) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingMd))
             Text(
                 text = error,
                 color = MaterialTheme.colorScheme.error,
@@ -387,7 +388,7 @@ private fun RommLoginStep(
             )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingXl))
 
         Row {
             FocusableOutlinedButton(
@@ -396,7 +397,7 @@ private fun RommLoginStep(
                 enabled = !isConnecting,
                 onClick = onBack
             )
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(Dimens.spacingMd))
             FocusableButton(
                 text = if (isConnecting) "Connecting..." else "Connect",
                 isFocused = focusedIndex == 3,
@@ -417,21 +418,21 @@ private fun RommSuccessStep(
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(32.dp)
+        modifier = Modifier.padding(Dimens.spacingXl)
     ) {
         Icon(
             Icons.Default.Check,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.height(64.dp).width(64.dp)
+            modifier = Modifier.size(64.dp)
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingMd))
         Text(
             text = "Connected successfully!",
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.primary
         )
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingLg))
         Text(
             text = "Server: $serverName",
             style = MaterialTheme.typography.bodyLarge
@@ -441,7 +442,7 @@ private fun RommSuccessStep(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingXl))
         FocusableButton(
             text = "Continue",
             isFocused = isFocused,
@@ -462,17 +463,17 @@ private fun RomPathStep(
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(32.dp)
+        modifier = Modifier.padding(Dimens.spacingXl)
     ) {
         StepHeader(step = 2, title = "Storage Access", totalSteps = 4)
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingMd))
         Text(
             text = "Grant storage access to download and manage your game files.",
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingLg))
 
         Card(
             colors = CardDefaults.cardColors(
@@ -486,7 +487,7 @@ private fun RomPathStep(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(Dimens.spacingMd)
             ) {
                 Icon(
                     if (hasStoragePermission) Icons.Default.CheckCircle else Icons.Default.Lock,
@@ -497,7 +498,7 @@ private fun RomPathStep(
                         MaterialTheme.colorScheme.onErrorContainer
                     }
                 )
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(Dimens.radiusLg))
                 Text(
                     text = if (hasStoragePermission) "Storage access granted" else "Storage access required",
                     style = MaterialTheme.typography.bodyMedium,
@@ -511,14 +512,14 @@ private fun RomPathStep(
         }
 
         if (!hasStoragePermission) {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingLg))
             FocusableButton(
                 text = "Grant Storage Access",
                 isFocused = focusedIndex == 0,
                 icon = Icons.Default.Lock,
                 onClick = onRequestPermission
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingMd))
             Text(
                 text = "This permission is required to download games and sync saves.",
                 style = MaterialTheme.typography.bodySmall,
@@ -526,7 +527,7 @@ private fun RomPathStep(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else {
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingLg))
 
             if (folderSelected && currentPath != null) {
                 Card(
@@ -537,14 +538,14 @@ private fun RomPathStep(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(16.dp)
+                        modifier = Modifier.padding(Dimens.spacingMd)
                     ) {
                         Icon(
                             Icons.Default.Folder,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(Dimens.radiusLg))
                         Text(
                             text = currentPath,
                             style = MaterialTheme.typography.bodyMedium,
@@ -552,13 +553,13 @@ private fun RomPathStep(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(Dimens.spacingLg))
                 FocusableButton(
                     text = "Continue",
                     isFocused = focusedIndex == 0,
                     onClick = onContinue
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(Dimens.radiusLg))
                 FocusableOutlinedButton(
                     text = "Choose Different Folder",
                     isFocused = focusedIndex == 1,
@@ -571,7 +572,7 @@ private fun RomPathStep(
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Dimens.spacingMd))
                 FocusableButton(
                     text = "Choose Folder",
                     isFocused = focusedIndex == 0,
@@ -580,7 +581,7 @@ private fun RomPathStep(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingMd))
             Text(
                 text = "We'll create subfolders for each console automatically.",
                 style = MaterialTheme.typography.bodySmall,
@@ -601,26 +602,26 @@ private fun ImageCacheStep(
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(32.dp)
+        modifier = Modifier.padding(Dimens.spacingXl)
     ) {
         Text(
             text = "OPTIONAL",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.primary
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingSm))
         Text(
             text = "Image Cache Location",
             style = MaterialTheme.typography.headlineSmall
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingMd))
         Text(
             text = "By default, game artwork is stored in the app's internal cache. If your device has limited storage, you can choose an external location.",
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingLg))
 
         if (folderSelected && currentPath != null) {
             val displayPath = "${currentPath.substringAfterLast("/")}/argosy_images"
@@ -632,14 +633,14 @@ private fun ImageCacheStep(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier.padding(Dimens.spacingMd)
                 ) {
                     Icon(
                         Icons.Default.Folder,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(Dimens.radiusLg))
                     Text(
                         text = displayPath,
                         style = MaterialTheme.typography.bodyMedium,
@@ -647,13 +648,13 @@ private fun ImageCacheStep(
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingLg))
             FocusableButton(
                 text = "Continue",
                 isFocused = focusedIndex == 0,
                 onClick = onContinue
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(Dimens.radiusLg))
             FocusableOutlinedButton(
                 text = "Choose Different Folder",
                 isFocused = focusedIndex == 1,
@@ -666,7 +667,7 @@ private fun ImageCacheStep(
                 icon = Icons.Default.Folder,
                 onClick = onChooseFolder
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingMd))
             FocusableOutlinedButton(
                 text = "Use Default (Internal)",
                 isFocused = focusedIndex == 1,
@@ -674,7 +675,7 @@ private fun ImageCacheStep(
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingMd))
         Text(
             text = "Images will be stored in an 'argosy_images' subfolder.",
             style = MaterialTheme.typography.bodySmall,
@@ -692,37 +693,37 @@ private fun SaveSyncStep(
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(32.dp)
+        modifier = Modifier.padding(Dimens.spacingXl)
     ) {
         StepHeader(step = 3, title = "Save Data Sync", totalSteps = 4)
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingMd))
         Text(
             text = "Sync your game saves with your RomM server to continue playing across multiple devices.",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingSm))
         Text(
             text = "Saves are uploaded when you stop playing and downloaded when needed.",
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingXl))
         FocusableButton(
             text = "Enable Save Sync",
             isFocused = focusedIndex == 0,
             icon = Icons.Default.Sync,
             onClick = onEnable
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingMd))
         FocusableOutlinedButton(
             text = "Skip for Now",
             isFocused = focusedIndex == 1,
             onClick = onSkip
         )
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingLg))
         Text(
             text = "You can enable this later in Settings.",
             style = MaterialTheme.typography.bodySmall,
@@ -740,17 +741,17 @@ private fun UsageStatsStep(
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(32.dp)
+        modifier = Modifier.padding(Dimens.spacingXl)
     ) {
         StepHeader(step = 4, title = "Usage Access", totalSteps = 4)
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingMd))
         Text(
             text = "This permission allows Argosy to detect when you're playing a game, enabling accurate play time tracking and seamless game resumption.",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingLg))
 
         Card(
             colors = CardDefaults.cardColors(
@@ -764,7 +765,7 @@ private fun UsageStatsStep(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(Dimens.spacingMd)
             ) {
                 Icon(
                     if (hasPermission) Icons.Default.CheckCircle else Icons.Default.Lock,
@@ -775,7 +776,7 @@ private fun UsageStatsStep(
                         MaterialTheme.colorScheme.onErrorContainer
                     }
                 )
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(Dimens.radiusLg))
                 Text(
                     text = if (hasPermission) "Usage access granted" else "Usage access required",
                     style = MaterialTheme.typography.bodyMedium,
@@ -788,7 +789,7 @@ private fun UsageStatsStep(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingLg))
 
         if (!hasPermission) {
             FocusableButton(
@@ -797,7 +798,7 @@ private fun UsageStatsStep(
                 icon = Icons.Default.Lock,
                 onClick = onRequestPermission
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingMd))
             Text(
                 text = "Find Argosy in the list and enable access.",
                 style = MaterialTheme.typography.bodySmall,
@@ -845,18 +846,18 @@ private fun PlatformSelectStep(
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.primary
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingSm))
         Text(
             text = "Choose which platforms to sync",
             style = MaterialTheme.typography.headlineSmall
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingSm))
         Text(
             text = "$enabledCount of ${platforms.size} platforms selected",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingMd))
 
         LazyColumn(
             state = listState,
@@ -875,11 +876,11 @@ private fun PlatformSelectStep(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingLg))
 
         Row(
             modifier = Modifier.fillMaxWidth(0.9f),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd)
         ) {
             FocusableOutlinedButton(
                 text = if (allEnabled) "Deselect All" else "Select All",
@@ -911,8 +912,8 @@ private fun PlatformToggleItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(backgroundColor, RoundedCornerShape(8.dp))
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .background(backgroundColor, RoundedCornerShape(Dimens.radiusMd))
+            .padding(horizontal = Dimens.spacingMd, vertical = Dimens.radiusLg),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -946,27 +947,27 @@ private fun CompleteStep(
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(32.dp)
+        modifier = Modifier.padding(Dimens.spacingXl)
     ) {
         Icon(
             imageVector = Icons.Default.Check,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = Dimens.spacingMd)
         )
         Text(
             text = "All Set!",
             style = MaterialTheme.typography.displaySmall,
             color = MaterialTheme.colorScheme.primary
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingMd))
 
         Text(
             text = "$gameCount games across $platformCount platforms ready to sync",
             style = MaterialTheme.typography.titleMedium,
             textAlign = TextAlign.Center
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingSm))
         Text(
             text = "Sync your library from Collection settings to get started.",
             style = MaterialTheme.typography.bodyMedium,
@@ -974,7 +975,7 @@ private fun CompleteStep(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingXl))
         FocusableButton(
             text = "Start Playing",
             isFocused = isFocused,
@@ -991,7 +992,7 @@ private fun StepHeader(step: Int, title: String, totalSteps: Int = 4) {
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.primary
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Dimens.spacingSm))
         Text(
             text = title,
             style = MaterialTheme.typography.headlineSmall
@@ -1028,7 +1029,7 @@ private fun FocusableButton(
     ) {
         if (icon != null) {
             Icon(icon, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(Dimens.spacingSm))
         }
         Text(text)
     }

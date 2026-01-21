@@ -150,8 +150,8 @@ fun LibraryScreen(
     }
 
     val density = LocalDensity.current
-    val headerHeightPx = with(density) { 140.dp.toPx() }.toInt()
-    val footerHeightPx = with(density) { 50.dp.toPx() }.toInt()
+    val headerHeightPx = with(density) { Dimens.headerHeightLg.toPx() }.toInt()
+    val footerHeightPx = with(density) { Dimens.footerHeight.toPx() }.toInt()
 
     LaunchedEffect(uiState.focusedIndex, uiState.lastFocusMove) {
         if (uiState.lastFocusMove == null || uiState.games.isEmpty()) return@LaunchedEffect
@@ -303,7 +303,7 @@ fun LibraryScreen(
                                     contentPadding = PaddingValues(
                                         start = gridSpacing,
                                         end = gridSpacing,
-                                        top = 140.dp,
+                                        top = Dimens.headerHeightLg,
                                         bottom = cardHeight + gridSpacing
                                     ),
                                     horizontalArrangement = Arrangement.spacedBy(gridSpacing),
@@ -500,11 +500,23 @@ private fun LibraryHeader(
     onPreviousPlatform: () -> Unit = {},
     onNextPlatform: () -> Unit = {}
 ) {
+    val aspectRatioClass = com.nendo.argosy.ui.theme.LocalUiScale.current.aspectRatioClass
+    val maxNameLength = when (aspectRatioClass) {
+        com.nendo.argosy.ui.theme.AspectRatioClass.ULTRA_TALL -> 12
+        com.nendo.argosy.ui.theme.AspectRatioClass.TALL -> 16
+        else -> null
+    }
+    val displayName = if (maxNameLength != null && platformName.length > maxNameLength) {
+        platformName.take(maxNameLength - 1) + "…"
+    } else {
+        platformName
+    }
+
     val surfaceColor = MaterialTheme.colorScheme.surface
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(140.dp)
+            .height(Dimens.headerHeightLg)
             .background(
                 Brush.verticalGradient(
                     0.0f to surfaceColor,
@@ -557,14 +569,14 @@ private fun LibraryHeader(
                         painter = InputIcons.BumperLeft,
                         contentDescription = "Previous platform",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(Dimens.iconSm)
                     )
                 }
 
                 Spacer(modifier = Modifier.width(Dimens.spacingMd))
 
                 Text(
-                    text = platformName,
+                    text = displayName,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -585,7 +597,7 @@ private fun LibraryHeader(
                         painter = InputIcons.BumperRight,
                         contentDescription = "Next platform",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(Dimens.iconSm)
                     )
                 }
             }
@@ -736,7 +748,7 @@ private fun FilterMenuOverlay(
     ) {
         Column(
             modifier = Modifier
-                .width(450.dp)
+                .width(Dimens.modalWidthLg)
                 .clip(RoundedCornerShape(Dimens.radiusLg))
                 .background(MaterialTheme.colorScheme.surface)
                 .clickable(enabled = false, onClick = {})
@@ -781,7 +793,7 @@ private fun FilterMenuOverlay(
                             .then(
                                 if (hasActiveFilters && !isCurrent) {
                                     Modifier.border(
-                                        width = 2.dp,
+                                        width = Dimens.borderMedium,
                                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                                         shape = RoundedCornerShape(Dimens.radiusMd)
                                     )
@@ -817,7 +829,7 @@ private fun FilterMenuOverlay(
                         imageVector = Icons.Default.Search,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(Dimens.iconSm)
                     )
                     BasicTextField(
                         value = searchQuery,
@@ -882,7 +894,7 @@ private fun FilterMenuOverlay(
                                 contentDescription = null,
                                 tint = if (isFocused) MaterialTheme.colorScheme.onPrimaryContainer
                                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(Dimens.iconSm)
                             )
                             Text(
                                 text = recentQuery,
@@ -973,7 +985,7 @@ private fun FilterOptionItem(
                 contentDescription = null,
                 tint = if (isFocused) MaterialTheme.colorScheme.onPrimaryContainer
                        else MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(Dimens.iconSm)
             )
         }
     }
@@ -1033,18 +1045,18 @@ private fun QuickMenuOverlay(
             modifier = Modifier
                 .background(
                     MaterialTheme.colorScheme.surface,
-                    RoundedCornerShape(12.dp)
+                    RoundedCornerShape(Dimens.radiusLg)
                 )
                 .clickable(enabled = false, onClick = {})
-                .padding(24.dp)
-                .width(350.dp)
+                .padding(Dimens.spacingLg)
+                .width(Dimens.modalWidth)
         ) {
             Text(
                 text = "QUICK ACTIONS",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingMd))
 
             QuickMenuItem(
                 icon = primaryIcon,
@@ -1086,7 +1098,7 @@ private fun QuickMenuOverlay(
             )
 
             HorizontalDivider(
-                modifier = Modifier.padding(vertical = 8.dp),
+                modifier = Modifier.padding(vertical = Dimens.spacingSm),
                 color = MaterialTheme.colorScheme.outlineVariant
             )
 
@@ -1138,17 +1150,17 @@ private fun QuickMenuItem(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             )
-            .background(backgroundColor, RoundedCornerShape(8.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .background(backgroundColor, RoundedCornerShape(Dimens.radiusMd))
+            .padding(horizontal = Dimens.radiusLg, vertical = Dimens.spacingSm + Dimens.borderMedium),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(Dimens.radiusLg)
     ) {
         if (icon != null) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = contentColor,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(Dimens.iconSm)
             )
         }
         Text(

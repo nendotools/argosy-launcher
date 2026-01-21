@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
@@ -22,22 +23,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.LocalLauncherTheme
+import com.nendo.argosy.ui.theme.LocalUiScale
 
 @Composable
 fun Modal(
     title: String,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
-    width: Dp = 350.dp,
+    baseWidth: Dp = 350.dp,
     onDismiss: (() -> Unit)? = null,
     footerHints: List<Pair<InputButton, String>>? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val isDarkTheme = LocalLauncherTheme.current.isDarkTheme
     val overlayColor = if (isDarkTheme) Color.Black.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.5f)
+    val scale = LocalUiScale.current.scale
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(overlayColor)
@@ -52,13 +56,16 @@ fun Modal(
             ),
         contentAlignment = Alignment.Center
     ) {
+        val modalWidth = (baseWidth * scale).coerceIn(280.dp, maxWidth * 0.9f)
+        val modalMaxHeight = maxHeight * 0.85f
+
         Column(
             modifier = modifier
-                .width(width)
-                .heightIn(max = 600.dp)
+                .width(modalWidth)
+                .heightIn(max = modalMaxHeight)
                 .background(
                     MaterialTheme.colorScheme.surface,
-                    RoundedCornerShape(12.dp)
+                    RoundedCornerShape(Dimens.radiusLg)
                 )
                 .then(
                     if (onDismiss != null) {
@@ -69,7 +76,7 @@ fun Modal(
                         )
                     } else Modifier
                 )
-                .padding(24.dp)
+                .padding(Dimens.spacingLg)
         ) {
             Text(
                 text = title,
@@ -83,12 +90,12 @@ fun Modal(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingMd))
 
             content()
 
             if (footerHints != null) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Dimens.spacingMd))
                 FooterBar(hints = footerHints)
             }
         }
@@ -99,15 +106,16 @@ fun Modal(
 fun CenteredModal(
     title: String,
     modifier: Modifier = Modifier,
-    width: Dp = 400.dp,
+    baseWidth: Dp = 400.dp,
     onDismiss: (() -> Unit)? = null,
     footerHints: List<Pair<InputButton, String>>? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val isDarkTheme = LocalLauncherTheme.current.isDarkTheme
     val overlayColor = if (isDarkTheme) Color.Black.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.5f)
+    val scale = LocalUiScale.current.scale
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(overlayColor)
@@ -122,12 +130,14 @@ fun CenteredModal(
             ),
         contentAlignment = Alignment.Center
     ) {
+        val modalWidth = (baseWidth * scale).coerceIn(280.dp, maxWidth * 0.9f)
+
         Column(
             modifier = modifier
-                .width(width)
+                .width(modalWidth)
                 .background(
                     MaterialTheme.colorScheme.surface,
-                    RoundedCornerShape(12.dp)
+                    RoundedCornerShape(Dimens.radiusLg)
                 )
                 .then(
                     if (onDismiss != null) {
@@ -138,7 +148,7 @@ fun CenteredModal(
                         )
                     } else Modifier
                 )
-                .padding(24.dp),
+                .padding(Dimens.spacingLg),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -146,12 +156,12 @@ fun CenteredModal(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingMd))
 
             content()
 
             if (footerHints != null) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(Dimens.spacingMd))
                 FooterBar(hints = footerHints)
             }
         }
@@ -162,15 +172,16 @@ fun CenteredModal(
 fun NestedModal(
     title: String,
     modifier: Modifier = Modifier,
-    width: Dp = 400.dp,
+    baseWidth: Dp = 400.dp,
     onDismiss: (() -> Unit)? = null,
     footerHints: List<Pair<InputButton, String>>? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val isDarkTheme = LocalLauncherTheme.current.isDarkTheme
     val overlayColor = if (isDarkTheme) Color.Black.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.35f)
+    val scale = LocalUiScale.current.scale
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(overlayColor)
@@ -185,12 +196,14 @@ fun NestedModal(
             ),
         contentAlignment = Alignment.Center
     ) {
+        val modalWidth = (baseWidth * scale).coerceIn(280.dp, maxWidth * 0.9f)
+
         Column(
             modifier = modifier
-                .width(width)
+                .width(modalWidth)
                 .background(
                     MaterialTheme.colorScheme.surface,
-                    RoundedCornerShape(12.dp)
+                    RoundedCornerShape(Dimens.radiusLg)
                 )
                 .then(
                     if (onDismiss != null) {
@@ -201,7 +214,7 @@ fun NestedModal(
                         )
                     } else Modifier
                 )
-                .padding(24.dp),
+                .padding(Dimens.spacingLg),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -209,12 +222,12 @@ fun NestedModal(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(Dimens.radiusLg))
 
             content()
 
             if (footerHints != null) {
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(Dimens.spacingLg))
                 FooterBar(hints = footerHints)
             }
         }

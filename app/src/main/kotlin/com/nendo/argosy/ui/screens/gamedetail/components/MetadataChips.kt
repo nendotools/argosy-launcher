@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.nendo.argosy.domain.model.CompletionStatus
+import com.nendo.argosy.ui.theme.Dimens
 
 @Composable
 fun MetadataChip(label: String, value: String) {
@@ -28,9 +29,9 @@ fun MetadataChip(label: String, value: String) {
         modifier = Modifier
             .background(
                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                RoundedCornerShape(8.dp)
+                RoundedCornerShape(Dimens.radiusMd)
             )
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = Dimens.spacingMd, vertical = Dimens.spacingSm)
     ) {
         Text(
             text = value,
@@ -57,19 +58,19 @@ fun RatingChip(
         modifier = Modifier
             .background(
                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                RoundedCornerShape(6.dp)
+                RoundedCornerShape(Dimens.radiusSm)
             )
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = Dimens.radiusLg, vertical = Dimens.radiusSm)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = iconColor,
-                modifier = Modifier.size(14.dp)
+                modifier = Modifier.size(Dimens.iconXs)
             )
             Text(
                 text = "$value/10",
@@ -92,19 +93,19 @@ fun CommunityRatingChip(rating: Float) {
         modifier = Modifier
             .background(
                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                RoundedCornerShape(6.dp)
+                RoundedCornerShape(Dimens.radiusSm)
             )
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = Dimens.radiusLg, vertical = Dimens.radiusSm)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
         ) {
             Icon(
                 imageVector = Icons.Default.People,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(14.dp)
+                modifier = Modifier.size(Dimens.iconXs)
             )
             Text(
                 text = "${rating.toInt()}%",
@@ -139,19 +140,19 @@ fun PlayTimeChip(minutes: Int) {
         modifier = Modifier
             .background(
                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                RoundedCornerShape(6.dp)
+                RoundedCornerShape(Dimens.radiusSm)
             )
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = Dimens.radiusLg, vertical = Dimens.radiusSm)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
         ) {
             Icon(
                 imageVector = Icons.Default.Schedule,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(14.dp)
+                modifier = Modifier.size(Dimens.iconXs)
             )
             Text(
                 text = displayTime,
@@ -176,19 +177,19 @@ fun StatusChip(statusValue: String?) {
         modifier = Modifier
             .background(
                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                RoundedCornerShape(6.dp)
+                RoundedCornerShape(Dimens.radiusSm)
             )
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = Dimens.radiusLg, vertical = Dimens.radiusSm)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
         ) {
             Icon(
                 imageVector = status.icon,
                 contentDescription = null,
                 tint = status.color,
-                modifier = Modifier.size(14.dp)
+                modifier = Modifier.size(Dimens.iconXs)
             )
             Text(
                 text = status.label,

@@ -45,7 +45,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.nendo.argosy.ui.components.ActionPreference
@@ -212,8 +211,8 @@ fun SteamSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                 ) {
                     if (uiState.steam.isAddingGame) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp
+                            modifier = Modifier.size(Dimens.spacingMd),
+                            strokeWidth = Dimens.borderMedium
                         )
                     } else {
                         Text("Add")

@@ -40,7 +40,6 @@ import com.nendo.argosy.ui.components.ListSection
 import com.nendo.argosy.ui.components.SectionFocusedScroll
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.nendo.argosy.ui.components.ActionPreference
 import com.nendo.argosy.ui.components.ExpandedChildItem
@@ -224,7 +223,7 @@ private fun DistributeResultModal(
             Spacer(modifier = Modifier.height(Dimens.spacingMd))
 
             LazyColumn(
-                modifier = Modifier.heightIn(max = 300.dp),
+                modifier = Modifier.heightIn(max = Dimens.headerHeightLg + Dimens.headerHeightLg + Dimens.iconSm),
                 verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
             ) {
                 itemsIndexed(results) { _, emulator ->
@@ -245,7 +244,7 @@ private fun DistributeResultModal(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(start = Dimens.spacingMd, top = 4.dp),
+                                    .padding(start = Dimens.spacingMd, top = Dimens.spacingXs),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
@@ -368,7 +367,7 @@ private fun BiosSummaryCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = contentColor.copy(alpha = 0.7f)
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(Dimens.spacingXs))
             LinearProgressIndicator(
                 progress = { downloadProgress },
                 modifier = Modifier.fillMaxWidth(),
@@ -384,8 +383,8 @@ private fun BiosSummaryCard(
                 horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
             ) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(16.dp),
-                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(Dimens.spacingMd),
+                    strokeWidth = Dimens.borderMedium,
                     color = contentColor
                 )
                 Text(
@@ -433,9 +432,9 @@ private fun BiosSummaryCard(
                             imageVector = Icons.Default.CloudDownload,
                             contentDescription = null,
                             tint = downloadTextColor,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(Dimens.spacingMd)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(Dimens.spacingXs))
                         Text(
                             text = if (missingFiles > 0) "Download $missingFiles" else "Complete",
                             style = MaterialTheme.typography.labelMedium,
@@ -557,7 +556,7 @@ private fun BiosPlatformItem(
                         indication = null,
                         interactionSource = remember { MutableInteractionSource() }
                     ) { onDownload() }
-                    .padding(horizontal = Dimens.spacingSm, vertical = 4.dp)
+                    .padding(horizontal = Dimens.spacingSm, vertical = Dimens.spacingXs)
             ) {
                 Text(
                     text = "Download",

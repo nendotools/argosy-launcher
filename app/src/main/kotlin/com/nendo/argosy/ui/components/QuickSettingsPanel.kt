@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.nendo.argosy.data.preferences.ThemeMode
+import com.nendo.argosy.ui.theme.Dimens
 
 enum class FanMode(val value: Int, val label: String) {
     QUIET(1, "Quiet"),
@@ -133,22 +134,22 @@ fun QuickSettingsPanel(
         ) {
             Column(
                 modifier = Modifier
-                    .width(300.dp)
+                    .width(Dimens.modalWidth - Dimens.footerHeight)
                     .fillMaxHeight()
                     .background(MaterialTheme.colorScheme.surface)
-                    .padding(vertical = 24.dp)
+                    .padding(vertical = Dimens.spacingLg)
             ) {
                 Text(
                     text = "Quick Settings",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(horizontal = 24.dp)
+                    modifier = Modifier.padding(horizontal = Dimens.spacingLg)
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Dimens.spacingSm))
 
                 HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                    modifier = Modifier.padding(horizontal = Dimens.spacingLg, vertical = Dimens.radiusLg),
                     color = MaterialTheme.colorScheme.outlineVariant
                 )
 
@@ -238,7 +239,7 @@ fun QuickSettingsPanel(
 
                         item {
                             HorizontalDivider(
-                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                                modifier = Modifier.padding(horizontal = Dimens.spacingLg, vertical = Dimens.radiusLg),
                                 color = MaterialTheme.colorScheme.outlineVariant
                             )
                         }
@@ -305,7 +306,7 @@ fun QuickSettingsPanel(
                     text = "Press B or R3 to close",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                    modifier = Modifier.padding(horizontal = 24.dp)
+                    modifier = Modifier.padding(horizontal = Dimens.spacingLg)
                 )
             }
         }
@@ -339,14 +340,14 @@ private fun QuickSettingItem(
         else -> MaterialTheme.colorScheme.primary
     }
 
-    val shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)
+    val shape = RoundedCornerShape(topStart = Dimens.radiusMd, bottomStart = Dimens.radiusMd)
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Start,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp)
+            .padding(start = Dimens.spacingMd)
             .clip(shape)
             .background(backgroundColor)
             .then(
@@ -360,15 +361,15 @@ private fun QuickSettingItem(
                     )
                 }
             )
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = Dimens.spacingMd, vertical = Dimens.radiusLg)
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             tint = contentColor,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(Dimens.iconMd)
         )
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(Dimens.spacingMd))
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
@@ -410,12 +411,12 @@ private fun QuickSettingItemTwoLine(
         else -> MaterialTheme.colorScheme.primary
     }
 
-    val shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)
+    val shape = RoundedCornerShape(topStart = Dimens.radiusMd, bottomStart = Dimens.radiusMd)
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp)
+            .padding(start = Dimens.spacingMd)
             .clip(shape)
             .background(backgroundColor)
             .then(
@@ -429,16 +430,16 @@ private fun QuickSettingItemTwoLine(
                     )
                 }
             )
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = Dimens.spacingMd, vertical = Dimens.radiusLg)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = contentColor,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(Dimens.iconMd)
             )
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(Dimens.spacingMd))
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodyLarge,
@@ -451,7 +452,7 @@ private fun QuickSettingItemTwoLine(
             color = valueColor,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 4.dp),
+                .padding(top = Dimens.spacingXs),
             textAlign = androidx.compose.ui.text.style.TextAlign.End
         )
     }
@@ -477,14 +478,14 @@ private fun QuickSettingToggle(
         MaterialTheme.colorScheme.onSurface
     }
 
-    val shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)
+    val shape = RoundedCornerShape(topStart = Dimens.radiusMd, bottomStart = Dimens.radiusMd)
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Start,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp)
+            .padding(start = Dimens.spacingMd)
             .clip(shape)
             .background(backgroundColor)
             .clickable(
@@ -492,15 +493,15 @@ private fun QuickSettingToggle(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             )
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = Dimens.spacingMd, vertical = Dimens.radiusLg)
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             tint = contentColor,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(Dimens.iconMd)
         )
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(Dimens.spacingMd))
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
@@ -536,15 +537,15 @@ private fun FanSpeedSlider(
         Color.Transparent
     }
 
-    val shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)
+    val shape = RoundedCornerShape(topStart = Dimens.radiusMd, bottomStart = Dimens.radiusMd)
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp)
+            .padding(start = Dimens.spacingMd)
             .clip(shape)
             .background(backgroundColor)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = Dimens.spacingMd, vertical = Dimens.spacingSm)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -571,7 +572,7 @@ private fun FanSpeedSlider(
                 activeTrackColor = MaterialTheme.colorScheme.primary,
                 inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
             ),
-            modifier = Modifier.height(24.dp)
+            modifier = Modifier.height(Dimens.iconMd)
         )
     }
 }
@@ -590,15 +591,15 @@ private fun VibrationStrengthSlider(
         Color.Transparent
     }
 
-    val shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)
+    val shape = RoundedCornerShape(topStart = Dimens.radiusMd, bottomStart = Dimens.radiusMd)
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp)
+            .padding(start = Dimens.spacingMd)
             .clip(shape)
             .background(backgroundColor)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = Dimens.spacingMd, vertical = Dimens.spacingSm)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -625,7 +626,7 @@ private fun VibrationStrengthSlider(
                 activeTrackColor = MaterialTheme.colorScheme.primary,
                 inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
             ),
-            modifier = Modifier.height(24.dp)
+            modifier = Modifier.height(Dimens.iconMd)
         )
     }
 }

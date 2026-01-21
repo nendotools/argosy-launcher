@@ -9,7 +9,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import com.nendo.argosy.ui.theme.Dimens
 
 @Composable
 fun SettingsHeader(title: String) {
@@ -17,7 +17,7 @@ fun SettingsHeader(title: String) {
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
-            .padding(horizontal = 24.dp, vertical = 16.dp),
+            .padding(horizontal = Dimens.spacingLg, vertical = Dimens.spacingMd),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(

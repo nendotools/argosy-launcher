@@ -41,7 +41,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -119,7 +118,7 @@ fun ManagePinsScreen(
                             start = Dimens.spacingLg,
                             end = Dimens.spacingLg,
                             top = Dimens.spacingSm,
-                            bottom = 80.dp
+                            bottom = Dimens.footerHeight
                         ),
                         verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
                     ) {
@@ -230,7 +229,7 @@ private fun PinRow(
                 Icons.Default.DragHandle,
                 contentDescription = "Moving",
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(Dimens.iconMd)
             )
         } else {
             Icon(
@@ -238,7 +237,7 @@ private fun PinRow(
                 contentDescription = null,
                 tint = if (isFocused) MaterialTheme.colorScheme.onPrimaryContainer
                 else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(Dimens.iconMd)
             )
         }
 
@@ -272,7 +271,7 @@ private fun EmptyPinsState() {
                 Icons.Default.PushPin,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(64.dp)
+                modifier = Modifier.size(Dimens.iconXl)
             )
             Spacer(modifier = Modifier.height(Dimens.spacingMd))
             Text(

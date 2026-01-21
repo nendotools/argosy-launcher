@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.nendo.argosy.ui.theme.Dimens
 
 @Composable
 fun GameDetailSkeleton() {
@@ -37,17 +38,17 @@ fun GameDetailSkeleton() {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(32.dp)
+                .padding(Dimens.spacingXl)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(32.dp)
+                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXl)
             ) {
                 Box(
                     modifier = Modifier
                         .width(200.dp)
                         .height(280.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(Dimens.radiusLg))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                 )
 
@@ -56,15 +57,15 @@ fun GameDetailSkeleton() {
                         modifier = Modifier
                             .fillMaxWidth(0.6f)
                             .height(40.dp)
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(Dimens.radiusMd))
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(Dimens.spacingMd))
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(0.3f)
                             .height(24.dp)
-                            .clip(RoundedCornerShape(4.dp))
+                            .clip(RoundedCornerShape(Dimens.radiusSm))
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
                     )
                 }

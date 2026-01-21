@@ -1,5 +1,6 @@
 package com.nendo.argosy.ui.theme
 
+import android.content.res.Configuration
 import android.graphics.Color as AndroidColor
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -11,6 +12,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -260,7 +262,23 @@ fun ALauncherTheme(
         useAccentColor = themeState.useAccentColorFooter
     )
 
+    val configuration = LocalConfiguration.current
+    val aspectRatio = configuration.screenWidthDp.toFloat() / configuration.screenHeightDp.toFloat()
+    val aspectRatioClass = when {
+        aspectRatio >= 2.0f -> AspectRatioClass.ULTRA_WIDE
+        aspectRatio >= 1.6f -> AspectRatioClass.WIDE
+        aspectRatio >= 0.5f -> AspectRatioClass.STANDARD
+        aspectRatio >= 0.35f -> AspectRatioClass.TALL
+        else -> AspectRatioClass.ULTRA_TALL
+    }
+
+    val uiScaleConfig = UiScaleConfig(
+        scale = themeState.uiScale / 100f,
+        aspectRatioClass = aspectRatioClass
+    )
+
     CompositionLocalProvider(
+        LocalUiScale provides uiScaleConfig,
         LocalLauncherTheme provides launcherConfig,
         LocalBoxArtStyle provides boxArtStyle,
         LocalFooterStyle provides footerStyle

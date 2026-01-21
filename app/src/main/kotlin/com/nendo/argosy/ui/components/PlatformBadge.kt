@@ -33,8 +33,8 @@ import com.nendo.argosy.ui.theme.LocalBoxArtStyle
 
 private val BASE_WIDTH_DP = 150.dp
 private val BASE_FONT_SIZE_SP = 11.sp
-private val BASE_HORIZONTAL_PADDING_DP = 4.dp
-private val BASE_VERTICAL_PADDING_DP = 2.dp
+private val BASE_HORIZONTAL_PADDING_DP = 4.dp  // Static: scaling handled separately
+private val BASE_VERTICAL_PADDING_DP = 2.dp   // Static: scaling handled separately
 
 private enum class EarPosition {
     TOP_LEFT_RIGHT,
