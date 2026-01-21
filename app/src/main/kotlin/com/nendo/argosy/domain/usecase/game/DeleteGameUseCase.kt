@@ -62,10 +62,13 @@ class DeleteGameUseCase @Inject constructor(
                     file.deleteRecursively()
                 } else {
                     val parent = file.parentFile
-                    val isPlatformFolder = parent != null &&
-                        parent.absolutePath == platformFolder.absolutePath
+                    val platformCanonical = platformFolder.canonicalPath
+                    val parentCanonical = parent?.canonicalPath
 
-                    if (parent != null && !isPlatformFolder) {
+                    val isPlatformFolder = parentCanonical == platformCanonical
+                    val isInsidePlatformFolder = parentCanonical?.startsWith(platformCanonical) == true
+
+                    if (parent != null && !isPlatformFolder && isInsidePlatformFolder) {
                         parent.deleteRecursively()
                     } else {
                         file.delete()

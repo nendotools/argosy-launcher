@@ -9,11 +9,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -51,36 +54,44 @@ fun MainDrawer(
     modifier: Modifier = Modifier
 ) {
     ModalDrawerSheet(modifier = modifier) {
-        Column(modifier = Modifier.padding(vertical = 24.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxHeight()
+                .padding(vertical = 24.dp)
+        ) {
             DrawerStatusBar()
             HorizontalDivider(
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
                 color = MaterialTheme.colorScheme.outlineVariant
             )
 
-            items.forEachIndexed { index, item ->
-                if (index == items.lastIndex) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                        color = MaterialTheme.colorScheme.outlineVariant
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                items.forEachIndexed { index, item ->
+                    if (index == items.lastIndex) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                            color = MaterialTheme.colorScheme.outlineVariant
+                        )
+                    }
+
+                    val badge = if (item.route == Screen.Downloads.route && drawerState.downloadCount > 0) {
+                        drawerState.downloadCount
+                    } else null
+
+                    DrawerMenuItem(
+                        item = item,
+                        icon = getIconForRoute(item.route),
+                        isFocused = index == focusedIndex,
+                        isSelected = currentRoute == item.route,
+                        badge = badge,
+                        onClick = { onNavigate(item.route) }
                     )
                 }
-
-                val badge = if (item.route == Screen.Downloads.route && drawerState.downloadCount > 0) {
-                    drawerState.downloadCount
-                } else null
-
-                DrawerMenuItem(
-                    item = item,
-                    icon = getIconForRoute(item.route),
-                    isFocused = index == focusedIndex,
-                    isSelected = currentRoute == item.route,
-                    badge = badge,
-                    onClick = { onNavigate(item.route) }
-                )
             }
-
-            Spacer(modifier = Modifier.weight(1f))
 
             RomMStatusFooter(isConnected = drawerState.rommConnected)
         }
