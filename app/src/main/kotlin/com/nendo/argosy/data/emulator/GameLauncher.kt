@@ -339,10 +339,18 @@ class GameLauncher @Inject constructor(
     private fun buildFileUriIntent(emulator: EmulatorDef, romFile: File, forResume: Boolean): Intent {
         val uri = getFileUri(romFile)
 
+        // Grant URI permission to package - ensures child processes can access the content URI
+        try {
+            context.grantUriPermission(emulator.packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        } catch (e: Exception) {
+            Logger.warn(TAG, "Failed to grant URI permission to ${emulator.packageName}", e)
+        }
+
         return Intent(emulator.launchAction).apply {
             setDataAndType(uri, getMimeType(romFile))
             setPackage(emulator.packageName)
             addCategory(Intent.CATEGORY_DEFAULT)
+            clipData = android.content.ClipData.newRawUri(null, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             if (forResume) {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
