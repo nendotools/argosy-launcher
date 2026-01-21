@@ -19,10 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.nendo.argosy.ui.components.ListSection
 import com.nendo.argosy.ui.components.SectionFocusedScroll
-import com.nendo.argosy.data.cache.GradientExtractionConfig
-import com.nendo.argosy.data.cache.GradientPreset
 import com.nendo.argosy.data.preferences.BoxArtBorderStyle
 import com.nendo.argosy.data.preferences.BoxArtBorderThickness
 import com.nendo.argosy.data.preferences.BoxArtCornerRadius
@@ -40,108 +37,153 @@ import com.nendo.argosy.ui.screens.home.HomeGameUi
 import com.nendo.argosy.ui.screens.settings.DisplayState
 import com.nendo.argosy.ui.screens.settings.SettingsUiState
 import com.nendo.argosy.ui.screens.settings.SettingsViewModel
+import com.nendo.argosy.ui.screens.settings.menu.SettingsLayout
 import com.nendo.argosy.ui.theme.BoxArtStyleConfig
 import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.LocalBoxArtStyle
 
-private sealed class BoxArtItem(val key: String, val section: String) {
-    val isFocusable: Boolean get() = this !is StylingHeader && this !is IconHeader &&
-        this !is OuterHeader && this !is InnerHeader && this !is GradientHeader
+private sealed class BoxArtItem(
+    val key: String,
+    val section: String,
+    val visibleWhen: (DisplayState) -> Boolean = { true }
+) {
+    val isFocusable: Boolean get() = this !is Header
 
-    data object StylingHeader : BoxArtItem("stylingHeader", "styling")
+    class Header(key: String, section: String, val title: String, visibleWhen: (DisplayState) -> Boolean = { true })
+        : BoxArtItem(key, section, visibleWhen)
+
     data object Shape : BoxArtItem("shape", "styling")
     data object CornerRadius : BoxArtItem("cornerRadius", "styling")
     data object BorderThickness : BoxArtItem("borderThickness", "styling")
     data object BorderStyle : BoxArtItem("borderStyle", "styling")
-    data object GlassTint : BoxArtItem("glassTint", "styling")
-    data object GradientPresetItem : BoxArtItem("gradientPreset", "styling")
-    data object GradientAdvanced : BoxArtItem("gradientAdvanced", "styling")
 
-    data object IconHeader : BoxArtItem("iconHeader", "icon")
+    data object GlassTint : BoxArtItem(
+        key = "glassTint",
+        section = "styling",
+        visibleWhen = { it.boxArtBorderStyle == BoxArtBorderStyle.GLASS }
+    )
+
+    data object GradientPresetItem : BoxArtItem(
+        key = "gradientPreset",
+        section = "styling",
+        visibleWhen = { it.boxArtBorderStyle == BoxArtBorderStyle.GRADIENT }
+    )
+
+    data object GradientAdvanced : BoxArtItem(
+        key = "gradientAdvanced",
+        section = "styling",
+        visibleWhen = { it.boxArtBorderStyle == BoxArtBorderStyle.GRADIENT }
+    )
+
     data object IconPos : BoxArtItem("iconPos", "icon")
-    data object IconPad : BoxArtItem("iconPad", "icon")
 
-    data object OuterHeader : BoxArtItem("outerHeader", "outer")
+    data object IconPad : BoxArtItem(
+        key = "iconPad",
+        section = "icon",
+        visibleWhen = { it.systemIconPosition != SystemIconPosition.OFF }
+    )
+
     data object OuterEffect : BoxArtItem("outerEffect", "outer")
-    data object OuterThickness : BoxArtItem("outerThickness", "outer")
-    data object GlowIntensity : BoxArtItem("glowIntensity", "outer")
 
-    data object InnerHeader : BoxArtItem("innerHeader", "inner")
+    data object OuterThickness : BoxArtItem(
+        key = "outerThickness",
+        section = "outer",
+        visibleWhen = { it.boxArtOuterEffect != BoxArtOuterEffect.OFF }
+    )
+
+    data object GlowIntensity : BoxArtItem(
+        key = "glowIntensity",
+        section = "outer",
+        visibleWhen = { it.boxArtOuterEffect == BoxArtOuterEffect.GLOW }
+    )
+
     data object InnerEffect : BoxArtItem("innerEffect", "inner")
-    data object InnerThickness : BoxArtItem("innerThickness", "inner")
 
-    data object GradientHeader : BoxArtItem("gradientHeader", "gradient")
-    data object SampleGrid : BoxArtItem("sampleGrid", "gradient")
-    data object SampleRadius : BoxArtItem("sampleRadius", "gradient")
-    data object MinSaturation : BoxArtItem("minSaturation", "gradient")
-    data object MinBrightness : BoxArtItem("minBrightness", "gradient")
-    data object HueDistance : BoxArtItem("hueDistance", "gradient")
-    data object SaturationBoost : BoxArtItem("saturationBoost", "gradient")
-    data object BrightnessClamp : BoxArtItem("brightnessClamp", "gradient")
-}
+    data object InnerThickness : BoxArtItem(
+        key = "innerThickness",
+        section = "inner",
+        visibleWhen = { it.boxArtInnerEffect != BoxArtInnerEffect.OFF }
+    )
 
-private fun buildVisibleItems(display: DisplayState, showGradientSection: Boolean): List<BoxArtItem> = buildList {
-    add(BoxArtItem.StylingHeader)
-    add(BoxArtItem.Shape)
-    add(BoxArtItem.CornerRadius)
-    add(BoxArtItem.BorderThickness)
-    add(BoxArtItem.BorderStyle)
-    if (display.boxArtBorderStyle == BoxArtBorderStyle.GLASS) {
-        add(BoxArtItem.GlassTint)
-    }
-    if (showGradientSection) {
-        add(BoxArtItem.GradientPresetItem)
-        add(BoxArtItem.GradientAdvanced)
-    }
+    data object SampleGrid : BoxArtItem(
+        key = "sampleGrid",
+        section = "gradient",
+        visibleWhen = { it.boxArtBorderStyle == BoxArtBorderStyle.GRADIENT && it.gradientAdvancedMode }
+    )
 
-    if (showGradientSection && display.gradientAdvancedMode) {
-        add(BoxArtItem.GradientHeader)
-        add(BoxArtItem.SampleGrid)
-        add(BoxArtItem.SampleRadius)
-        add(BoxArtItem.MinSaturation)
-        add(BoxArtItem.MinBrightness)
-        add(BoxArtItem.HueDistance)
-        add(BoxArtItem.SaturationBoost)
-        add(BoxArtItem.BrightnessClamp)
-    }
+    data object SampleRadius : BoxArtItem(
+        key = "sampleRadius",
+        section = "gradient",
+        visibleWhen = { it.boxArtBorderStyle == BoxArtBorderStyle.GRADIENT && it.gradientAdvancedMode }
+    )
 
-    add(BoxArtItem.IconHeader)
-    add(BoxArtItem.IconPos)
-    if (display.systemIconPosition != SystemIconPosition.OFF) {
-        add(BoxArtItem.IconPad)
-    }
+    data object MinSaturation : BoxArtItem(
+        key = "minSaturation",
+        section = "gradient",
+        visibleWhen = { it.boxArtBorderStyle == BoxArtBorderStyle.GRADIENT && it.gradientAdvancedMode }
+    )
 
-    add(BoxArtItem.OuterHeader)
-    add(BoxArtItem.OuterEffect)
-    if (display.boxArtOuterEffect != BoxArtOuterEffect.OFF) {
-        add(BoxArtItem.OuterThickness)
-    }
-    if (display.boxArtOuterEffect == BoxArtOuterEffect.GLOW) {
-        add(BoxArtItem.GlowIntensity)
-    }
+    data object MinBrightness : BoxArtItem(
+        key = "minBrightness",
+        section = "gradient",
+        visibleWhen = { it.boxArtBorderStyle == BoxArtBorderStyle.GRADIENT && it.gradientAdvancedMode }
+    )
 
-    add(BoxArtItem.InnerHeader)
-    add(BoxArtItem.InnerEffect)
-    if (display.boxArtInnerEffect != BoxArtInnerEffect.OFF) {
-        add(BoxArtItem.InnerThickness)
-    }
-}
+    data object HueDistance : BoxArtItem(
+        key = "hueDistance",
+        section = "gradient",
+        visibleWhen = { it.boxArtBorderStyle == BoxArtBorderStyle.GRADIENT && it.gradientAdvancedMode }
+    )
 
-private fun buildSections(visibleItems: List<BoxArtItem>, focusableItems: List<BoxArtItem>): List<ListSection> {
-    val sectionNames = listOf("styling", "icon", "outer", "inner", "gradient")
-    return sectionNames.mapNotNull { sectionName ->
-        val sectionItems = visibleItems.filter { it.section == sectionName }
-        val sectionFocusable = focusableItems.filter { it.section == sectionName }
-        if (sectionItems.isEmpty() || sectionFocusable.isEmpty()) return@mapNotNull null
+    data object SaturationBoost : BoxArtItem(
+        key = "saturationBoost",
+        section = "gradient",
+        visibleWhen = { it.boxArtBorderStyle == BoxArtBorderStyle.GRADIENT && it.gradientAdvancedMode }
+    )
 
-        ListSection(
-            listStartIndex = visibleItems.indexOf(sectionItems.first()),
-            listEndIndex = visibleItems.indexOf(sectionItems.last()),
-            focusStartIndex = focusableItems.indexOf(sectionFocusable.first()),
-            focusEndIndex = focusableItems.indexOf(sectionFocusable.last())
+    data object BrightnessClamp : BoxArtItem(
+        key = "brightnessClamp",
+        section = "gradient",
+        visibleWhen = { it.boxArtBorderStyle == BoxArtBorderStyle.GRADIENT && it.gradientAdvancedMode }
+    )
+
+    companion object {
+        private val StylingHeader = Header("stylingHeader", "styling", "Styling")
+        private val IconHeader = Header("iconHeader", "icon", "System Icon")
+        private val OuterHeader = Header("outerHeader", "outer", "Outer Effect")
+        private val InnerHeader = Header("innerHeader", "inner", "Inner Effect")
+        private val GradientHeader = Header(
+            key = "gradientHeader",
+            section = "gradient",
+            title = "Gradient Colors",
+            visibleWhen = { it.boxArtBorderStyle == BoxArtBorderStyle.GRADIENT && it.gradientAdvancedMode }
+        )
+
+        val ALL: List<BoxArtItem> = listOf(
+            StylingHeader,
+            Shape, CornerRadius, BorderThickness, BorderStyle, GlassTint,
+            GradientPresetItem, GradientAdvanced,
+            GradientHeader,
+            SampleGrid, SampleRadius, MinSaturation, MinBrightness,
+            HueDistance, SaturationBoost, BrightnessClamp,
+            IconHeader,
+            IconPos, IconPad,
+            OuterHeader,
+            OuterEffect, OuterThickness, GlowIntensity,
+            InnerHeader,
+            InnerEffect, InnerThickness
         )
     }
 }
+
+private val boxArtLayout = SettingsLayout<BoxArtItem, DisplayState>(
+    allItems = BoxArtItem.ALL,
+    isFocusable = { it.isFocusable },
+    visibleWhen = { item, state -> item.visibleWhen(state) },
+    sectionOf = { it.section }
+)
+
+internal fun boxArtMaxFocusIndex(display: DisplayState): Int = boxArtLayout.maxFocusIndex(display)
 
 @Composable
 fun BoxArtSection(
@@ -154,21 +196,16 @@ fun BoxArtSection(
     val extractionResult = uiState.gradientExtractionResult
     val showGradientSection = display.boxArtBorderStyle == BoxArtBorderStyle.GRADIENT
 
-    val visibleItems = remember(display, showGradientSection) { buildVisibleItems(display, showGradientSection) }
-    val focusableItems = remember(visibleItems) { visibleItems.filter { it.isFocusable } }
-    val sections = remember(visibleItems, focusableItems) { buildSections(visibleItems, focusableItems) }
+    val visibleItems = remember(display) { boxArtLayout.visibleItems(display) }
+    val sections = remember(display) { boxArtLayout.buildSections(display) }
 
-    fun itemToFocusIndex(item: BoxArtItem): Int = focusableItems.indexOf(item)
-    fun isFocused(item: BoxArtItem): Boolean = uiState.focusedIndex == itemToFocusIndex(item)
-    fun focusToListIndex(focusIndex: Int): Int {
-        val item = focusableItems.getOrNull(focusIndex) ?: return focusIndex
-        return visibleItems.indexOf(item)
-    }
+    fun isFocused(item: BoxArtItem): Boolean =
+        uiState.focusedIndex == boxArtLayout.focusIndexOf(item, display)
 
     SectionFocusedScroll(
         listState = listState,
         focusedIndex = uiState.focusedIndex,
-        focusToListIndex = ::focusToListIndex,
+        focusToListIndex = { boxArtLayout.focusToListIndex(it, display) },
         sections = sections
     )
 
@@ -187,10 +224,7 @@ fun BoxArtSection(
         ) {
             items(visibleItems, key = { it.key }) { item ->
                 when (item) {
-                    BoxArtItem.StylingHeader -> BoxArtSectionHeader("Styling")
-                    BoxArtItem.IconHeader -> BoxArtSectionHeader("System Icon")
-                    BoxArtItem.OuterHeader -> BoxArtSectionHeader("Outer Effect")
-                    BoxArtItem.InnerHeader -> BoxArtSectionHeader("Inner Effect")
+                    is BoxArtItem.Header -> BoxArtSectionHeader(item.title)
 
                     BoxArtItem.Shape -> CyclePreference(
                         title = "Shape",
@@ -280,7 +314,6 @@ fun BoxArtSection(
                         onClick = { viewModel.cycleBoxArtInnerEffectThickness() }
                     )
 
-                    BoxArtItem.GradientHeader -> BoxArtSectionHeader("Gradient Colors")
                     BoxArtItem.SampleGrid -> CyclePreference(
                         title = "Sample Grid",
                         value = "${gradientConfig.samplesX}x${gradientConfig.samplesY}",

@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,17 +25,66 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import com.nendo.argosy.data.emulator.EmulatorDef
+import com.nendo.argosy.data.emulator.InstalledEmulator
+import com.nendo.argosy.ui.components.FocusedScroll
 import com.nendo.argosy.ui.components.FooterBar
 import com.nendo.argosy.ui.components.InputButton
 import com.nendo.argosy.ui.screens.settings.EmulatorPickerInfo
+import com.nendo.argosy.ui.screens.settings.menu.SettingsLayout
 import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.LocalLauncherTheme
-import com.nendo.argosy.ui.theme.Motion
+
+private data class PickerLayoutState(
+    val hasInstalled: Boolean,
+    val hasDownloadable: Boolean
+)
+
+private sealed class PickerItem(
+    val key: String,
+    val visibleWhen: (PickerLayoutState) -> Boolean = { true }
+) {
+    val isFocusable: Boolean get() = this !is DownloadHeader
+
+    data object AutoItem : PickerItem("auto", { it.hasInstalled })
+
+    class InstalledItem(val emulator: InstalledEmulator, val itemIndex: Int) : PickerItem(
+        key = "installed_${emulator.def.displayName}"
+    )
+
+    data object DownloadHeader : PickerItem("downloadHeader", { it.hasDownloadable })
+
+    class DownloadableItem(val emulator: EmulatorDef, val itemIndex: Int) : PickerItem(
+        key = "downloadable_${emulator.displayName}"
+    )
+
+    companion object {
+        fun buildItems(info: EmulatorPickerInfo): List<PickerItem> {
+            val items = mutableListOf<PickerItem>()
+            items.add(AutoItem)
+            info.installedEmulators.forEachIndexed { index, emulator ->
+                items.add(InstalledItem(emulator, 1 + index))
+            }
+            items.add(DownloadHeader)
+            val downloadBaseIndex = if (info.installedEmulators.isNotEmpty()) 1 + info.installedEmulators.size else 0
+            info.downloadableEmulators.forEachIndexed { index, emulator ->
+                items.add(DownloadableItem(emulator, downloadBaseIndex + index))
+            }
+            return items
+        }
+    }
+}
+
+private fun createPickerLayout(items: List<PickerItem>) = SettingsLayout<PickerItem, PickerLayoutState>(
+    allItems = items,
+    isFocusable = { it.isFocusable },
+    visibleWhen = { item, state -> item.visibleWhen(state) }
+)
 
 @Composable
 fun EmulatorPickerPopup(
@@ -47,35 +96,25 @@ fun EmulatorPickerPopup(
     onDismiss: () -> Unit
 ) {
     val listState = rememberLazyListState()
-    val installedCount = info.installedEmulators.size
-    val hasDownloadSection = info.downloadableEmulators.isNotEmpty()
-    val hasInstalled = installedCount > 0
 
-    LaunchedEffect(focusIndex) {
-        val downloadStartFocusIndex = if (hasInstalled) 1 + installedCount else 0
-        val scrollIndex = when {
-            !hasInstalled -> {
-                if (hasDownloadSection) focusIndex + 1 else focusIndex
-            }
-            hasDownloadSection && focusIndex >= downloadStartFocusIndex -> {
-                focusIndex + 1
-            }
-            else -> focusIndex
-        }
-        val safeIndex = scrollIndex.coerceAtLeast(0)
-        val layoutInfo = listState.layoutInfo
-        val viewportHeight = layoutInfo.viewportSize.height
-        val itemHeight = layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 0
-
-        if (itemHeight == 0 || viewportHeight == 0) {
-            listState.animateScrollToItem(safeIndex)
-            return@LaunchedEffect
-        }
-
-        val paddingBuffer = (itemHeight * Motion.scrollPaddingPercent).toInt()
-        val centerOffset = (viewportHeight - itemHeight) / 2
-        listState.animateScrollToItem(safeIndex, -centerOffset + paddingBuffer)
+    val layoutState = remember(info.installedEmulators.size, info.downloadableEmulators.size) {
+        PickerLayoutState(
+            hasInstalled = info.installedEmulators.isNotEmpty(),
+            hasDownloadable = info.downloadableEmulators.isNotEmpty()
+        )
     }
+
+    val allItems = remember(info) { PickerItem.buildItems(info) }
+    val layout = remember(allItems) { createPickerLayout(allItems) }
+    val visibleItems = remember(layoutState, allItems) { layout.visibleItems(layoutState) }
+
+    fun isFocused(item: PickerItem): Boolean =
+        focusIndex == layout.focusIndexOf(item, layoutState)
+
+    FocusedScroll(
+        listState = listState,
+        focusedIndex = layout.focusToListIndex(focusIndex, layoutState)
+    )
 
     val isDarkTheme = LocalLauncherTheme.current.isDarkTheme
     val overlayColor = if (isDarkTheme) Color.Black.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.5f)
@@ -114,65 +153,61 @@ fun EmulatorPickerPopup(
                 modifier = Modifier.heightIn(max = Dimens.headerHeightLg + Dimens.headerHeightLg + Dimens.iconSm),
                 verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
             ) {
-                if (installedCount > 0) {
-                    item {
-                        val isFocused = focusIndex == 0
-                        val isTouchSelected = selectedIndex == 0
-                        val isCurrentEmulator = info.selectedEmulatorName == null
-                        EmulatorPickerItem(
-                            name = "Auto",
-                            subtitle = "Use recommended emulator",
-                            isFocused = isFocused,
-                            isTouchSelected = isTouchSelected,
-                            isCurrentEmulator = isCurrentEmulator,
-                            isDownload = false,
-                            onClick = { onItemTap(0) }
-                        )
-                    }
-                }
+                items(visibleItems, key = { it.key }) { item ->
+                    when (item) {
+                        PickerItem.AutoItem -> {
+                            val isTouchSelected = selectedIndex == 0
+                            val isCurrentEmulator = info.selectedEmulatorName == null
+                            EmulatorPickerItem(
+                                name = "Auto",
+                                subtitle = "Use recommended emulator",
+                                isFocused = isFocused(item),
+                                isTouchSelected = isTouchSelected,
+                                isCurrentEmulator = isCurrentEmulator,
+                                isDownload = false,
+                                onClick = { onItemTap(0) }
+                            )
+                        }
 
-                itemsIndexed(info.installedEmulators) { index, emulator ->
-                    val itemIndex = 1 + index
-                    val isFocused = focusIndex == itemIndex
-                    val isTouchSelected = selectedIndex == itemIndex
-                    val isCurrentEmulator = emulator.def.displayName == info.selectedEmulatorName
-                    EmulatorPickerItem(
-                        name = emulator.def.displayName,
-                        subtitle = "Installed" + (emulator.versionName?.let { " - v$it" } ?: ""),
-                        isFocused = isFocused,
-                        isTouchSelected = isTouchSelected,
-                        isCurrentEmulator = isCurrentEmulator,
-                        isDownload = false,
-                        onClick = { onItemTap(itemIndex) }
-                    )
-                }
+                        is PickerItem.InstalledItem -> {
+                            val isTouchSelected = selectedIndex == item.itemIndex
+                            val isCurrentEmulator = item.emulator.def.displayName == info.selectedEmulatorName
+                            EmulatorPickerItem(
+                                name = item.emulator.def.displayName,
+                                subtitle = "Installed" + (item.emulator.versionName?.let { " - v$it" } ?: ""),
+                                isFocused = isFocused(item),
+                                isTouchSelected = isTouchSelected,
+                                isCurrentEmulator = isCurrentEmulator,
+                                isDownload = false,
+                                onClick = { onItemTap(item.itemIndex) }
+                            )
+                        }
 
-                if (info.downloadableEmulators.isNotEmpty()) {
-                    item {
-                        Spacer(modifier = Modifier.height(Dimens.spacingSm))
-                        Text(
-                            text = "AVAILABLE TO DOWNLOAD",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            modifier = Modifier.padding(horizontal = Dimens.spacingSm)
-                        )
-                    }
+                        PickerItem.DownloadHeader -> {
+                            Column {
+                                Spacer(modifier = Modifier.height(Dimens.spacingSm))
+                                Text(
+                                    text = "AVAILABLE TO DOWNLOAD",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    modifier = Modifier.padding(horizontal = Dimens.spacingSm)
+                                )
+                            }
+                        }
 
-                    itemsIndexed(info.downloadableEmulators) { index, emulator ->
-                        val baseIndex = if (installedCount > 0) 1 + installedCount else 0
-                        val itemIndex = baseIndex + index
-                        val isFocused = focusIndex == itemIndex
-                        val isTouchSelected = selectedIndex == itemIndex
-                        val isPlayStore = emulator.downloadUrl?.contains("play.google.com") == true
-                        EmulatorPickerItem(
-                            name = emulator.displayName,
-                            subtitle = if (isPlayStore) "Play Store" else "GitHub",
-                            isFocused = isFocused,
-                            isTouchSelected = isTouchSelected,
-                            isCurrentEmulator = false,
-                            isDownload = true,
-                            onClick = { onItemTap(itemIndex) }
-                        )
+                        is PickerItem.DownloadableItem -> {
+                            val isTouchSelected = selectedIndex == item.itemIndex
+                            val isPlayStore = item.emulator.downloadUrl?.contains("play.google.com") == true
+                            EmulatorPickerItem(
+                                name = item.emulator.displayName,
+                                subtitle = if (isPlayStore) "Play Store" else "GitHub",
+                                isFocused = isFocused(item),
+                                isTouchSelected = isTouchSelected,
+                                isCurrentEmulator = false,
+                                isDownload = true,
+                                onClick = { onItemTap(item.itemIndex) }
+                            )
+                        }
                     }
                 }
             }

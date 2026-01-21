@@ -54,6 +54,16 @@ import com.nendo.argosy.ui.screens.settings.delegates.SoundSettingsDelegate
 import com.nendo.argosy.ui.screens.settings.delegates.SteamSettingsDelegate
 import com.nendo.argosy.ui.screens.settings.delegates.StorageSettingsDelegate
 import com.nendo.argosy.ui.screens.settings.delegates.SyncSettingsDelegate
+import com.nendo.argosy.ui.screens.settings.sections.aboutMaxFocusIndex
+import com.nendo.argosy.ui.screens.settings.sections.boxArtMaxFocusIndex
+import com.nendo.argosy.ui.screens.settings.sections.controlsMaxFocusIndex
+import com.nendo.argosy.ui.screens.settings.sections.displayMaxFocusIndex
+import com.nendo.argosy.ui.screens.settings.sections.emulatorsMaxFocusIndex
+import com.nendo.argosy.ui.screens.settings.sections.homeScreenMaxFocusIndex
+import com.nendo.argosy.ui.screens.settings.sections.mainSettingsMaxFocusIndex
+import com.nendo.argosy.ui.screens.settings.sections.permissionsMaxFocusIndex
+import com.nendo.argosy.ui.screens.settings.sections.soundsMaxFocusIndex
+import com.nendo.argosy.ui.screens.settings.sections.storageMaxFocusIndex
 import com.nendo.argosy.ui.ModalResetSignal
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -898,7 +908,7 @@ class SettingsViewModel @Inject constructor(
             val isConnected = state.server.connectionStatus == ConnectionStatus.ONLINE ||
                 state.server.connectionStatus == ConnectionStatus.OFFLINE
             val maxIndex = when (state.currentSection) {
-                SettingsSection.MAIN -> 9
+                SettingsSection.MAIN -> mainSettingsMaxFocusIndex()
                 SettingsSection.SERVER -> if (state.server.rommConfiguring) {
                     4
                 } else {
@@ -912,46 +922,19 @@ class SettingsViewModel @Inject constructor(
                 }
                 SettingsSection.SYNC_SETTINGS -> 3
                 SettingsSection.STEAM_SETTINGS -> 2 + state.steam.installedLaunchers.size
-                SettingsSection.STORAGE -> {
-                    val baseItemCount = 6
-                    val expandedPlatforms = if (state.storage.platformsExpanded) state.storage.platformConfigs.size else 0
-                    (baseItemCount + expandedPlatforms - 1).coerceAtLeast(baseItemCount - 1)
-                }
-                SettingsSection.DISPLAY -> 10
-                SettingsSection.HOME_SCREEN -> if (state.display.useGameBackground) 7 else 8
-                SettingsSection.BOX_ART -> {
-                    val borderStyle = state.display.boxArtBorderStyle
-                    val showGlassTint = borderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GLASS
-                    val showGradient = borderStyle == com.nendo.argosy.data.preferences.BoxArtBorderStyle.GRADIENT
-                    val showAdvancedMode = state.display.gradientAdvancedMode
-                    val showIconPadding = state.display.systemIconPosition != com.nendo.argosy.data.preferences.SystemIconPosition.OFF
-                    val showOuterThickness = state.display.boxArtOuterEffect != com.nendo.argosy.data.preferences.BoxArtOuterEffect.OFF
-                    val showGlowIntensity = state.display.boxArtOuterEffect == com.nendo.argosy.data.preferences.BoxArtOuterEffect.GLOW
-                    val showInnerThickness = state.display.boxArtInnerEffect != com.nendo.argosy.data.preferences.BoxArtInnerEffect.OFF
-                    var count = 4 // Shape, CornerRadius, BorderThickness, BorderStyle
-                    if (showGlassTint) count++
-                    if (showGradient) count += 2 // preset + advanced toggle
-                    if (showGradient && showAdvancedMode) count += 7 // 7 gradient config settings
-                    count++ // IconPos
-                    if (showIconPadding) count++
-                    count++ // OuterEffect
-                    if (showOuterThickness) count++
-                    if (showGlowIntensity) count++ // GlowIntensity
-                    count++ // InnerEffect
-                    if (showInnerThickness) count++
-                    count - 1 // convert count to max index
-                }
-                SettingsSection.CONTROLS -> if (state.controls.hapticEnabled && state.controls.vibrationSupported) 5 else 4
-                SettingsSection.SOUNDS -> {
-                    val bgmItemCount = if (state.ambientAudio.enabled) 3 else 1
-                    val uiSoundsItemCount = if (state.sounds.enabled) 2 + SoundType.entries.size else 1
-                    bgmItemCount + uiSoundsItemCount - 1
-                }
-                SettingsSection.EMULATORS -> {
-                    val platformCount = state.emulators.platforms.size
-                    val autoAssignOffset = if (state.emulators.canAutoAssign) 1 else 0
-                    (platformCount + autoAssignOffset - 1).coerceAtLeast(0)
-                }
+                SettingsSection.STORAGE -> storageMaxFocusIndex(
+                    state.storage.platformsExpanded,
+                    state.storage.platformConfigs.size
+                )
+                SettingsSection.DISPLAY -> displayMaxFocusIndex()
+                SettingsSection.HOME_SCREEN -> homeScreenMaxFocusIndex(state.display)
+                SettingsSection.BOX_ART -> boxArtMaxFocusIndex(state.display)
+                SettingsSection.CONTROLS -> controlsMaxFocusIndex(state.controls)
+                SettingsSection.SOUNDS -> soundsMaxFocusIndex(state.ambientAudio.enabled, state.sounds.enabled)
+                SettingsSection.EMULATORS -> emulatorsMaxFocusIndex(
+                    state.emulators.canAutoAssign,
+                    state.emulators.platforms.size
+                )
                 SettingsSection.BIOS -> {
                     // Summary card (0), Directory (1), platforms start at 2
                     val bios = state.bios
@@ -961,8 +944,8 @@ class SettingsViewModel @Inject constructor(
                     } else 0
                     (1 + platformCount + expandedItems).coerceAtLeast(1)
                 }
-                SettingsSection.PERMISSIONS -> if (state.permissions.isWriteSettingsRelevant) 3 else 2
-                SettingsSection.ABOUT -> if (state.fileLoggingPath != null) 3 else 2
+                SettingsSection.PERMISSIONS -> permissionsMaxFocusIndex(state.permissions)
+                SettingsSection.ABOUT -> aboutMaxFocusIndex(state.fileLoggingPath != null)
             }
             val newIndex = if (state.currentSection == SettingsSection.SERVER && state.server.rommConfiguring) {
                 when {

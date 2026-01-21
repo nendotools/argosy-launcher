@@ -26,7 +26,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,6 +33,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.nendo.argosy.ui.components.FocusedScroll
 import com.nendo.argosy.ui.components.FooterBar
 import com.nendo.argosy.ui.components.InputButton
 import com.nendo.argosy.ui.screens.gamedetail.UpdateFileType
@@ -52,14 +52,10 @@ fun UpdatesPickerModal(
     val itemHeight = 64.dp
     val maxVisibleItems = 5
 
-    LaunchedEffect(focusIndex, files.size) {
-        if (files.isNotEmpty()) {
-            val centerOffset = maxVisibleItems / 2
-            val maxScrollIndex = (files.size - maxVisibleItems).coerceAtLeast(0)
-            val targetScrollIndex = (focusIndex - centerOffset).coerceIn(0, maxScrollIndex)
-            listState.animateScrollToItem(targetScrollIndex)
-        }
-    }
+    FocusedScroll(
+        listState = listState,
+        focusedIndex = focusIndex
+    )
 
     val isDarkTheme = LocalLauncherTheme.current.isDarkTheme
     val overlayColor = if (isDarkTheme) Color.Black.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.5f)

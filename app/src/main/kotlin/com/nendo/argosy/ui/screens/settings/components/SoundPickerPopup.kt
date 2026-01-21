@@ -3,7 +3,6 @@ package com.nendo.argosy.ui.screens.settings.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -25,18 +24,18 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import com.nendo.argosy.ui.components.FocusedScroll
 import com.nendo.argosy.ui.components.FooterBar
 import com.nendo.argosy.ui.components.InputButton
-import com.nendo.argosy.ui.theme.LocalLauncherTheme
 import com.nendo.argosy.ui.input.SoundPreset
 import com.nendo.argosy.ui.input.SoundType
 import com.nendo.argosy.ui.theme.Dimens
-import com.nendo.argosy.ui.theme.Motion
+import com.nendo.argosy.ui.theme.LocalLauncherTheme
 
 @Composable
 fun SoundPickerPopup(
@@ -54,21 +53,10 @@ fun SoundPickerPopup(
         .split(" ")
         .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
 
-    LaunchedEffect(focusIndex) {
-        val safeIndex = focusIndex.coerceAtLeast(0)
-        val layoutInfo = listState.layoutInfo
-        val viewportHeight = layoutInfo.viewportSize.height
-        val itemHeight = layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 0
-
-        if (itemHeight == 0 || viewportHeight == 0) {
-            listState.animateScrollToItem(safeIndex)
-            return@LaunchedEffect
-        }
-
-        val paddingBuffer = (itemHeight * Motion.scrollPaddingPercent).toInt()
-        val centerOffset = (viewportHeight - itemHeight) / 2
-        listState.animateScrollToItem(safeIndex, -centerOffset + paddingBuffer)
-    }
+    FocusedScroll(
+        listState = listState,
+        focusedIndex = focusIndex
+    )
 
     val isDarkTheme = LocalLauncherTheme.current.isDarkTheme
     val overlayColor = if (isDarkTheme) Color.Black.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.5f)

@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -26,22 +26,52 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
 import com.nendo.argosy.ui.components.ActionPreference
+import com.nendo.argosy.ui.components.FocusedScroll
 import com.nendo.argosy.ui.screens.settings.PlatformEmulatorConfig
 import com.nendo.argosy.ui.screens.settings.SettingsUiState
 import com.nendo.argosy.ui.screens.settings.SettingsViewModel
 import com.nendo.argosy.ui.screens.settings.components.EmulatorPickerPopup
 import com.nendo.argosy.ui.screens.settings.components.SavePathModal
-import androidx.compose.ui.unit.dp
+import com.nendo.argosy.ui.screens.settings.menu.SettingsLayout
 import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.Motion
+
+private data class EmulatorsLayoutState(val canAutoAssign: Boolean)
+
+private sealed class EmulatorsItem(
+    val key: String,
+    val visibleWhen: (EmulatorsLayoutState) -> Boolean = { true }
+) {
+    data object AutoAssign : EmulatorsItem("autoAssign", visibleWhen = { it.canAutoAssign })
+
+    class PlatformItem(val config: PlatformEmulatorConfig, val index: Int) : EmulatorsItem(
+        key = "platform_${config.platform.id}"
+    )
+
+    companion object {
+        fun buildItems(platforms: List<PlatformEmulatorConfig>): List<EmulatorsItem> =
+            listOf(AutoAssign) + platforms.mapIndexed { index, config -> PlatformItem(config, index) }
+    }
+}
+
+private fun createEmulatorsLayout(items: List<EmulatorsItem>) = SettingsLayout<EmulatorsItem, EmulatorsLayoutState>(
+    allItems = items,
+    isFocusable = { true },
+    visibleWhen = { item, state -> item.visibleWhen(state) }
+)
+
+internal fun emulatorsMaxFocusIndex(canAutoAssign: Boolean, platformCount: Int): Int {
+    val autoAssignCount = if (canAutoAssign) 1 else 0
+    return (autoAssignCount + platformCount - 1).coerceAtLeast(0)
+}
 
 @Composable
 fun EmulatorsSection(
@@ -50,24 +80,32 @@ fun EmulatorsSection(
     onLaunchSavePathPicker: () -> Unit
 ) {
     val listState = rememberLazyListState()
-    val focusOffset = if (uiState.emulators.canAutoAssign) 1 else 0
+    val emulators = uiState.emulators
+
+    val layoutState = remember(emulators.canAutoAssign) {
+        EmulatorsLayoutState(emulators.canAutoAssign)
+    }
+
+    val allItems = remember(emulators.platforms) {
+        EmulatorsItem.buildItems(emulators.platforms)
+    }
+
+    val layout = remember(allItems) { createEmulatorsLayout(allItems) }
+    val visibleItems = remember(layoutState, allItems) { layout.visibleItems(layoutState) }
+
+    fun isFocused(item: EmulatorsItem): Boolean =
+        uiState.focusedIndex == layout.focusIndexOf(item, layoutState)
 
     val modalBlur by animateDpAsState(
-        targetValue = if (uiState.emulators.showEmulatorPicker || uiState.emulators.showSavePathModal) Motion.blurRadiusModal else 0.dp,
+        targetValue = if (emulators.showEmulatorPicker || emulators.showSavePathModal) Motion.blurRadiusModal else 0.dp,
         animationSpec = Motion.focusSpringDp,
         label = "emulatorPickerBlur"
     )
 
-    LaunchedEffect(uiState.focusedIndex) {
-        val totalItems = uiState.emulators.platforms.size + focusOffset
-        if (totalItems > 0 && uiState.focusedIndex in 0 until totalItems) {
-            val viewportHeight = listState.layoutInfo.viewportSize.height
-            val itemHeight = listState.layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 0
-            val centerOffset = if (itemHeight > 0) (viewportHeight - itemHeight) / 2 else 0
-            val paddingBuffer = (itemHeight * Motion.scrollPaddingPercent).toInt()
-            listState.animateScrollToItem(uiState.focusedIndex, -centerOffset + paddingBuffer)
-        }
-    }
+    FocusedScroll(
+        listState = listState,
+        focusedIndex = layout.focusToListIndex(uiState.focusedIndex, layoutState)
+    )
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -75,50 +113,51 @@ fun EmulatorsSection(
             modifier = Modifier.fillMaxSize().padding(Dimens.spacingMd).blur(modalBlur),
             verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
         ) {
-            if (uiState.emulators.canAutoAssign) {
-                item {
-                    ActionPreference(
+            items(visibleItems, key = { it.key }) { item ->
+                when (item) {
+                    EmulatorsItem.AutoAssign -> ActionPreference(
                         title = "Auto-assign Emulators",
                         subtitle = "Set recommended emulators for all platforms",
-                        isFocused = uiState.focusedIndex == 0,
+                        isFocused = isFocused(item),
                         onClick = { viewModel.handlePlatformItemTap(-1) }
                     )
+
+                    is EmulatorsItem.PlatformItem -> {
+                        val itemFocused = isFocused(item)
+                        PlatformEmulatorItem(
+                            config = item.config,
+                            isFocused = itemFocused,
+                            subFocusIndex = if (itemFocused) emulators.platformSubFocusIndex else 0,
+                            onEmulatorClick = { viewModel.handlePlatformItemTap(item.index) },
+                            onCycleCore = { direction -> viewModel.cycleCoreForPlatform(item.config, direction) },
+                            onExtensionChange = { extension -> viewModel.changeExtensionForPlatform(item.config, extension) },
+                            onSavePathClick = { viewModel.showSavePathModal(item.config) }
+                        )
+                    }
                 }
-            }
-            itemsIndexed(uiState.emulators.platforms) { index, config ->
-                val itemFocused = uiState.focusedIndex == index + focusOffset
-                PlatformEmulatorItem(
-                    config = config,
-                    isFocused = itemFocused,
-                    subFocusIndex = if (itemFocused) uiState.emulators.platformSubFocusIndex else 0,
-                    onEmulatorClick = { viewModel.handlePlatformItemTap(index) },
-                    onCycleCore = { direction -> viewModel.cycleCoreForPlatform(config, direction) },
-                    onExtensionChange = { extension -> viewModel.changeExtensionForPlatform(config, extension) },
-                    onSavePathClick = { viewModel.showSavePathModal(config) }
-                )
             }
         }
 
-        if (uiState.emulators.showEmulatorPicker && uiState.emulators.emulatorPickerInfo != null) {
+        if (emulators.showEmulatorPicker && emulators.emulatorPickerInfo != null) {
             EmulatorPickerPopup(
-                info = uiState.emulators.emulatorPickerInfo,
-                focusIndex = uiState.emulators.emulatorPickerFocusIndex,
-                selectedIndex = uiState.emulators.emulatorPickerSelectedIndex,
+                info = emulators.emulatorPickerInfo,
+                focusIndex = emulators.emulatorPickerFocusIndex,
+                selectedIndex = emulators.emulatorPickerSelectedIndex,
                 onItemTap = { index -> viewModel.handleEmulatorPickerItemTap(index) },
                 onConfirm = { viewModel.confirmEmulatorPickerSelection() },
                 onDismiss = { viewModel.dismissEmulatorPicker() }
             )
         }
 
-        if (uiState.emulators.showSavePathModal && uiState.emulators.savePathModalInfo != null) {
+        if (emulators.showSavePathModal && emulators.savePathModalInfo != null) {
             SavePathModal(
-                info = uiState.emulators.savePathModalInfo,
-                focusIndex = uiState.emulators.savePathModalFocusIndex,
-                buttonFocusIndex = uiState.emulators.savePathModalButtonIndex,
+                info = emulators.savePathModalInfo,
+                focusIndex = emulators.savePathModalFocusIndex,
+                buttonFocusIndex = emulators.savePathModalButtonIndex,
                 onDismiss = { viewModel.dismissSavePathModal() },
                 onChangeSavePath = onLaunchSavePathPicker,
                 onResetSavePath = {
-                    viewModel.resetEmulatorSavePath(uiState.emulators.savePathModalInfo.emulatorId)
+                    viewModel.resetEmulatorSavePath(emulators.savePathModalInfo.emulatorId)
                 }
             )
         }

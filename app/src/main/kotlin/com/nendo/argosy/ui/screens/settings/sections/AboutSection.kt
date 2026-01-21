@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
@@ -16,18 +17,63 @@ import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import com.nendo.argosy.ui.components.ListSection
-import com.nendo.argosy.ui.components.SectionFocusedScroll
 import com.nendo.argosy.ui.components.ActionPreference
 import com.nendo.argosy.ui.components.CyclePreference
+import com.nendo.argosy.ui.components.SectionFocusedScroll
 import com.nendo.argosy.ui.components.SwitchPreference
 import com.nendo.argosy.ui.screens.settings.SettingsUiState
 import com.nendo.argosy.ui.screens.settings.SettingsViewModel
 import com.nendo.argosy.ui.screens.settings.components.SectionHeader
+import com.nendo.argosy.ui.screens.settings.menu.SettingsLayout
 import com.nendo.argosy.ui.theme.Dimens
+
+private data class AboutLayoutState(val hasLogPath: Boolean)
+
+private sealed class AboutItem(
+    val key: String,
+    val section: String,
+    val visibleWhen: (AboutLayoutState) -> Boolean = { true }
+) {
+    val isFocusable: Boolean get() = when (this) {
+        is Header, VersionInfo, SectionSpacer -> false
+        else -> true
+    }
+
+    class Header(key: String, section: String, val title: String) : AboutItem(key, section)
+    data object VersionInfo : AboutItem("versionInfo", "version")
+    data object CheckUpdates : AboutItem("checkUpdates", "version")
+    data object BetaUpdates : AboutItem("betaUpdates", "version")
+    data object SectionSpacer : AboutItem("spacer", "debug")
+    data object FileLogging : AboutItem("fileLogging", "debug")
+    data object LogLevel : AboutItem(
+        key = "logLevel",
+        section = "debug",
+        visibleWhen = { it.hasLogPath }
+    )
+
+    companion object {
+        private val VersionHeader = Header("versionHeader", "version", "VERSION")
+        private val DebugHeader = Header("debugHeader", "debug", "DEBUG")
+
+        val ALL: List<AboutItem> = listOf(
+            VersionHeader, VersionInfo, CheckUpdates, BetaUpdates,
+            SectionSpacer, DebugHeader, FileLogging, LogLevel
+        )
+    }
+}
+
+private val aboutLayout = SettingsLayout<AboutItem, AboutLayoutState>(
+    allItems = AboutItem.ALL,
+    isFocusable = { it.isFocusable },
+    visibleWhen = { item, state -> item.visibleWhen(state) },
+    sectionOf = { it.section }
+)
+
+internal fun aboutMaxFocusIndex(hasLogPath: Boolean): Int =
+    aboutLayout.maxFocusIndex(AboutLayoutState(hasLogPath))
 
 @Composable
 fun AboutSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
@@ -36,47 +82,19 @@ fun AboutSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
     val isDebug = com.nendo.argosy.BuildConfig.DEBUG
     val isOnBetaVersion = com.nendo.argosy.BuildConfig.VERSION_NAME.contains("-")
     val context = LocalContext.current
-    val hasLogLevel = uiState.fileLoggingPath != null
+    val hasLogPath = uiState.fileLoggingPath != null
 
-    // List structure:
-    // 0: VERSION header (non-focusable)
-    // 1: Version info row (non-focusable)
-    // 2: Check for Updates (focus 0)
-    // 3: Beta Updates (focus 1)
-    // 4: Spacer (non-focusable)
-    // 5: DEBUG header (non-focusable)
-    // 6: File Logging (focus 2)
-    // 7: Log Level (focus 3, conditional)
+    val layoutState = remember(hasLogPath) { AboutLayoutState(hasLogPath) }
+    val visibleItems = remember(hasLogPath) { aboutLayout.visibleItems(layoutState) }
+    val sections = remember(hasLogPath) { aboutLayout.buildSections(layoutState) }
 
-    val sections = listOf(
-        ListSection(
-            listStartIndex = 0,
-            listEndIndex = 3,
-            focusStartIndex = 0,
-            focusEndIndex = 1
-        ),
-        ListSection(
-            listStartIndex = 5,
-            listEndIndex = if (hasLogLevel) 7 else 6,
-            focusStartIndex = 2,
-            focusEndIndex = if (hasLogLevel) 3 else 2
-        )
-    )
-
-    val focusToListIndex: (Int) -> Int = { focus ->
-        when (focus) {
-            0 -> 2 // Check for Updates
-            1 -> 3 // Beta Updates
-            2 -> 6 // File Logging
-            3 -> 7 // Log Level
-            else -> focus
-        }
-    }
+    fun isFocused(item: AboutItem): Boolean =
+        uiState.focusedIndex == aboutLayout.focusIndexOf(item, layoutState)
 
     SectionFocusedScroll(
         listState = listState,
         focusedIndex = uiState.focusedIndex,
-        focusToListIndex = focusToListIndex,
+        focusToListIndex = { aboutLayout.focusToListIndex(it, layoutState) },
         sections = sections
     )
 
@@ -85,81 +103,82 @@ fun AboutSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
         modifier = Modifier.fillMaxSize().padding(Dimens.spacingMd),
         verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
-        item { SectionHeader("VERSION") }
-        item {
-            VersionInfoRow(
-                argosyVersion = uiState.appVersion,
-                rommVersion = uiState.server.rommVersion
-            )
-        }
-        item {
-            val (title, subtitle) = when {
-                isDebug -> "Check for Updates" to "Disabled in debug builds"
-                updateCheck.isDownloading -> "Downloading..." to "${updateCheck.downloadProgress}%"
-                updateCheck.isChecking -> "Check for Updates" to "Checking..."
-                updateCheck.error != null -> "Check for Updates" to "Error: ${updateCheck.error}"
-                updateCheck.updateAvailable -> "Install Update" to "Tap to download ${updateCheck.latestVersion}"
-                updateCheck.hasChecked && isOnBetaVersion -> "Check for Updates" to "Up to date (pre-release)"
-                updateCheck.hasChecked -> "Check for Updates" to "Up to date"
-                isOnBetaVersion -> "Check for Updates" to "Running pre-release build"
-                else -> "Check for Updates" to "Check for new versions"
-            }
-            ActionPreference(
-                icon = Icons.Default.Sync,
-                title = title,
-                subtitle = subtitle,
-                isFocused = uiState.focusedIndex == 0,
-                isEnabled = !isDebug && !updateCheck.isChecking && !updateCheck.isDownloading,
-                onClick = {
-                    if (updateCheck.updateAvailable) {
-                        viewModel.downloadAndInstallUpdate(context)
+        items(visibleItems, key = { it.key }) { item ->
+            when (item) {
+                is AboutItem.Header -> SectionHeader(item.title)
+
+                AboutItem.VersionInfo -> VersionInfoRow(
+                    argosyVersion = uiState.appVersion,
+                    rommVersion = uiState.server.rommVersion
+                )
+
+                AboutItem.CheckUpdates -> {
+                    val (title, subtitle) = when {
+                        isDebug -> "Check for Updates" to "Disabled in debug builds"
+                        updateCheck.isDownloading -> "Downloading..." to "${updateCheck.downloadProgress}%"
+                        updateCheck.isChecking -> "Check for Updates" to "Checking..."
+                        updateCheck.error != null -> "Check for Updates" to "Error: ${updateCheck.error}"
+                        updateCheck.updateAvailable -> "Install Update" to "Tap to download ${updateCheck.latestVersion}"
+                        updateCheck.hasChecked && isOnBetaVersion -> "Check for Updates" to "Up to date (pre-release)"
+                        updateCheck.hasChecked -> "Check for Updates" to "Up to date"
+                        isOnBetaVersion -> "Check for Updates" to "Running pre-release build"
+                        else -> "Check for Updates" to "Check for new versions"
+                    }
+                    ActionPreference(
+                        icon = Icons.Default.Sync,
+                        title = title,
+                        subtitle = subtitle,
+                        isFocused = isFocused(item),
+                        isEnabled = !isDebug && !updateCheck.isChecking && !updateCheck.isDownloading,
+                        onClick = {
+                            if (updateCheck.updateAvailable) {
+                                viewModel.downloadAndInstallUpdate(context)
+                            } else {
+                                viewModel.checkForUpdates()
+                            }
+                        }
+                    )
+                }
+
+                AboutItem.BetaUpdates -> SwitchPreference(
+                    title = "Beta Updates",
+                    subtitle = if (uiState.betaUpdatesEnabled)
+                        "Receiving pre-release builds"
+                    else
+                        "Stable releases only",
+                    isEnabled = uiState.betaUpdatesEnabled,
+                    isFocused = isFocused(item),
+                    onToggle = { viewModel.setBetaUpdatesEnabled(it) }
+                )
+
+                AboutItem.SectionSpacer -> Spacer(modifier = Modifier.height(Dimens.spacingMd))
+
+                AboutItem.FileLogging -> {
+                    if (uiState.fileLoggingPath != null) {
+                        SwitchPreference(
+                            icon = Icons.Default.Description,
+                            title = "File Logging",
+                            subtitle = formatLoggingPath(uiState.fileLoggingPath),
+                            isEnabled = uiState.fileLoggingEnabled,
+                            isFocused = isFocused(item),
+                            onToggle = { viewModel.toggleFileLogging(it) },
+                            onLabelClick = { viewModel.openLogFolderPicker() }
+                        )
                     } else {
-                        viewModel.checkForUpdates()
+                        ActionPreference(
+                            icon = Icons.Default.Description,
+                            title = "Enable File Logging",
+                            subtitle = "Write logs to a file for debugging",
+                            isFocused = isFocused(item),
+                            onClick = { viewModel.openLogFolderPicker() }
+                        )
                     }
                 }
-            )
-        }
-        item {
-            SwitchPreference(
-                title = "Beta Updates",
-                subtitle = if (uiState.betaUpdatesEnabled)
-                    "Receiving pre-release builds"
-                else
-                    "Stable releases only",
-                isEnabled = uiState.betaUpdatesEnabled,
-                isFocused = uiState.focusedIndex == 1,
-                onToggle = { viewModel.setBetaUpdatesEnabled(it) }
-            )
-        }
-        item { Spacer(modifier = Modifier.height(Dimens.spacingMd)) }
-        item { SectionHeader("DEBUG") }
-        item(key = "fileLogging-${uiState.fileLoggingPath}") {
-            if (uiState.fileLoggingPath != null) {
-                SwitchPreference(
-                    icon = Icons.Default.Description,
-                    title = "File Logging",
-                    subtitle = formatLoggingPath(uiState.fileLoggingPath),
-                    isEnabled = uiState.fileLoggingEnabled,
-                    isFocused = uiState.focusedIndex == 2,
-                    onToggle = { viewModel.toggleFileLogging(it) },
-                    onLabelClick = { viewModel.openLogFolderPicker() }
-                )
-            } else {
-                ActionPreference(
-                    icon = Icons.Default.Description,
-                    title = "Enable File Logging",
-                    subtitle = "Write logs to a file for debugging",
-                    isFocused = uiState.focusedIndex == 2,
-                    onClick = { viewModel.openLogFolderPicker() }
-                )
-            }
-        }
-        if (uiState.fileLoggingPath != null) {
-            item(key = "logLevel") {
-                CyclePreference(
+
+                AboutItem.LogLevel -> CyclePreference(
                     title = "Log Level",
                     value = uiState.fileLogLevel.name,
-                    isFocused = uiState.focusedIndex == 3,
+                    isFocused = isFocused(item),
                     onClick = { viewModel.cycleFileLogLevel() }
                 )
             }

@@ -18,7 +18,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -26,15 +25,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import com.nendo.argosy.data.preferences.RegionFilterMode
 import com.nendo.argosy.data.preferences.SyncFilterPreferences
 import com.nendo.argosy.ui.components.ActionPreference
 import com.nendo.argosy.ui.components.CyclePreference
+import com.nendo.argosy.ui.components.FocusedScroll
 import com.nendo.argosy.ui.components.FooterBar
 import com.nendo.argosy.ui.components.InputButton
 import com.nendo.argosy.ui.components.SwitchPreference
 import com.nendo.argosy.ui.theme.Dimens
-import androidx.compose.ui.unit.dp
 import com.nendo.argosy.ui.theme.LocalLauncherTheme
 import com.nendo.argosy.ui.theme.Motion
 
@@ -65,21 +65,10 @@ fun SyncFiltersModal(
         label = "regionPickerBlur"
     )
 
-    LaunchedEffect(focusIndex) {
-        val safeIndex = focusIndex.coerceAtLeast(0)
-        val layoutInfo = listState.layoutInfo
-        val viewportHeight = layoutInfo.viewportSize.height
-        val itemHeight = layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 0
-
-        if (itemHeight == 0 || viewportHeight == 0) {
-            listState.animateScrollToItem(safeIndex)
-            return@LaunchedEffect
-        }
-
-        val paddingBuffer = (itemHeight * Motion.scrollPaddingPercent).toInt()
-        val centerOffset = (viewportHeight - itemHeight) / 2
-        listState.animateScrollToItem(safeIndex, -centerOffset + paddingBuffer)
-    }
+    FocusedScroll(
+        listState = listState,
+        focusedIndex = focusIndex
+    )
 
     Box(
         modifier = Modifier

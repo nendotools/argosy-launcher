@@ -29,6 +29,7 @@ import com.nendo.argosy.data.cache.ImageCacheProgress
 import com.nendo.argosy.data.preferences.RegionFilterMode
 import com.nendo.argosy.data.preferences.SyncFilterPreferences
 import com.nendo.argosy.ui.components.ActionPreference
+import com.nendo.argosy.ui.components.FocusedScroll
 import com.nendo.argosy.ui.components.ImageCachePreference
 import com.nendo.argosy.ui.components.SwitchPreference
 import com.nendo.argosy.ui.screens.settings.SettingsUiState
@@ -47,7 +48,6 @@ fun SyncSettingsSection(
     imageCacheProgress: ImageCacheProgress
 ) {
     val listState = rememberLazyListState()
-    val maxIndex = 3
 
     val hasAnyModal = uiState.syncSettings.showSyncFiltersModal || uiState.syncSettings.showPlatformFiltersModal
     val modalBlur by animateDpAsState(
@@ -56,19 +56,10 @@ fun SyncSettingsSection(
         label = "syncFiltersModalBlur"
     )
 
-    LaunchedEffect(uiState.focusedIndex) {
-        if (uiState.focusedIndex in 0..maxIndex) {
-            if (uiState.focusedIndex in 2..3) {
-                listState.animateScrollToItem(2, 0)
-            } else {
-                val viewportHeight = listState.layoutInfo.viewportSize.height
-                val itemHeight = listState.layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 0
-                val centerOffset = if (itemHeight > 0) (viewportHeight - itemHeight) / 2 else 0
-                val paddingBuffer = (itemHeight * Motion.scrollPaddingPercent).toInt()
-                listState.animateScrollToItem(uiState.focusedIndex, -centerOffset + paddingBuffer)
-            }
-        }
-    }
+    FocusedScroll(
+        listState = listState,
+        focusedIndex = uiState.focusedIndex
+    )
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(

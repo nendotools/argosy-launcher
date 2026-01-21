@@ -4,56 +4,95 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import com.nendo.argosy.ui.components.ListSection
-import com.nendo.argosy.ui.components.SectionFocusedScroll
 import com.nendo.argosy.ui.components.ActionPreference
 import com.nendo.argosy.ui.components.CyclePreference
+import com.nendo.argosy.ui.components.SectionFocusedScroll
 import com.nendo.argosy.ui.components.SliderPreference
 import com.nendo.argosy.ui.components.SwitchPreference
+import com.nendo.argosy.ui.screens.settings.DisplayState
 import com.nendo.argosy.ui.screens.settings.SettingsUiState
 import com.nendo.argosy.ui.screens.settings.SettingsViewModel
+import com.nendo.argosy.ui.screens.settings.menu.SettingsLayout
 import com.nendo.argosy.ui.theme.Dimens
+
+private sealed class HomeScreenItem(
+    val key: String,
+    val section: String,
+    val visibleWhen: (DisplayState) -> Boolean = { true }
+) {
+    val isFocusable: Boolean get() = this !is Header
+
+    class Header(key: String, section: String, val title: String) : HomeScreenItem(key, section)
+
+    data object GameArtwork : HomeScreenItem("gameArtwork", "background")
+    data object CustomImage : HomeScreenItem(
+        key = "customImage",
+        section = "background",
+        visibleWhen = { !it.useGameBackground }
+    )
+    data object Blur : HomeScreenItem("blur", "background")
+    data object Saturation : HomeScreenItem("saturation", "background")
+    data object Opacity : HomeScreenItem("opacity", "background")
+
+    data object VideoWallpaper : HomeScreenItem("videoWallpaper", "video")
+    data object VideoDelay : HomeScreenItem("videoDelay", "video")
+    data object VideoMuted : HomeScreenItem("videoMuted", "video")
+
+    data object AccentFooter : HomeScreenItem("accentFooter", "footer")
+
+    companion object {
+        private val BackgroundHeader = Header("backgroundHeader", "background", "Background")
+        private val VideoHeader = Header("videoHeader", "video", "Video Wallpaper")
+        private val FooterHeader = Header("footerHeader", "footer", "Footer")
+
+        val ALL: List<HomeScreenItem> = listOf(
+            BackgroundHeader,
+            GameArtwork, CustomImage, Blur, Saturation, Opacity,
+            VideoHeader,
+            VideoWallpaper, VideoDelay, VideoMuted,
+            FooterHeader,
+            AccentFooter
+        )
+    }
+}
+
+private val homeScreenLayout = SettingsLayout<HomeScreenItem, DisplayState>(
+    allItems = HomeScreenItem.ALL,
+    isFocusable = { it.isFocusable },
+    visibleWhen = { item, state -> item.visibleWhen(state) },
+    sectionOf = { it.section }
+)
+
+internal fun homeScreenMaxFocusIndex(display: DisplayState): Int = homeScreenLayout.maxFocusIndex(display)
 
 @Composable
 fun HomeScreenSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
     val listState = rememberLazyListState()
     val display = uiState.display
-    val hasCustomImage = !display.useGameBackground
-    val sliderOffset = if (hasCustomImage) 1 else 0
 
-    val sections = if (hasCustomImage) {
-        listOf(
-            ListSection(listStartIndex = 0, listEndIndex = 5, focusStartIndex = 0, focusEndIndex = 4),
-            ListSection(listStartIndex = 6, listEndIndex = 9, focusStartIndex = 5, focusEndIndex = 7),
-            ListSection(listStartIndex = 10, listEndIndex = 11, focusStartIndex = 8, focusEndIndex = 8)
-        )
-    } else {
-        listOf(
-            ListSection(listStartIndex = 0, listEndIndex = 4, focusStartIndex = 0, focusEndIndex = 3),
-            ListSection(listStartIndex = 5, listEndIndex = 8, focusStartIndex = 4, focusEndIndex = 6),
-            ListSection(listStartIndex = 9, listEndIndex = 10, focusStartIndex = 7, focusEndIndex = 7)
-        )
+    val visibleItems = remember(display.useGameBackground) {
+        homeScreenLayout.visibleItems(display)
+    }
+    val sections = remember(display.useGameBackground) {
+        homeScreenLayout.buildSections(display)
     }
 
-    val focusToListIndex: (Int) -> Int = { focus ->
-        when {
-            focus <= 3 + sliderOffset -> focus + 1
-            focus <= 6 + sliderOffset -> focus + 2
-            else -> focus + 3
-        }
-    }
+    fun isFocused(item: HomeScreenItem): Boolean =
+        uiState.focusedIndex == homeScreenLayout.focusIndexOf(item, display)
 
     SectionFocusedScroll(
         listState = listState,
         focusedIndex = uiState.focusedIndex,
-        focusToListIndex = focusToListIndex,
+        focusToListIndex = { homeScreenLayout.focusToListIndex(it, display) },
         sections = sections
     )
 
@@ -62,111 +101,102 @@ fun HomeScreenSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
         modifier = Modifier.fillMaxSize().padding(Dimens.spacingMd),
         verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
-        item {
-            HomeScreenSectionHeader("Background")
-        }
-        item {
-            SwitchPreference(
-                title = "Game Artwork",
-                subtitle = "Use game cover as background",
-                isEnabled = display.useGameBackground,
-                isFocused = uiState.focusedIndex == 0,
-                onToggle = { viewModel.setUseGameBackground(it) }
-            )
-        }
-        if (!display.useGameBackground) {
-            item {
-                val subtitle = if (display.customBackgroundPath != null) {
-                    "Custom image selected"
-                } else {
-                    "No image selected"
+        items(visibleItems, key = { it.key }) { item ->
+            when (item) {
+                is HomeScreenItem.Header -> HomeScreenSectionHeader(item.title)
+
+                HomeScreenItem.GameArtwork -> SwitchPreference(
+                    title = "Game Artwork",
+                    subtitle = "Use game cover as background",
+                    isEnabled = display.useGameBackground,
+                    isFocused = isFocused(item),
+                    onToggle = { viewModel.setUseGameBackground(it) }
+                )
+
+                HomeScreenItem.CustomImage -> {
+                    val subtitle = if (display.customBackgroundPath != null) {
+                        "Custom image selected"
+                    } else {
+                        "No image selected"
+                    }
+                    ActionPreference(
+                        icon = Icons.Outlined.PhotoLibrary,
+                        title = "Custom Image",
+                        subtitle = subtitle,
+                        isFocused = isFocused(item),
+                        onClick = { viewModel.openBackgroundPicker() }
+                    )
                 }
-                ActionPreference(
-                    icon = Icons.Outlined.PhotoLibrary,
-                    title = "Custom Image",
-                    subtitle = subtitle,
-                    isFocused = uiState.focusedIndex == 1,
-                    onClick = { viewModel.openBackgroundPicker() }
+
+                HomeScreenItem.Blur -> SliderPreference(
+                    title = "Blur",
+                    value = display.backgroundBlur / 10,
+                    minValue = 0,
+                    maxValue = 10,
+                    isFocused = isFocused(item),
+                    onClick = { viewModel.cycleBackgroundBlur() }
+                )
+
+                HomeScreenItem.Saturation -> SliderPreference(
+                    title = "Saturation",
+                    value = display.backgroundSaturation / 10,
+                    minValue = 0,
+                    maxValue = 10,
+                    isFocused = isFocused(item),
+                    onClick = { viewModel.cycleBackgroundSaturation() }
+                )
+
+                HomeScreenItem.Opacity -> SliderPreference(
+                    title = "Opacity",
+                    value = display.backgroundOpacity / 10,
+                    minValue = 0,
+                    maxValue = 10,
+                    isFocused = isFocused(item),
+                    onClick = { viewModel.cycleBackgroundOpacity() }
+                )
+
+                HomeScreenItem.VideoWallpaper -> SwitchPreference(
+                    title = "Show Video Wallpaper",
+                    subtitle = "Play video backgrounds on home screen",
+                    isEnabled = display.videoWallpaperEnabled,
+                    isFocused = isFocused(item),
+                    onToggle = { viewModel.setVideoWallpaperEnabled(!display.videoWallpaperEnabled) }
+                )
+
+                HomeScreenItem.VideoDelay -> {
+                    val delayText = when (display.videoWallpaperDelaySeconds) {
+                        0 -> "Instant"
+                        1 -> "1 second"
+                        else -> "${display.videoWallpaperDelaySeconds} seconds"
+                    }
+                    CyclePreference(
+                        title = "Delay Before Playback",
+                        value = delayText,
+                        isFocused = isFocused(item),
+                        onClick = { viewModel.cycleVideoWallpaperDelay() }
+                    )
+                }
+
+                HomeScreenItem.VideoMuted -> {
+                    val hasCustomBgm = uiState.ambientAudio.enabled && uiState.ambientAudio.audioUri != null
+                    val effectiveMuted = hasCustomBgm || display.videoWallpaperMuted
+                    SwitchPreference(
+                        title = "Muted Playback",
+                        subtitle = if (hasCustomBgm) "Auto-muted while Custom BGM is active" else "Mute video audio",
+                        isEnabled = effectiveMuted,
+                        isFocused = isFocused(item),
+                        onToggle = { if (!hasCustomBgm) viewModel.setVideoWallpaperMuted(!display.videoWallpaperMuted) }
+                    )
+                }
+
+                HomeScreenItem.AccentFooter -> SwitchPreference(
+                    title = "Accent Color Footer",
+                    subtitle = "Use accent color for footer background",
+                    isEnabled = display.useAccentColorFooter,
+                    isFocused = isFocused(item),
+                    onToggle = { viewModel.setUseAccentColorFooter(it) }
                 )
             }
-        }
-        item {
-            SliderPreference(
-                title = "Blur",
-                value = display.backgroundBlur / 10,
-                minValue = 0,
-                maxValue = 10,
-                isFocused = uiState.focusedIndex == 1 + sliderOffset,
-                onClick = { viewModel.cycleBackgroundBlur() }
-            )
-        }
-        item {
-            SliderPreference(
-                title = "Saturation",
-                value = display.backgroundSaturation / 10,
-                minValue = 0,
-                maxValue = 10,
-                isFocused = uiState.focusedIndex == 2 + sliderOffset,
-                onClick = { viewModel.cycleBackgroundSaturation() }
-            )
-        }
-        item {
-            SliderPreference(
-                title = "Opacity",
-                value = display.backgroundOpacity / 10,
-                minValue = 0,
-                maxValue = 10,
-                isFocused = uiState.focusedIndex == 3 + sliderOffset,
-                onClick = { viewModel.cycleBackgroundOpacity() }
-            )
-        }
-        item {
-            HomeScreenSectionHeader("Video Wallpaper")
-        }
-        item {
-            SwitchPreference(
-                title = "Show Video Wallpaper",
-                subtitle = "Play video backgrounds on home screen",
-                isEnabled = display.videoWallpaperEnabled,
-                isFocused = uiState.focusedIndex == 4 + sliderOffset,
-                onToggle = { viewModel.setVideoWallpaperEnabled(!display.videoWallpaperEnabled) }
-            )
-        }
-        item {
-            val delayText = when (display.videoWallpaperDelaySeconds) {
-                0 -> "Instant"
-                1 -> "1 second"
-                else -> "${display.videoWallpaperDelaySeconds} seconds"
-            }
-            CyclePreference(
-                title = "Delay Before Playback",
-                value = delayText,
-                isFocused = uiState.focusedIndex == 5 + sliderOffset,
-                onClick = { viewModel.cycleVideoWallpaperDelay() }
-            )
-        }
-        item {
-            val hasCustomBgm = uiState.ambientAudio.enabled && uiState.ambientAudio.audioUri != null
-            val effectiveMuted = hasCustomBgm || display.videoWallpaperMuted
-            SwitchPreference(
-                title = "Muted Playback",
-                subtitle = if (hasCustomBgm) "Auto-muted while Custom BGM is active" else "Mute video audio",
-                isEnabled = effectiveMuted,
-                isFocused = uiState.focusedIndex == 6 + sliderOffset,
-                onToggle = { if (!hasCustomBgm) viewModel.setVideoWallpaperMuted(!display.videoWallpaperMuted) }
-            )
-        }
-        item {
-            HomeScreenSectionHeader("Footer")
-        }
-        item {
-            SwitchPreference(
-                title = "Accent Color Footer",
-                subtitle = "Use accent color for footer background",
-                isEnabled = display.useAccentColorFooter,
-                isFocused = uiState.focusedIndex == 7 + sliderOffset,
-                onToggle = { viewModel.setUseAccentColorFooter(it) }
-            )
         }
     }
 }

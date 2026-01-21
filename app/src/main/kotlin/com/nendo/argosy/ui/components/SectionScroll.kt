@@ -3,8 +3,6 @@ package com.nendo.argosy.ui.components
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
 
 data class ListSection(
     val listStartIndex: Int,
@@ -14,64 +12,40 @@ data class ListSection(
 )
 
 @Composable
+fun FocusedScroll(
+    listState: LazyListState,
+    focusedIndex: Int
+) {
+    LaunchedEffect(focusedIndex) {
+        val layoutInfo = listState.layoutInfo
+        val viewportHeight = layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset
+        val visibleItems = layoutInfo.visibleItemsInfo
+        val itemHeight = visibleItems.firstOrNull()?.size ?: 60
+        val centerOffset = (viewportHeight - itemHeight) / 2
+        listState.animateScrollToItem(focusedIndex, -centerOffset)
+    }
+}
+
+@Composable
 fun SectionFocusedScroll(
     listState: LazyListState,
     focusedIndex: Int,
     focusToListIndex: (Int) -> Int,
     sections: List<ListSection>
 ) {
-    val previousSection = remember { mutableIntStateOf(-1) }
-    val sectionItemCounts = remember { mutableMapOf<Int, Int>() }
-
     LaunchedEffect(focusedIndex, sections) {
-        val currentSectionIndex = sections.indexOfFirst { section ->
+        val isInSection = sections.any { section ->
             focusedIndex in section.focusStartIndex..section.focusEndIndex
         }
-        if (currentSectionIndex == -1) return@LaunchedEffect
-
-        val currentSection = sections[currentSectionIndex]
-        val sectionItemCount = currentSection.listEndIndex - currentSection.listStartIndex + 1
-        val sectionChanged = currentSectionIndex != previousSection.intValue
-        val previousItemCount = sectionItemCounts[currentSectionIndex] ?: -1
-        val sectionSizeChanged = sectionItemCount != previousItemCount
-
-        previousSection.intValue = currentSectionIndex
-        sectionItemCounts[currentSectionIndex] = sectionItemCount
+        if (!isInSection) return@LaunchedEffect
 
         val layoutInfo = listState.layoutInfo
         val viewportHeight = layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset
         val visibleItems = layoutInfo.visibleItemsInfo
-
-        val sectionItems = visibleItems.filter { it.index in currentSection.listStartIndex..currentSection.listEndIndex }
-        val sectionHeight = if (sectionItems.isNotEmpty()) {
-            val avgHeight = sectionItems.sumOf { it.size } / sectionItems.size
-            avgHeight * sectionItemCount
-        } else {
-            val avgHeight = if (visibleItems.isNotEmpty()) {
-                visibleItems.sumOf { it.size } / visibleItems.size
-            } else 60
-            avgHeight * sectionItemCount
-        }
-
         val listIndex = focusToListIndex(focusedIndex)
 
-        if (sectionChanged || sectionSizeChanged) {
-            // Scroll to show focused item when entering section or when section size changes
-            val itemHeight = visibleItems.firstOrNull()?.size ?: 60
-            val centerOffset = (viewportHeight - itemHeight) / 2
-            listState.animateScrollToItem(listIndex, -centerOffset)
-        } else {
-            // Lazy-center within section: only scroll if item not fully visible
-            val targetItem = visibleItems.find { it.index == listIndex }
-            val isFullyVisible = targetItem != null &&
-                targetItem.offset >= 0 &&
-                targetItem.offset + targetItem.size <= viewportHeight
-
-            if (!isFullyVisible) {
-                val itemHeight = targetItem?.size ?: visibleItems.firstOrNull()?.size ?: 60
-                val centerOffset = (viewportHeight - itemHeight) / 2
-                listState.animateScrollToItem(listIndex, -centerOffset)
-            }
-        }
+        val itemHeight = visibleItems.firstOrNull()?.size ?: 60
+        val centerOffset = (viewportHeight - itemHeight) / 2
+        listState.animateScrollToItem(listIndex, -centerOffset)
     }
 }

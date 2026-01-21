@@ -4,15 +4,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import com.nendo.argosy.ui.components.ListSection
-import com.nendo.argosy.ui.components.SectionFocusedScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.nendo.argosy.data.preferences.DefaultView
 import com.nendo.argosy.data.preferences.GridDensity
@@ -20,39 +20,81 @@ import com.nendo.argosy.data.preferences.ThemeMode
 import com.nendo.argosy.ui.components.CyclePreference
 import com.nendo.argosy.ui.components.HueSliderPreference
 import com.nendo.argosy.ui.components.NavigationPreference
+import com.nendo.argosy.ui.components.SectionFocusedScroll
 import com.nendo.argosy.ui.components.SliderPreference
 import com.nendo.argosy.ui.components.SwitchPreference
 import com.nendo.argosy.ui.components.colorIntToHue
 import com.nendo.argosy.ui.components.hueToColorInt
 import com.nendo.argosy.ui.screens.settings.SettingsUiState
 import com.nendo.argosy.ui.screens.settings.SettingsViewModel
+import com.nendo.argosy.ui.screens.settings.menu.SettingsLayout
 import com.nendo.argosy.ui.theme.Dimens
+
+private sealed class DisplayItem(
+    val key: String,
+    val section: String
+) {
+    val isFocusable: Boolean get() = this !is Header
+
+    class Header(key: String, section: String, val title: String) : DisplayItem(key, section)
+
+    data object Theme : DisplayItem("theme", "appearance")
+    data object AccentColor : DisplayItem("accentColor", "appearance")
+    data object SecondaryColor : DisplayItem("secondaryColor", "appearance")
+    data object GridDensity : DisplayItem("gridDensity", "appearance")
+    data object UiScale : DisplayItem("uiScale", "appearance")
+    data object BoxArt : DisplayItem("boxArt", "appearance")
+    data object HomeScreen : DisplayItem("homeScreen", "appearance")
+
+    data object DefaultView : DisplayItem("defaultView", "default")
+
+    data object ScreenDimmer : DisplayItem("screenDimmer", "screenSafety")
+    data object DimAfter : DisplayItem("dimAfter", "screenSafety")
+    data object DimLevel : DisplayItem("dimLevel", "screenSafety")
+
+    companion object {
+        private val AppearanceHeader = Header("appearanceHeader", "appearance", "Appearance")
+        private val DefaultHeader = Header("defaultHeader", "default", "Default")
+        private val ScreenSafetyHeader = Header("screenSafetyHeader", "screenSafety", "Screen Safety")
+
+        val ALL: List<DisplayItem> = listOf(
+            AppearanceHeader,
+            Theme, AccentColor, SecondaryColor, GridDensity, UiScale, BoxArt, HomeScreen,
+            DefaultHeader,
+            DefaultView,
+            ScreenSafetyHeader,
+            ScreenDimmer, DimAfter, DimLevel
+        )
+    }
+}
+
+private val displayLayout = SettingsLayout<DisplayItem, Unit>(
+    allItems = DisplayItem.ALL,
+    isFocusable = { it.isFocusable },
+    visibleWhen = { _, _ -> true },
+    sectionOf = { it.section }
+)
+
+internal fun displayMaxFocusIndex(): Int = displayLayout.maxFocusIndex(Unit)
 
 @Composable
 fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
     val listState = rememberLazyListState()
-    val currentHue = uiState.display.primaryColor?.let { colorIntToHue(it) }
-    val secondaryHue = uiState.display.secondaryColor?.let { colorIntToHue(it) }
+    val display = uiState.display
     val storage = uiState.storage
+    val currentHue = display.primaryColor?.let { colorIntToHue(it) }
+    val secondaryHue = display.secondaryColor?.let { colorIntToHue(it) }
 
-    val sections = listOf(
-        ListSection(listStartIndex = 0, listEndIndex = 7, focusStartIndex = 0, focusEndIndex = 6),
-        ListSection(listStartIndex = 8, listEndIndex = 9, focusStartIndex = 7, focusEndIndex = 7),
-        ListSection(listStartIndex = 10, listEndIndex = 13, focusStartIndex = 8, focusEndIndex = 10)
-    )
+    val visibleItems = remember { displayLayout.visibleItems(Unit) }
+    val sections = remember { displayLayout.buildSections(Unit) }
 
-    val focusToListIndex: (Int) -> Int = { focus ->
-        when {
-            focus <= 6 -> focus + 1
-            focus == 7 -> focus + 2
-            else -> focus + 3
-        }
-    }
+    fun isFocused(item: DisplayItem): Boolean =
+        uiState.focusedIndex == displayLayout.focusIndexOf(item, Unit)
 
     SectionFocusedScroll(
         listState = listState,
         focusedIndex = uiState.focusedIndex,
-        focusToListIndex = focusToListIndex,
+        focusToListIndex = { displayLayout.focusToListIndex(it, Unit) },
         sections = sections
     )
 
@@ -61,141 +103,126 @@ fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
         modifier = Modifier.fillMaxSize().padding(Dimens.spacingMd),
         verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
-        item {
-            DisplaySectionHeader("Appearance")
-        }
-        item {
-            CyclePreference(
-                title = "Theme",
-                value = uiState.display.themeMode.name.lowercase().replaceFirstChar { it.uppercase() },
-                isFocused = uiState.focusedIndex == 0,
-                onClick = {
-                    val next = when (uiState.display.themeMode) {
-                        ThemeMode.SYSTEM -> ThemeMode.LIGHT
-                        ThemeMode.LIGHT -> ThemeMode.DARK
-                        ThemeMode.DARK -> ThemeMode.SYSTEM
+        items(visibleItems, key = { it.key }) { item ->
+            when (item) {
+                is DisplayItem.Header -> DisplaySectionHeader(item.title)
+
+                DisplayItem.Theme -> CyclePreference(
+                    title = "Theme",
+                    value = display.themeMode.name.lowercase().replaceFirstChar { it.uppercase() },
+                    isFocused = isFocused(item),
+                    onClick = {
+                        val next = when (display.themeMode) {
+                            ThemeMode.SYSTEM -> ThemeMode.LIGHT
+                            ThemeMode.LIGHT -> ThemeMode.DARK
+                            ThemeMode.DARK -> ThemeMode.SYSTEM
+                        }
+                        viewModel.setThemeMode(next)
                     }
-                    viewModel.setThemeMode(next)
-                }
-            )
-        }
-        item {
-            HueSliderPreference(
-                title = "Accent Color",
-                currentHue = currentHue,
-                isFocused = uiState.focusedIndex == 1,
-                onHueChange = { hue ->
-                    if (hue != null) {
-                        viewModel.setPrimaryColor(hueToColorInt(hue))
-                    } else {
-                        viewModel.resetToDefaultColor()
+                )
+
+                DisplayItem.AccentColor -> HueSliderPreference(
+                    title = "Accent Color",
+                    currentHue = currentHue,
+                    isFocused = isFocused(item),
+                    onHueChange = { hue ->
+                        if (hue != null) {
+                            viewModel.setPrimaryColor(hueToColorInt(hue))
+                        } else {
+                            viewModel.resetToDefaultColor()
+                        }
                     }
-                }
-            )
-        }
-        item {
-            HueSliderPreference(
-                title = "Secondary Color",
-                currentHue = secondaryHue,
-                isFocused = uiState.focusedIndex == 2,
-                onHueChange = { hue ->
-                    if (hue != null) {
-                        viewModel.setSecondaryColor(hueToColorInt(hue))
-                    } else {
-                        viewModel.resetToDefaultSecondaryColor()
+                )
+
+                DisplayItem.SecondaryColor -> HueSliderPreference(
+                    title = "Secondary Color",
+                    currentHue = secondaryHue,
+                    isFocused = isFocused(item),
+                    onHueChange = { hue ->
+                        if (hue != null) {
+                            viewModel.setSecondaryColor(hueToColorInt(hue))
+                        } else {
+                            viewModel.resetToDefaultSecondaryColor()
+                        }
                     }
-                }
-            )
-        }
-        item {
-            CyclePreference(
-                title = "Grid Density",
-                value = uiState.display.gridDensity.name.lowercase().replaceFirstChar { it.uppercase() },
-                isFocused = uiState.focusedIndex == 3,
-                onClick = {
-                    val next = when (uiState.display.gridDensity) {
-                        GridDensity.COMPACT -> GridDensity.NORMAL
-                        GridDensity.NORMAL -> GridDensity.SPACIOUS
-                        GridDensity.SPACIOUS -> GridDensity.COMPACT
+                )
+
+                DisplayItem.GridDensity -> CyclePreference(
+                    title = "Grid Density",
+                    value = display.gridDensity.name.lowercase().replaceFirstChar { it.uppercase() },
+                    isFocused = isFocused(item),
+                    onClick = {
+                        val next = when (display.gridDensity) {
+                            GridDensity.COMPACT -> GridDensity.NORMAL
+                            GridDensity.NORMAL -> GridDensity.SPACIOUS
+                            GridDensity.SPACIOUS -> GridDensity.COMPACT
+                        }
+                        viewModel.setGridDensity(next)
                     }
-                    viewModel.setGridDensity(next)
-                }
-            )
-        }
-        item {
-            SliderPreference(
-                title = "UI Scale",
-                value = uiState.display.uiScale,
-                minValue = 75,
-                maxValue = 150,
-                isFocused = uiState.focusedIndex == 4,
-                step = 5,
-                suffix = "%",
-                onClick = { viewModel.adjustUiScale(5) }
-            )
-        }
-        item {
-            NavigationPreference(
-                icon = Icons.Outlined.Image,
-                title = "Box Art",
-                subtitle = "Customize card appearance",
-                isFocused = uiState.focusedIndex == 5,
-                onClick = { viewModel.navigateToBoxArt() }
-            )
-        }
-        item {
-            NavigationPreference(
-                icon = Icons.Outlined.Home,
-                title = "Home Screen",
-                subtitle = "Background and footer settings",
-                isFocused = uiState.focusedIndex == 6,
-                onClick = { viewModel.navigateToHomeScreen() }
-            )
-        }
-        item {
-            DisplaySectionHeader("Default")
-        }
-        item {
-            CyclePreference(
-                title = "Default View",
-                value = when (uiState.display.defaultView) {
-                    DefaultView.HOME -> "Home"
-                    DefaultView.LIBRARY -> "Library"
-                },
-                isFocused = uiState.focusedIndex == 7,
-                onClick = { viewModel.cycleDefaultView() }
-            )
-        }
-        item {
-            DisplaySectionHeader("Screen Safety")
-        }
-        item {
-            SwitchPreference(
-                title = "Screen Dimmer",
-                subtitle = "Dims screen after inactivity to prevent burn-in",
-                isEnabled = storage.screenDimmerEnabled,
-                isFocused = uiState.focusedIndex == 8,
-                onToggle = { viewModel.toggleScreenDimmer() }
-            )
-        }
-        item {
-            CyclePreference(
-                title = "Dim After",
-                value = "${storage.screenDimmerTimeoutMinutes} min",
-                isFocused = uiState.focusedIndex == 9,
-                onClick = { viewModel.cycleScreenDimmerTimeout() }
-            )
-        }
-        item {
-            SliderPreference(
-                title = "Dim Level",
-                value = storage.screenDimmerLevel,
-                minValue = 40,
-                maxValue = 70,
-                isFocused = uiState.focusedIndex == 10,
-                step = 10,
-                onClick = { viewModel.cycleScreenDimmerLevel() }
-            )
+                )
+
+                DisplayItem.UiScale -> SliderPreference(
+                    title = "UI Scale",
+                    value = display.uiScale,
+                    minValue = 75,
+                    maxValue = 150,
+                    isFocused = isFocused(item),
+                    step = 5,
+                    suffix = "%",
+                    onClick = { viewModel.adjustUiScale(5) }
+                )
+
+                DisplayItem.BoxArt -> NavigationPreference(
+                    icon = Icons.Outlined.Image,
+                    title = "Box Art",
+                    subtitle = "Customize card appearance",
+                    isFocused = isFocused(item),
+                    onClick = { viewModel.navigateToBoxArt() }
+                )
+
+                DisplayItem.HomeScreen -> NavigationPreference(
+                    icon = Icons.Outlined.Home,
+                    title = "Home Screen",
+                    subtitle = "Background and footer settings",
+                    isFocused = isFocused(item),
+                    onClick = { viewModel.navigateToHomeScreen() }
+                )
+
+                DisplayItem.DefaultView -> CyclePreference(
+                    title = "Default View",
+                    value = when (display.defaultView) {
+                        DefaultView.HOME -> "Home"
+                        DefaultView.LIBRARY -> "Library"
+                    },
+                    isFocused = isFocused(item),
+                    onClick = { viewModel.cycleDefaultView() }
+                )
+
+                DisplayItem.ScreenDimmer -> SwitchPreference(
+                    title = "Screen Dimmer",
+                    subtitle = "Dims screen after inactivity to prevent burn-in",
+                    isEnabled = storage.screenDimmerEnabled,
+                    isFocused = isFocused(item),
+                    onToggle = { viewModel.toggleScreenDimmer() }
+                )
+
+                DisplayItem.DimAfter -> CyclePreference(
+                    title = "Dim After",
+                    value = "${storage.screenDimmerTimeoutMinutes} min",
+                    isFocused = isFocused(item),
+                    onClick = { viewModel.cycleScreenDimmerTimeout() }
+                )
+
+                DisplayItem.DimLevel -> SliderPreference(
+                    title = "Dim Level",
+                    value = storage.screenDimmerLevel,
+                    minValue = 40,
+                    maxValue = 70,
+                    isFocused = isFocused(item),
+                    step = 10,
+                    onClick = { viewModel.cycleScreenDimmerLevel() }
+                )
+            }
         }
     }
 }

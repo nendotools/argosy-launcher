@@ -49,6 +49,7 @@ import coil.compose.AsyncImage
 import com.nendo.argosy.domain.model.UnifiedSaveEntry
 import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.domain.model.UnifiedStateEntry
+import com.nendo.argosy.ui.components.FocusedScroll
 import com.nendo.argosy.ui.components.FooterBarWithState
 import com.nendo.argosy.ui.components.FooterHintItem
 import com.nendo.argosy.ui.components.InputButton
@@ -78,15 +79,10 @@ fun SaveChannelModal(
         focusRequester.requestFocus()
     }
 
-    val activeEntries = if (state.selectedTab == SaveTab.STATES) state.statesEntries else entries
-    LaunchedEffect(state.focusIndex, state.selectedTab, activeEntries.size) {
-        if (activeEntries.isNotEmpty()) {
-            val centerOffset = maxVisibleItems / 2
-            val maxScrollIndex = (activeEntries.size - maxVisibleItems).coerceAtLeast(0)
-            val targetScrollIndex = (state.focusIndex - centerOffset).coerceIn(0, maxScrollIndex)
-            listState.animateScrollToItem(targetScrollIndex)
-        }
-    }
+    FocusedScroll(
+        listState = listState,
+        focusedIndex = state.focusIndex
+    )
 
     val isDarkTheme = LocalLauncherTheme.current.isDarkTheme
     val overlayColor = if (isDarkTheme) Color.Black.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.5f)
