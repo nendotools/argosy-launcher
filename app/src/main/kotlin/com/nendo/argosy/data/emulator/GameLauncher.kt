@@ -1,6 +1,7 @@
 package com.nendo.argosy.data.emulator
 
 import android.app.ActivityManager
+import android.content.ClipData
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -339,7 +340,6 @@ class GameLauncher @Inject constructor(
     private fun buildFileUriIntent(emulator: EmulatorDef, romFile: File, forResume: Boolean): Intent {
         val uri = getFileUri(romFile)
 
-        // Grant URI permission to package - ensures child processes can access the content URI
         try {
             context.grantUriPermission(emulator.packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
         } catch (e: Exception) {
@@ -350,7 +350,7 @@ class GameLauncher @Inject constructor(
             setDataAndType(uri, getMimeType(romFile))
             setPackage(emulator.packageName)
             addCategory(Intent.CATEGORY_DEFAULT)
-            clipData = android.content.ClipData.newRawUri(null, uri)
+            clipData = ClipData.newRawUri(null, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             if (forResume) {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -485,7 +485,7 @@ class GameLauncher @Inject constructor(
                 val mimeType = config.mimeTypeOverride ?: getMimeType(romFile)
                 setDataAndType(uri, mimeType)
                 if (!config.useFileUri) {
-                    clipData = android.content.ClipData.newRawUri(null, uri)
+                    clipData = ClipData.newRawUri(null, uri)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
             }
@@ -517,7 +517,7 @@ class GameLauncher @Inject constructor(
 
             if (hasFileUri) {
                 val uri = getFileUri(romFile)
-                clipData = android.content.ClipData.newRawUri(null, uri)
+                clipData = ClipData.newRawUri(null, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
 
@@ -696,9 +696,9 @@ class GameLauncher @Inject constructor(
             setPackage(emulator.packageName)
             addCategory(Intent.CATEGORY_DEFAULT)
 
-            clipData = android.content.ClipData.newRawUri(null, gameUri).apply {
+            clipData = ClipData.newRawUri(null, gameUri).apply {
                 dlcUris.forEach { uri ->
-                    addItem(android.content.ClipData.Item(uri))
+                    addItem(ClipData.Item(uri))
                 }
             }
 

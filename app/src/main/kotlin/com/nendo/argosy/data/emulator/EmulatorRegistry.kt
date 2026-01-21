@@ -123,7 +123,6 @@ object EmulatorRegistry {
             downloadUrl = "https://play.google.com/store/apps/details?id=com.retroarch.aarch64"
         ),
 
-        // Mupen64Plus FZ - uses ACTION_VIEW with content:// URI
         EmulatorDef(
             id = "mupen64plus_fz",
             packageName = "org.mupen64plusae.v3.fzurita",
@@ -133,7 +132,6 @@ object EmulatorRegistry {
             launchConfig = LaunchConfig.FileUri,
             downloadUrl = "https://play.google.com/store/apps/details?id=org.mupen64plusae.v3.fzurita"
         ),
-        // M64Pro FZX Plus+ - Mupen64Plus fork, uses ACTION_VIEW with content:// URI
         EmulatorDef(
             id = "m64pro_fzx_plus",
             packageName = "com.m64.fx.plus.emulate",
@@ -866,7 +864,6 @@ object EmulatorRegistry {
             supportedPlatforms = setOf("3ds"),
             downloadUrl = "https://citra-emu.org/"
         ),
-        // Mupen64Plus derivatives use ACTION_VIEW with content:// URI
         EmulatorFamily(
             baseId = "mupen64plus",
             displayNamePrefix = "Mupen64Plus",
