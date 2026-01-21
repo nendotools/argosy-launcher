@@ -143,6 +143,9 @@ class SettingsViewModel @Inject constructor(
     private val _openLogFolderPickerEvent = MutableSharedFlow<Unit>()
     val openLogFolderPickerEvent: SharedFlow<Unit> = _openLogFolderPickerEvent.asSharedFlow()
 
+    private val _openDeviceSettingsEvent = MutableSharedFlow<Unit>()
+    val openDeviceSettingsEvent: SharedFlow<Unit> = _openDeviceSettingsEvent.asSharedFlow()
+
     init {
         observeDelegateStates()
         observeDelegateEvents()
@@ -895,7 +898,7 @@ class SettingsViewModel @Inject constructor(
             val isConnected = state.server.connectionStatus == ConnectionStatus.ONLINE ||
                 state.server.connectionStatus == ConnectionStatus.OFFLINE
             val maxIndex = when (state.currentSection) {
-                SettingsSection.MAIN -> 8
+                SettingsSection.MAIN -> 9
                 SettingsSection.SERVER -> if (state.server.rommConfiguring) {
                     4
                 } else {
@@ -2034,19 +2037,23 @@ class SettingsViewModel @Inject constructor(
         val state = _uiState.value
         return when (state.currentSection) {
             SettingsSection.MAIN -> {
-                val section = when (state.focusedIndex) {
-                    0 -> SettingsSection.SERVER
-                    1 -> SettingsSection.STORAGE
-                    2 -> SettingsSection.DISPLAY
-                    3 -> SettingsSection.CONTROLS
-                    4 -> SettingsSection.SOUNDS
-                    5 -> SettingsSection.EMULATORS
-                    6 -> SettingsSection.BIOS
-                    7 -> SettingsSection.PERMISSIONS
-                    8 -> SettingsSection.ABOUT
-                    else -> null
+                if (state.focusedIndex == 0) {
+                    viewModelScope.launch { _openDeviceSettingsEvent.emit(Unit) }
+                } else {
+                    val section = when (state.focusedIndex) {
+                        1 -> SettingsSection.SERVER
+                        2 -> SettingsSection.STORAGE
+                        3 -> SettingsSection.DISPLAY
+                        4 -> SettingsSection.CONTROLS
+                        5 -> SettingsSection.SOUNDS
+                        6 -> SettingsSection.EMULATORS
+                        7 -> SettingsSection.BIOS
+                        8 -> SettingsSection.PERMISSIONS
+                        9 -> SettingsSection.ABOUT
+                        else -> null
+                    }
+                    section?.let { navigateToSection(it) }
                 }
-                section?.let { navigateToSection(it) }
                 InputResult.HANDLED
             }
             SettingsSection.SERVER -> {

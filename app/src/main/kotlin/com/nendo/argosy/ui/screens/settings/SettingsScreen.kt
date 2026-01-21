@@ -176,6 +176,12 @@ fun SettingsScreen(
     }
 
     LaunchedEffect(Unit) {
+        viewModel.openDeviceSettingsEvent.collect {
+            context.startActivity(Intent(Settings.ACTION_SETTINGS))
+        }
+    }
+
+    LaunchedEffect(Unit) {
         viewModel.downloadUpdateEvent.collect {
             viewModel.downloadAndInstallUpdate(context)
         }

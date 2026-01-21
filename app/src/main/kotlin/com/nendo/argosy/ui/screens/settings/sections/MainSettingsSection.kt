@@ -1,5 +1,7 @@
 package com.nendo.argosy.ui.screens.settings.sections
 
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -13,11 +15,13 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import com.nendo.argosy.ui.components.NavigationPreference
 import com.nendo.argosy.ui.screens.settings.ConnectionStatus
 import com.nendo.argosy.ui.screens.settings.SettingsSection
@@ -30,10 +34,11 @@ import java.time.format.DateTimeFormatter
 
 @Composable
 fun MainSettingsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
+    val context = LocalContext.current
     val listState = rememberLazyListState()
 
     LaunchedEffect(uiState.focusedIndex) {
-        if (uiState.focusedIndex in 0..8) {
+        if (uiState.focusedIndex in 0..9) {
             val viewportHeight = listState.layoutInfo.viewportSize.height
             val itemHeight = listState.layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 0
             val centerOffset = if (itemHeight > 0) (viewportHeight - itemHeight) / 2 else 0
@@ -49,6 +54,17 @@ fun MainSettingsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) 
             .padding(Dimens.spacingMd),
         verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
+        item {
+            NavigationPreference(
+                icon = Icons.Default.PhoneAndroid,
+                title = "Device Settings",
+                subtitle = "System settings",
+                isFocused = uiState.focusedIndex == 0,
+                onClick = {
+                    context.startActivity(Intent(Settings.ACTION_SETTINGS))
+                }
+            )
+        }
         item {
             val gameDataSubtitle = when (uiState.server.connectionStatus) {
                 ConnectionStatus.NOT_CONFIGURED -> "Server not configured"
@@ -67,7 +83,7 @@ fun MainSettingsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) 
                 icon = Icons.Default.Dns,
                 title = "Game Data",
                 subtitle = gameDataSubtitle,
-                isFocused = uiState.focusedIndex == 0,
+                isFocused = uiState.focusedIndex == 1,
                 onClick = { viewModel.navigateToSection(SettingsSection.SERVER) }
             )
         }
@@ -81,7 +97,7 @@ fun MainSettingsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) 
                 icon = Icons.Default.Storage,
                 title = "Storage",
                 subtitle = downloadedText,
-                isFocused = uiState.focusedIndex == 1,
+                isFocused = uiState.focusedIndex == 2,
                 onClick = { viewModel.navigateToSection(SettingsSection.STORAGE) }
             )
         }
@@ -90,7 +106,7 @@ fun MainSettingsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) 
                 icon = Icons.Default.Palette,
                 title = "Display",
                 subtitle = "Theme, colors, animations",
-                isFocused = uiState.focusedIndex == 2,
+                isFocused = uiState.focusedIndex == 3,
                 onClick = { viewModel.navigateToSection(SettingsSection.DISPLAY) }
             )
         }
@@ -99,7 +115,7 @@ fun MainSettingsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) 
                 icon = Icons.Default.TouchApp,
                 title = "Controls",
                 subtitle = "Button layout, haptic feedback",
-                isFocused = uiState.focusedIndex == 3,
+                isFocused = uiState.focusedIndex == 4,
                 onClick = { viewModel.navigateToSection(SettingsSection.CONTROLS) }
             )
         }
@@ -108,7 +124,7 @@ fun MainSettingsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) 
                 icon = Icons.AutoMirrored.Filled.VolumeUp,
                 title = "Sounds",
                 subtitle = if (uiState.sounds.enabled) "Enabled" else "Disabled",
-                isFocused = uiState.focusedIndex == 4,
+                isFocused = uiState.focusedIndex == 5,
                 onClick = { viewModel.navigateToSection(SettingsSection.SOUNDS) }
             )
         }
@@ -117,7 +133,7 @@ fun MainSettingsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) 
                 icon = Icons.Default.Gamepad,
                 title = "Emulators",
                 subtitle = "${uiState.emulators.installedEmulators.size} installed",
-                isFocused = uiState.focusedIndex == 5,
+                isFocused = uiState.focusedIndex == 6,
                 onClick = { viewModel.navigateToSection(SettingsSection.EMULATORS) }
             )
         }
@@ -127,7 +143,7 @@ fun MainSettingsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) 
                 icon = Icons.Default.Memory,
                 title = "BIOS Files",
                 subtitle = biosStatus,
-                isFocused = uiState.focusedIndex == 6,
+                isFocused = uiState.focusedIndex == 7,
                 onClick = { viewModel.navigateToSection(SettingsSection.BIOS) }
             )
         }
@@ -141,7 +157,7 @@ fun MainSettingsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) 
                 icon = Icons.Default.Security,
                 title = "Permissions",
                 subtitle = permissionStatus,
-                isFocused = uiState.focusedIndex == 7,
+                isFocused = uiState.focusedIndex == 8,
                 onClick = { viewModel.navigateToSection(SettingsSection.PERMISSIONS) }
             )
         }
@@ -150,7 +166,7 @@ fun MainSettingsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) 
                 icon = Icons.Default.Info,
                 title = "About",
                 subtitle = "Version ${uiState.appVersion}",
-                isFocused = uiState.focusedIndex == 8,
+                isFocused = uiState.focusedIndex == 9,
                 onClick = { viewModel.navigateToSection(SettingsSection.ABOUT) }
             )
         }
