@@ -345,16 +345,31 @@ class SaveSyncRepository @Inject constructor(
             SavePathRegistry.resolvePathWithPackage(config, emulatorPackage)
         }
         val triedTitleIds = mutableSetOf<String>()
+        val isSwitchPlatform = platformSlug == "switch"
 
-        // 1. Try confirmed titleId first
-        if (cachedTitleId != null) {
-            triedTitleIds.add(cachedTitleId.uppercase())
-            Logger.debug(TAG, "[SaveSync] DISCOVER | Trying cached titleId=$cachedTitleId")
+        // 1. Try confirmed titleId first (validate for Switch)
+        val validatedCachedTitleId = if (cachedTitleId != null && isSwitchPlatform) {
+            if (isValidSwitchTitleId(cachedTitleId)) {
+                cachedTitleId
+            } else {
+                Logger.warn(TAG, "[SaveSync] DISCOVER | Invalid cached titleId=$cachedTitleId (doesn't start with 01), clearing")
+                if (gameId != null) {
+                    gameDao.updateTitleId(gameId, null)
+                }
+                null
+            }
+        } else {
+            cachedTitleId
+        }
+
+        if (validatedCachedTitleId != null) {
+            triedTitleIds.add(validatedCachedTitleId.uppercase())
+            Logger.debug(TAG, "[SaveSync] DISCOVER | Trying cached titleId=$validatedCachedTitleId")
             for (basePath in resolvedPaths) {
-                val saveFolder = findSaveFolderByTitleId(basePath, cachedTitleId, platformSlug)
+                val saveFolder = findSaveFolderByTitleId(basePath, validatedCachedTitleId, platformSlug)
                 if (saveFolder != null) return saveFolder
             }
-            Logger.debug(TAG, "[SaveSync] DISCOVER | Cached titleId=$cachedTitleId found no save")
+            Logger.debug(TAG, "[SaveSync] DISCOVER | Cached titleId=$validatedCachedTitleId found no save")
         }
 
         // 2. Try ROM extraction (binary or filename)
@@ -363,10 +378,14 @@ class SaveSyncRepository @Inject constructor(
             triedTitleIds.add(extractedTitleId.uppercase())
             Logger.debug(TAG, "[SaveSync] DISCOVER | Trying extracted titleId=$extractedTitleId")
 
-            // Cache valid extracted ID immediately for future use
-            if (gameId != null && cachedTitleId == null) {
+            // Cache valid extracted ID immediately for future use (validate for Switch)
+            val shouldCacheExtracted = gameId != null && validatedCachedTitleId == null &&
+                (!isSwitchPlatform || isValidSwitchTitleId(extractedTitleId))
+            if (shouldCacheExtracted) {
                 Logger.debug(TAG, "[SaveSync] DISCOVER | Caching extracted titleId=$extractedTitleId for gameId=$gameId")
                 gameDao.updateTitleId(gameId, extractedTitleId)
+            } else if (gameId != null && isSwitchPlatform && !isValidSwitchTitleId(extractedTitleId)) {
+                Logger.warn(TAG, "[SaveSync] DISCOVER | Skipping cache of invalid extracted titleId=$extractedTitleId (doesn't start with 01)")
             }
 
             for (basePath in resolvedPaths) {
@@ -408,8 +427,10 @@ class SaveSyncRepository @Inject constructor(
         if (matches.isNotEmpty()) {
             val best = matches.maxByOrNull { it.modTime }!!
             Logger.debug(TAG, "[SaveSync] DISCOVER | Selected best match | titleId=${best.titleId}, path=${best.path}, modTime=${best.modTime}")
-            if (gameId != null) {
+            if (gameId != null && (!isSwitchPlatform || isValidSwitchTitleId(best.titleId))) {
                 gameDao.updateTitleId(gameId, best.titleId)
+            } else if (gameId != null && isSwitchPlatform && !isValidSwitchTitleId(best.titleId)) {
+                Logger.warn(TAG, "[SaveSync] DISCOVER | Skipping cache of invalid best match titleId=${best.titleId} (doesn't start with 01)")
             }
             return best.path
         }
@@ -613,6 +634,10 @@ class SaveSyncRepository @Inject constructor(
 
     private fun isValidSwitchHexId(name: String): Boolean {
         return name.length == 16 && name.all { it.isDigit() || it in 'A'..'F' || it in 'a'..'f' }
+    }
+
+    private fun isValidSwitchTitleId(titleId: String): Boolean {
+        return isValidSwitchHexId(titleId) && titleId.uppercase().startsWith("01")
     }
 
     private fun findSaveByRomName(
@@ -1498,9 +1523,11 @@ class SaveSyncRepository @Inject constructor(
 
             if (isSwitchEmulator && game.titleId == null) {
                 val extractedTitleId = File(targetPath).name
-                if (isValidSwitchHexId(extractedTitleId)) {
+                if (isValidSwitchTitleId(extractedTitleId)) {
                     gameDao.updateTitleId(gameId, extractedTitleId)
                     Logger.debug(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | Cached titleId from save folder | titleId=$extractedTitleId")
+                } else if (isValidSwitchHexId(extractedTitleId)) {
+                    Logger.warn(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | Skipping invalid titleId=$extractedTitleId (doesn't start with 01)")
                 }
             }
 

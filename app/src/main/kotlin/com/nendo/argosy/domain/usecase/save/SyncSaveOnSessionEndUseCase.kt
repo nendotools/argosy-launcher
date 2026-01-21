@@ -122,14 +122,19 @@ class SyncSaveOnSessionEndUseCase @Inject constructor(
             if (detected == null) {
                 Logger.debug(TAG, "[SaveSync] SESSION gameId=$gameId | No folder-based save detected")
             } else {
-                val existingGame = gameDao.getByTitleIdAndPlatform(detected.titleId, game.platformId)
-                if (existingGame == null || existingGame.id == gameId) {
-                    Logger.debug(TAG, "[SaveSync] SESSION gameId=$gameId | Detected titleId | titleId=${detected.titleId}, savePath=${detected.savePath}")
-                    gameDao.updateTitleId(gameId, detected.titleId)
-                    titleId = detected.titleId
-                    savePath = detected.savePath
+                val isValidTitleId = game.platformSlug != "switch" || isValidSwitchTitleId(detected.titleId)
+                if (!isValidTitleId) {
+                    Logger.warn(TAG, "[SaveSync] SESSION gameId=$gameId | Invalid detected titleId=${detected.titleId} (doesn't start with 01), skipping cache")
                 } else {
-                    Logger.debug(TAG, "[SaveSync] SESSION gameId=$gameId | TitleId already assigned to another game | titleId=${detected.titleId}, otherGameId=${existingGame.id}")
+                    val existingGame = gameDao.getByTitleIdAndPlatform(detected.titleId, game.platformId)
+                    if (existingGame == null || existingGame.id == gameId) {
+                        Logger.debug(TAG, "[SaveSync] SESSION gameId=$gameId | Detected titleId | titleId=${detected.titleId}, savePath=${detected.savePath}")
+                        gameDao.updateTitleId(gameId, detected.titleId)
+                        titleId = detected.titleId
+                        savePath = detected.savePath
+                    } else {
+                        Logger.debug(TAG, "[SaveSync] SESSION gameId=$gameId | TitleId already assigned to another game | titleId=${detected.titleId}, otherGameId=${existingGame.id}")
+                    }
                 }
             }
         }
@@ -186,5 +191,11 @@ class SyncSaveOnSessionEndUseCase @Inject constructor(
                 Result.NotConfigured
             }
         }
+    }
+
+    private fun isValidSwitchTitleId(titleId: String): Boolean {
+        return titleId.length == 16 &&
+            titleId.all { it.isDigit() || it in 'A'..'F' || it in 'a'..'f' } &&
+            titleId.uppercase().startsWith("01")
     }
 }

@@ -47,8 +47,13 @@ class TitleDbRepository @Inject constructor(
 
         val cached = gameDao.getTitleId(gameId)
         if (cached != null) {
-            Logger.debug(TAG, "Using cached titleId=$cached for game=$gameId")
-            return cached
+            if (mappedPlatform == "switch" && !isValidSwitchTitleId(cached)) {
+                Logger.warn(TAG, "Invalid cached titleId=$cached for game=$gameId (doesn't start with 01), clearing")
+                gameDao.updateTitleId(gameId, null)
+            } else {
+                Logger.debug(TAG, "Using cached titleId=$cached for game=$gameId")
+                return cached
+            }
         }
 
         Logger.debug(TAG, "Looking up titleId for game=$gameId, name='$gameName', platform=$mappedPlatform")
@@ -160,6 +165,12 @@ class TitleDbRepository @Inject constructor(
             "3ds", "nintendo_3ds", "n3ds" -> "3ds"
             else -> null
         }
+    }
+
+    private fun isValidSwitchTitleId(titleId: String): Boolean {
+        return titleId.length == 16 &&
+            titleId.all { it.isDigit() || it in 'A'..'F' || it in 'a'..'f' } &&
+            titleId.uppercase().startsWith("01")
     }
 
     private fun getOrCreateDeviceToken(): String {

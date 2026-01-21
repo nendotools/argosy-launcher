@@ -254,7 +254,7 @@ class SaveArchiver @Inject constructor() {
     }
 
     private fun parseTitleIdFromMeta(metaBytes: ByteArray): String? {
-        if (metaBytes.size < JKSV_TITLE_ID_END) return null
+        if (metaBytes.size < JKSV_MAGIC.length) return null
 
         val magic = String(metaBytes, 0, JKSV_MAGIC.length, Charsets.US_ASCII)
         if (magic != JKSV_MAGIC) {
@@ -262,14 +262,24 @@ class SaveArchiver @Inject constructor() {
             return null
         }
 
-        val titleIdBytes = metaBytes.copyOfRange(JKSV_TITLE_ID_OFFSET, JKSV_TITLE_ID_END)
-        val titleId = ByteBuffer.wrap(titleIdBytes)
-            .order(ByteOrder.LITTLE_ENDIAN)
-            .getLong()
+        for (offset in JKSV_TITLE_ID_OFFSETS) {
+            if (metaBytes.size < offset + 8) continue
 
-        val formatted = String.format("%016X", titleId)
-        Logger.debug(TAG, "[SaveSync] ARCHIVE | Parsed JKSV titleId: $formatted")
-        return formatted
+            val titleIdBytes = metaBytes.copyOfRange(offset, offset + 8)
+            val titleId = ByteBuffer.wrap(titleIdBytes)
+                .order(ByteOrder.LITTLE_ENDIAN)
+                .getLong()
+
+            val formatted = String.format("%016X", titleId)
+
+            if (formatted.startsWith("01")) {
+                Logger.debug(TAG, "[SaveSync] ARCHIVE | Parsed JKSV titleId: $formatted (offset=$offset)")
+                return formatted
+            }
+        }
+
+        Logger.debug(TAG, "[SaveSync] ARCHIVE | No valid title ID found in JKSV metadata")
+        return null
     }
 
     fun unzipSingleFolderExcluding(
@@ -376,7 +386,6 @@ class SaveArchiver @Inject constructor() {
     companion object {
         private const val JKSV_META_FILE = ".nx_save_meta.bin"
         private const val JKSV_MAGIC = "JKSV"
-        private const val JKSV_TITLE_ID_OFFSET = 6
-        private const val JKSV_TITLE_ID_END = 14
+        private val JKSV_TITLE_ID_OFFSETS = listOf(5, 4, 6)
     }
 }
