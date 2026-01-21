@@ -466,6 +466,17 @@ class GameLauncher @Inject constructor(
         forResume: Boolean
     ): Intent {
         val usesIntentDataUri = shouldUseIntentDataUri(emulator)
+        val needsUriPermission = config.intentExtras.values.any { it is ExtraValue.FilePath || it is ExtraValue.FileUri }
+
+        // Pre-grant URI permission to emulator package for Android 11+ Scoped Storage compatibility
+        if (needsUriPermission) {
+            val uri = getFileUri(romFile)
+            try {
+                context.grantUriPermission(emulator.packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (e: Exception) {
+                Logger.warn(TAG, "Failed to grant URI permission to ${emulator.packageName}", e)
+            }
+        }
 
         return Intent(emulator.launchAction).apply {
             if (config.activityClass != null) {
@@ -515,7 +526,8 @@ class GameLauncher @Inject constructor(
                 }
             }
 
-            if (hasFileUri) {
+            // Include URI in clipData for emulators that may read from it (Android 11+ Scoped Storage)
+            if (hasFileUri || needsUriPermission) {
                 val uri = getFileUri(romFile)
                 clipData = ClipData.newRawUri(null, uri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
