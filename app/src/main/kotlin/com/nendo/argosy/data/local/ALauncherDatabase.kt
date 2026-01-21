@@ -66,7 +66,7 @@ import com.nendo.argosy.data.local.entity.StateCacheEntity
         PinnedCollectionEntity::class,
         GameFileEntity::class
     ],
-    version = 48,
+    version = 49,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -777,6 +777,13 @@ abstract class ALauncherDatabase : RoomDatabase() {
         val MIGRATION_47_48 = object : Migration(47, 48) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE games ADD COLUMN titleIdCandidates TEXT")
+            }
+        }
+
+        val MIGRATION_48_49 = object : Migration(48, 49) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE save_cache ADD COLUMN contentHash TEXT")
+                db.execSQL("ALTER TABLE save_sync ADD COLUMN lastUploadedHash TEXT")
             }
         }
     }

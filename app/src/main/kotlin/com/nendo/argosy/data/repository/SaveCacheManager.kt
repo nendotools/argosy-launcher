@@ -49,20 +49,42 @@ class SaveCacheManager @Inject constructor(
             return@withContext false
         }
 
-        val now = Instant.now()
-        val timestamp = TIMESTAMP_FORMAT.format(now)
-        val gameDir = File(cacheBaseDir, "$gameId/$timestamp")
+        var tempFile: File? = null
 
         try {
-            gameDir.mkdirs()
-
-            val (cachePath, saveSize) = if (saveFile.isDirectory) {
-                val zipFile = File(gameDir, "save.zip")
-                if (!saveArchiver.zipFolder(saveFile, zipFile)) {
+            val (contentHash, tempOrSource) = if (saveFile.isDirectory) {
+                tempFile = File(context.cacheDir, "temp_save_${System.currentTimeMillis()}.zip")
+                if (!saveArchiver.zipFolder(saveFile, tempFile)) {
                     Log.e(TAG, "Failed to zip save folder")
                     return@withContext false
                 }
-                "$gameId/$timestamp/save.zip" to zipFile.length()
+                saveArchiver.calculateFileHash(tempFile) to tempFile
+            } else {
+                saveArchiver.calculateFileHash(saveFile) to saveFile
+            }
+
+            val existingWithHash = saveCacheDao.getByGameAndHash(gameId, contentHash)
+            if (existingWithHash != null) {
+                Log.d(TAG, "Duplicate save detected for game $gameId (hash=$contentHash), skipping cache")
+                tempFile?.delete()
+                return@withContext true
+            }
+
+            val now = Instant.now()
+            val timestamp = TIMESTAMP_FORMAT.format(now)
+            val gameDir = File(cacheBaseDir, "$gameId/$timestamp")
+            gameDir.mkdirs()
+
+            val (cachePath, saveSize) = if (saveFile.isDirectory) {
+                val finalZip = File(gameDir, "save.zip")
+                tempOrSource.renameTo(finalZip).let { renamed ->
+                    if (!renamed) {
+                        tempOrSource.copyTo(finalZip, overwrite = true)
+                        tempOrSource.delete()
+                    }
+                }
+                tempFile = null
+                "$gameId/$timestamp/save.zip" to finalZip.length()
             } else {
                 val cachedFile = File(gameDir, saveFile.name)
                 saveFile.copyTo(cachedFile, overwrite = true)
@@ -76,16 +98,17 @@ class SaveCacheManager @Inject constructor(
                 saveSize = saveSize,
                 cachePath = cachePath,
                 note = channelName,
-                isLocked = isLocked
+                isLocked = isLocked,
+                contentHash = contentHash
             )
             saveCacheDao.insert(entity)
-            Log.d(TAG, "Cached save for game $gameId at $cachePath${channelName?.let { " (channel: $it)" } ?: ""}")
+            Log.d(TAG, "Cached save for game $gameId at $cachePath (hash=$contentHash)${channelName?.let { " (channel: $it)" } ?: ""}")
 
             pruneOldCaches(gameId)
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to cache save", e)
-            gameDir.deleteRecursively()
+            tempFile?.delete()
             false
         }
     }
@@ -173,7 +196,8 @@ class SaveCacheManager @Inject constructor(
                 saveSize = destFile.length(),
                 cachePath = cachePath,
                 note = channelName,
-                isLocked = true
+                isLocked = true,
+                contentHash = source.contentHash
             )
 
             val newId = saveCacheDao.insert(entity)

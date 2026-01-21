@@ -62,6 +62,8 @@ private val SWITCH_DEVICE_SAVE_TITLE_IDS = setOf(
     "0100C1800A9B6000", // Go Vacation
 )
 
+private val JKSV_EXCLUDE_FILES = setOf(".nx_save_meta.bin")
+
 sealed class SaveSyncResult {
     data object Success : SaveSyncResult()
     data class Conflict(
@@ -1115,6 +1117,13 @@ class SaveSyncRepository @Inject constructor(
                 saveLocation
             }
 
+            val contentHash = saveArchiver.calculateFileHash(fileToUpload)
+            if (syncEntity?.lastUploadedHash == contentHash) {
+                Logger.debug(TAG, "[SaveSync] UPLOAD gameId=$gameId | Skipped - content unchanged (hash=$contentHash)")
+                tempZipFile?.delete()
+                return@withContext SaveSyncResult.Success
+            }
+
             val uploadFileName = if (channelName != null) {
                 val ext = fileToUpload.extension
                 if (ext.isNotEmpty()) "$channelName.$ext" else channelName
@@ -1198,7 +1207,8 @@ class SaveSyncRepository @Inject constructor(
                         localUpdatedAt = serverTimestamp,
                         serverUpdatedAt = serverTimestamp,
                         lastSyncedAt = Instant.now(),
-                        syncStatus = SaveSyncEntity.STATUS_SYNCED
+                        syncStatus = SaveSyncEntity.STATUS_SYNCED,
+                        lastUploadedHash = contentHash
                     )
                 )
                 SaveSyncResult.Success
@@ -1428,7 +1438,14 @@ class SaveSyncRepository @Inject constructor(
                 targetFolder.mkdirs()
 
                 Logger.debug(TAG, "[SaveSync] ARCHIVE gameId=$gameId | Unzipping to | target=$targetPath")
-                if (!saveArchiver.unzipSingleFolder(tempZipFile, targetFolder)) {
+                val isJksv = saveArchiver.isJksvFormat(tempZipFile)
+                val unzipSuccess = if (isJksv) {
+                    Logger.debug(TAG, "[SaveSync] ARCHIVE gameId=$gameId | Detected JKSV format, excluding metadata")
+                    saveArchiver.unzipSingleFolderExcluding(tempZipFile, targetFolder, JKSV_EXCLUDE_FILES)
+                } else {
+                    saveArchiver.unzipSingleFolder(tempZipFile, targetFolder)
+                }
+                if (!unzipSuccess) {
                     Logger.error(TAG, "[SaveSync] ARCHIVE gameId=$gameId | Unzip failed | source=${tempZipFile.absolutePath}, target=$targetPath")
                     return@withContext SaveSyncResult.Error("Failed to unzip save")
                 }
@@ -1571,7 +1588,13 @@ class SaveSyncRepository @Inject constructor(
                 val targetFolder = File(resolvedTargetPath)
                 targetFolder.mkdirs()
 
-                if (!saveArchiver.unzipSingleFolder(tempZipFile, targetFolder)) {
+                val isJksv = saveArchiver.isJksvFormat(tempZipFile)
+                val unzipSuccess = if (isJksv) {
+                    saveArchiver.unzipSingleFolderExcluding(tempZipFile, targetFolder, JKSV_EXCLUDE_FILES)
+                } else {
+                    saveArchiver.unzipSingleFolder(tempZipFile, targetFolder)
+                }
+                if (!unzipSuccess) {
                     return@withContext false
                 }
             } else {
@@ -1601,8 +1624,11 @@ class SaveSyncRepository @Inject constructor(
 
     private fun resolveSwitchSaveTargetPath(zipFile: File, config: SavePathConfig, emulatorPackage: String?): String? {
         val titleId = saveArchiver.peekRootFolderName(zipFile)
-        if (titleId == null || !isValidSwitchHexId(titleId)) {
-            Logger.debug(TAG, "resolveSwitchSaveTargetPath: invalid titleId from ZIP: $titleId")
+            ?.takeIf { isValidSwitchHexId(it) }
+            ?: saveArchiver.parseTitleIdFromJksvMeta(zipFile)
+
+        if (titleId == null) {
+            Logger.debug(TAG, "resolveSwitchSaveTargetPath: no valid titleId from ZIP (tried Argosy and JKSV formats)")
             return null
         }
 

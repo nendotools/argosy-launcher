@@ -26,7 +26,8 @@ data class SaveSyncEntity(
     val serverUpdatedAt: Instant? = null,
     val lastSyncedAt: Instant? = null,
     val syncStatus: String,
-    val lastSyncError: String? = null
+    val lastSyncError: String? = null,
+    val lastUploadedHash: String? = null
 ) {
     companion object {
         const val STATUS_SYNCED = "SYNCED"

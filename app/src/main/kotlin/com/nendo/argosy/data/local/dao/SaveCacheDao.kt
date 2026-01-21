@@ -22,6 +22,9 @@ interface SaveCacheDao {
     @Query("SELECT * FROM save_cache WHERE gameId = :gameId AND note = :channelName LIMIT 1")
     suspend fun getByGameAndChannel(gameId: Long, channelName: String): SaveCacheEntity?
 
+    @Query("SELECT * FROM save_cache WHERE gameId = :gameId AND contentHash = :hash LIMIT 1")
+    suspend fun getByGameAndHash(gameId: Long, hash: String): SaveCacheEntity?
+
     @Update
     suspend fun update(entity: SaveCacheEntity)
 

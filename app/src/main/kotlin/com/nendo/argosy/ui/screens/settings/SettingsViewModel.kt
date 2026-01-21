@@ -855,11 +855,11 @@ class SettingsViewModel @Inject constructor(
                 true
             }
             state.currentSection == SettingsSection.BOX_ART -> {
-                _uiState.update { it.copy(currentSection = SettingsSection.DISPLAY, focusedIndex = 4) }
+                _uiState.update { it.copy(currentSection = SettingsSection.DISPLAY, focusedIndex = 5) }
                 true
             }
             state.currentSection == SettingsSection.HOME_SCREEN -> {
-                _uiState.update { it.copy(currentSection = SettingsSection.DISPLAY, focusedIndex = 5) }
+                _uiState.update { it.copy(currentSection = SettingsSection.DISPLAY, focusedIndex = 6) }
                 true
             }
             state.currentSection != SettingsSection.MAIN -> {
@@ -914,7 +914,7 @@ class SettingsViewModel @Inject constructor(
                     val expandedPlatforms = if (state.storage.platformsExpanded) state.storage.platformConfigs.size else 0
                     (baseItemCount + expandedPlatforms - 1).coerceAtLeast(baseItemCount - 1)
                 }
-                SettingsSection.DISPLAY -> 9
+                SettingsSection.DISPLAY -> 10
                 SettingsSection.HOME_SCREEN -> if (state.display.useGameBackground) 7 else 8
                 SettingsSection.BOX_ART -> {
                     val borderStyle = state.display.boxArtBorderStyle

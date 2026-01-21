@@ -22,9 +22,7 @@ data class PlatformEntity(
 )
 
 fun PlatformEntity.getDisplayName(maxLength: Int? = null): String {
-    return if (maxLength != null && name.length > maxLength) {
-        name.take(maxLength - 1) + "…"
-    } else {
-        name
-    }
+    if (maxLength == null || name.length <= maxLength) return name
+    if (shortName.length <= maxLength) return shortName
+    return shortName.take(maxLength - 1) + "…"
 }

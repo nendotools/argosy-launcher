@@ -21,5 +21,6 @@ data class SaveCacheEntity(
     val saveSize: Long,
     val cachePath: String,
     val isLocked: Boolean = false,
-    val note: String? = null
+    val note: String? = null,
+    val contentHash: String? = null
 )
