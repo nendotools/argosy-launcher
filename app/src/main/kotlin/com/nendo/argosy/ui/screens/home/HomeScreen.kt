@@ -364,12 +364,6 @@ fun HomeScreen(
         label = "railOffsetX"
     )
 
-    val videoModeRailOffsetY by animateDpAsState(
-        targetValue = if (uiState.isVideoPreviewActive) 30.dp else 0.dp,
-        animationSpec = tween(500),
-        label = "railOffsetY"
-    )
-
     val backgroundBlurDp = (uiState.backgroundBlur * 0.5f).dp
     val saturationFraction = uiState.backgroundSaturation / 100f
     val opacityFraction = uiState.backgroundOpacity / 100f
@@ -512,22 +506,26 @@ fun HomeScreen(
         val railHeight = cardHeight * focusScale + 16.dp
 
         Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier.fillMaxSize()
-            ) {
+            Box(modifier = Modifier.align(Alignment.TopCenter)) {
                 HomeHeader(
                     sectionTitle = uiState.rowTitle,
                     showPlatformNav = false,
                     headerOffset = videoModeHeaderOffset
                 )
+            }
 
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .then(swipeGestureModifier)
-                )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(swipeGestureModifier)
+            )
 
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .offset(x = videoModeRailOffsetX, y = videoModeFooterOffset)
+            ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -563,20 +561,10 @@ fun HomeScreen(
                                 onItemTap = { index -> viewModel.handleItemTap(index, onGameSelect) },
                                 onItemLongPress = viewModel::handleItemLongPress,
                                 isVideoPreviewActive = uiState.isVideoPreviewActive,
-                                modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    .offset(x = videoModeRailOffsetX, y = videoModeRailOffsetY)
+                                modifier = Modifier.align(Alignment.BottomStart)
                             )
                         }
                     }
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(railHeight * 0.4f)
-                            .align(Alignment.TopCenter)
-                            .then(swipeGestureModifier)
-                    )
                 }
 
                 val focusedGame = uiState.focusedGame
@@ -607,9 +595,7 @@ fun HomeScreen(
                                 else -> {}
                             }
                         },
-                        modifier = Modifier
-                            .padding(top = Dimens.spacingSm)
-                            .offset(y = videoModeFooterOffset)
+                        modifier = Modifier.padding(top = Dimens.spacingSm)
                     )
                 } else {
                     Spacer(modifier = Modifier.height(Dimens.spacingXl))
