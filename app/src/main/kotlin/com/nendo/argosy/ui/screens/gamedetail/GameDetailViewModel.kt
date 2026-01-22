@@ -497,66 +497,67 @@ class GameDetailViewModel @Inject constructor(
         localPath: String?
     ): Pair<List<UpdateFileUi>, List<UpdateFileUi>> {
         val hasUpdateSupport = ZipExtractor.hasUpdateSupport(platformSlug)
+        val remoteFiles = gameFileDao.getFilesForGame(gameId)
 
-        val localUpdates = if (hasUpdateSupport && localPath != null) {
-            ZipExtractor.listUpdateFiles(localPath, platformSlug).map { file ->
+        val dbUpdates = remoteFiles
+            .filter { it.category == "update" }
+            .map { file ->
                 UpdateFileUi(
-                    fileName = file.name,
-                    filePath = file.absolutePath,
-                    sizeBytes = file.length(),
+                    fileName = file.fileName,
+                    filePath = file.filePath,
+                    sizeBytes = file.fileSize,
                     type = UpdateFileType.UPDATE,
-                    isDownloaded = true
+                    isDownloaded = file.localPath != null,
+                    gameFileId = file.id,
+                    rommFileId = file.rommFileId,
+                    romId = file.romId
                 )
             }
+
+        val dbDlc = remoteFiles
+            .filter { it.category == "dlc" }
+            .map { file ->
+                UpdateFileUi(
+                    fileName = file.fileName,
+                    filePath = file.filePath,
+                    sizeBytes = file.fileSize,
+                    type = UpdateFileType.DLC,
+                    isDownloaded = file.localPath != null,
+                    gameFileId = file.id,
+                    rommFileId = file.rommFileId,
+                    romId = file.romId
+                )
+            }
+
+        val localUpdates = if (hasUpdateSupport && localPath != null) {
+            ZipExtractor.listAllUpdateFiles(localPath, platformSlug)
+                .filter { file -> dbUpdates.none { it.fileName == file.name } }
+                .map { file ->
+                    UpdateFileUi(
+                        fileName = file.name,
+                        filePath = file.absolutePath,
+                        sizeBytes = file.length(),
+                        type = UpdateFileType.UPDATE,
+                        isDownloaded = true
+                    )
+                }
         } else emptyList()
 
         val localDlc = if (hasUpdateSupport && localPath != null) {
-            ZipExtractor.listDlcFiles(localPath, platformSlug).map { file ->
-                UpdateFileUi(
-                    fileName = file.name,
-                    filePath = file.absolutePath,
-                    sizeBytes = file.length(),
-                    type = UpdateFileType.DLC,
-                    isDownloaded = true
-                )
-            }
+            ZipExtractor.listAllDlcFiles(localPath, platformSlug)
+                .filter { file -> dbDlc.none { it.fileName == file.name } }
+                .map { file ->
+                    UpdateFileUi(
+                        fileName = file.name,
+                        filePath = file.absolutePath,
+                        sizeBytes = file.length(),
+                        type = UpdateFileType.DLC,
+                        isDownloaded = true
+                    )
+                }
         } else emptyList()
 
-        val remoteFiles = gameFileDao.getFilesForGame(gameId)
-
-        val remoteUpdates = remoteFiles
-            .filter { it.category == "update" && it.localPath == null }
-            .filter { remote -> localUpdates.none { it.fileName == remote.fileName } }
-            .map { file ->
-                UpdateFileUi(
-                    fileName = file.fileName,
-                    filePath = file.filePath,
-                    sizeBytes = file.fileSize,
-                    type = UpdateFileType.UPDATE,
-                    isDownloaded = false,
-                    gameFileId = file.id,
-                    rommFileId = file.rommFileId,
-                    romId = file.romId
-                )
-            }
-
-        val remoteDlc = remoteFiles
-            .filter { it.category == "dlc" && it.localPath == null }
-            .filter { remote -> localDlc.none { it.fileName == remote.fileName } }
-            .map { file ->
-                UpdateFileUi(
-                    fileName = file.fileName,
-                    filePath = file.filePath,
-                    sizeBytes = file.fileSize,
-                    type = UpdateFileType.DLC,
-                    isDownloaded = false,
-                    gameFileId = file.id,
-                    rommFileId = file.rommFileId,
-                    romId = file.romId
-                )
-            }
-
-        return (localUpdates + remoteUpdates) to (localDlc + remoteDlc)
+        return (dbUpdates + localUpdates) to (dbDlc + localDlc)
     }
 
     fun downloadUpdateFile(file: UpdateFileUi) {

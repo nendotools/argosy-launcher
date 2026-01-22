@@ -47,6 +47,8 @@ data class ExtractedFolderRom(
 
 private val NSW_UPDATE_EXTENSIONS = setOf("nsp")
 private val NSW_PLATFORM_SLUGS = setOf("switch", "nsw")
+private val UPDATE_FILENAME_PATTERNS = listOf("[UPD]", "[UPDATE]")
+private val DLC_FILENAME_PATTERNS = listOf("[DLC]")
 private val DISC_EXTENSIONS = setOf("bin", "cue", "chd", "iso", "img", "mdf", "gdi", "cdi")
 private val ZIP_MAGIC_BYTES = byteArrayOf(0x50, 0x4B, 0x03, 0x04)
 private val SEVEN_Z_MAGIC_BYTES = byteArrayOf(0x37, 0x7A, 0xBC.toByte(), 0xAF.toByte(), 0x27, 0x1C)
@@ -383,6 +385,44 @@ object ZipExtractor {
             ?.filter { it.isFile && !it.name.startsWith("._") && it.extension.lowercase() in config.dlcExtensions }
             ?.sortedBy { it.name }
             ?: emptyList()
+    }
+
+    fun listAllUpdateFiles(localPath: String, platformSlug: String? = null): List<File> {
+        val config = platformSlug?.let { getPlatformConfig(it) } ?: return emptyList()
+        val gameFolder = File(localPath).parentFile ?: return emptyList()
+        val results = mutableSetOf<File>()
+
+        results.addAll(listUpdateFiles(localPath, platformSlug))
+
+        gameFolder.listFiles()
+            ?.filter { file ->
+                file.isFile &&
+                    !file.name.startsWith("._") &&
+                    file.extension.lowercase() in config.updateExtensions &&
+                    UPDATE_FILENAME_PATTERNS.any { file.name.contains(it, ignoreCase = true) }
+            }
+            ?.let { results.addAll(it) }
+
+        return results.sortedBy { it.name }
+    }
+
+    fun listAllDlcFiles(localPath: String, platformSlug: String): List<File> {
+        val config = getPlatformConfig(platformSlug) ?: return emptyList()
+        val gameFolder = File(localPath).parentFile ?: return emptyList()
+        val results = mutableSetOf<File>()
+
+        results.addAll(listDlcFiles(localPath, platformSlug))
+
+        gameFolder.listFiles()
+            ?.filter { file ->
+                file.isFile &&
+                    !file.name.startsWith("._") &&
+                    file.extension.lowercase() in config.dlcExtensions &&
+                    DLC_FILENAME_PATTERNS.any { file.name.contains(it, ignoreCase = true) }
+            }
+            ?.let { results.addAll(it) }
+
+        return results.sortedBy { it.name }
     }
 
     fun extractFolderRom(
