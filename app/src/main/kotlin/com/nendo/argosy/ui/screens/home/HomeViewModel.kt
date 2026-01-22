@@ -373,6 +373,9 @@ class HomeViewModel @Inject constructor(
     private var currentBorderStyle: BoxArtBorderStyle = BoxArtBorderStyle.SOLID
     private var gradientExtractionJob: Job? = null
     private val extractedGradients = mutableMapOf<Long, Pair<androidx.compose.ui.graphics.Color, androidx.compose.ui.graphics.Color>>()
+    private val pendingExtractions = mutableSetOf<Long>()
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private val extractionDispatcher = Dispatchers.IO.limitedParallelism(2)
 
     init {
         modalResetSignal.signal.onEach {
@@ -671,6 +674,30 @@ class HomeViewModel @Inject constructor(
                     }
                 }
             )
+        }
+    }
+
+    fun extractGradientForGame(gameId: Long, coverPath: String) {
+        if (currentBorderStyle != BoxArtBorderStyle.GRADIENT) return
+        if (extractedGradients.containsKey(gameId)) return
+        if (pendingExtractions.contains(gameId)) return
+
+        val isFocusedGame = _uiState.value.focusedGame?.id == gameId
+        val dispatcher = if (isFocusedGame) Dispatchers.IO else extractionDispatcher
+
+        pendingExtractions.add(gameId)
+        viewModelScope.launch(dispatcher) {
+            try {
+                val colors = gradientColorExtractor.getGradientColors(coverPath, currentGradientPreset)
+                if (colors != null) {
+                    extractedGradients[gameId] = colors
+                    withContext(Dispatchers.Main) {
+                        applyExtractedGradientsToState()
+                    }
+                }
+            } finally {
+                pendingExtractions.remove(gameId)
+            }
         }
     }
 

@@ -558,6 +558,7 @@ fun HomeScreen(
                                 showPlatformBadge = uiState.currentRow !is HomeRow.Platform && uiState.currentRow != HomeRow.Steam && uiState.currentRow != HomeRow.Android,
                                 repairedCoverPaths = uiState.repairedCoverPaths,
                                 onCoverLoadFailed = viewModel::repairCoverImage,
+                                onCoverLoaded = viewModel::extractGradientForGame,
                                 onItemTap = { index -> viewModel.handleItemTap(index, onGameSelect) },
                                 onItemLongPress = viewModel::handleItemLongPress,
                                 isVideoPreviewActive = uiState.isVideoPreviewActive,
@@ -999,6 +1000,7 @@ private fun GameRail(
     showPlatformBadge: Boolean,
     repairedCoverPaths: Map<Long, String> = emptyMap(),
     onCoverLoadFailed: ((Long, String) -> Unit)? = null,
+    onCoverLoaded: ((Long, String) -> Unit)? = null,
     onItemTap: (Int) -> Unit = {},
     onItemLongPress: (Int) -> Unit = {},
     isVideoPreviewActive: Boolean = false,
@@ -1065,6 +1067,7 @@ private fun GameRail(
                         showPlatformBadge = showPlatformBadge,
                         coverPathOverride = repairedCoverPaths[item.game.id],
                         onCoverLoadFailed = onCoverLoadFailed,
+                        onCoverLoaded = onCoverLoaded,
                         scaleOverride = videoScaleOverride,
                         alphaOverride = videoAlphaOverride,
                         modifier = Modifier

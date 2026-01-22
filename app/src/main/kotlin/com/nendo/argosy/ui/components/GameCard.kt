@@ -101,6 +101,7 @@ fun GameCard(
     showPlatformBadge: Boolean = true,
     coverPathOverride: String? = null,
     onCoverLoadFailed: ((gameId: Long, failedPath: String) -> Unit)? = null,
+    onCoverLoaded: ((gameId: Long, coverPath: String) -> Unit)? = null,
     scaleOverride: Float? = null,
     alphaOverride: Float? = null
 ) {
@@ -254,12 +255,7 @@ fun GameCard(
 
         val gradientColors = game.gradientColors
         val hasGradientColors = gradientColors != null
-
-        val gradientBorderProgress by animateFloatAsState(
-            targetValue = if (hasGradientColors && useGradientBorder) 1f else 0f,
-            animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing),
-            label = "gradientBorderProgress"
-        )
+        val gradientBorderProgress = if (hasGradientColors && useGradientBorder) 1f else 0f
 
         val cardWidthDp = this@BoxWithConstraints.maxWidth
         val baseWidthDp = 150.dp
@@ -309,6 +305,9 @@ fun GameCard(
                 contentDescription = game.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
+                onSuccess = {
+                    onCoverLoaded?.invoke(game.id, effectiveCoverPath)
+                },
                 onError = {
                     if (onCoverLoadFailed != null && effectiveCoverPath.startsWith("/")) {
                         onCoverLoadFailed(game.id, effectiveCoverPath)
@@ -906,6 +905,7 @@ fun GameCardWithNewBadge(
     showPlatformBadge: Boolean = true,
     coverPathOverride: String? = null,
     onCoverLoadFailed: ((gameId: Long, failedPath: String) -> Unit)? = null,
+    onCoverLoaded: ((gameId: Long, coverPath: String) -> Unit)? = null,
     scaleOverride: Float? = null,
     alphaOverride: Float? = null
 ) {
@@ -938,6 +938,7 @@ fun GameCardWithNewBadge(
                 showPlatformBadge = showPlatformBadge,
                 coverPathOverride = coverPathOverride,
                 onCoverLoadFailed = onCoverLoadFailed,
+                onCoverLoaded = onCoverLoaded,
                 scaleOverride = 1f,
                 alphaOverride = 1f,
                 modifier = Modifier
