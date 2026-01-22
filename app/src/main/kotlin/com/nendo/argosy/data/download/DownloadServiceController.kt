@@ -14,12 +14,14 @@ import javax.inject.Singleton
 @Singleton
 class DownloadServiceController @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val downloadManager: DownloadManager
+    private val downloadManager: DownloadManager,
+    private val thermalManager: DownloadThermalManager
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var isServiceRunning = false
 
     fun start() {
+        thermalManager.start()
         DownloadNotificationChannel.create(context)
         observeDownloadState()
     }

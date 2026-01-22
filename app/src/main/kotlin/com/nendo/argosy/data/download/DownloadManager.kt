@@ -22,6 +22,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -131,7 +132,8 @@ class DownloadManager @Inject constructor(
     private val romMRepository: RomMRepository,
     private val preferencesRepository: UserPreferencesRepository,
     private val soundManager: SoundFeedbackManager,
-    private val m3uManager: M3uManager
+    private val m3uManager: M3uManager,
+    private val thermalManager: dagger.Lazy<DownloadThermalManager>
 ) {
     private val _state = MutableStateFlow(DownloadQueueState())
     val state: StateFlow<DownloadQueueState> = _state.asStateFlow()
@@ -720,11 +722,23 @@ class DownloadManager @Inject constructor(
 
                                 while (true) {
                                     coroutineContext.ensureActive()
+
+                                    val thermalStatus = thermalManager.get().thermalStatus.value
+                                    if (thermalStatus.state == ThermalState.PAUSED) {
+                                        delay(5000)
+                                        continue
+                                    }
+
                                     val read = input.read(buffer)
                                     if (read == -1) break
 
                                     output.write(buffer, 0, read)
                                     bytesRead += read
+
+                                    if (thermalStatus.throttleMultiplier < 1.0f) {
+                                        val delayMs = ((1.0f / thermalStatus.throttleMultiplier) - 1) * 100
+                                        delay(delayMs.toLong())
+                                    }
 
                                     val now = System.currentTimeMillis()
                                     if (now - lastUpdateTime > UI_UPDATE_INTERVAL_MS) {
