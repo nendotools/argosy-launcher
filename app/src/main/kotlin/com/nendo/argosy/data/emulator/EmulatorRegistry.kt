@@ -372,6 +372,9 @@ object EmulatorRegistry {
             packageName = "come.nanodata.armsx2",
             displayName = "ARMSX2",
             supportedPlatforms = setOf("ps2"),
+            launchConfig = LaunchConfig.Custom(
+                activityClass = "kr.co.iefriends.pcsx2.activities.MainActivity"
+            ),
             downloadUrl = "https://github.com/ARMSX2/ARMSX2/releases"
         ),
         EmulatorDef(
@@ -976,6 +979,16 @@ object EmulatorRegistry {
                 intentExtras = mapOf("bootPath" to ExtraValue.FilePath)
             ),
             downloadUrl = "https://github.com/Trixarian/NetherSX2-patch/releases"
+        ),
+        EmulatorFamily(
+            baseId = "armsx2",
+            displayNamePrefix = "ARMSX2",
+            packagePatterns = listOf("come.nanodata.armsx2", "come.nanodata.armsx2.*"),
+            supportedPlatforms = setOf("ps2"),
+            launchConfig = LaunchConfig.Custom(
+                activityClass = "kr.co.iefriends.pcsx2.activities.MainActivity"
+            ),
+            downloadUrl = "https://github.com/ARMSX2/ARMSX2/releases"
         ),
         EmulatorFamily(
             baseId = "duckstation",
