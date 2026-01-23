@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.ScreenshotMonitor
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -54,11 +55,15 @@ private sealed class PermissionsItem(
         key = "writeSettings",
         visibleWhen = { it.isWriteSettingsRelevant }
     )
+    data object ScreenCapture : PermissionsItem(
+        key = "screenCapture",
+        visibleWhen = { it.isScreenCaptureRelevant }
+    )
     data object StatusFooter : PermissionsItem("statusFooter")
 
     companion object {
         val ALL: List<PermissionsItem> = listOf(
-            InfoText, StorageAccess, UsageStats, Notifications, WriteSettings, StatusFooter
+            InfoText, StorageAccess, UsageStats, Notifications, WriteSettings, ScreenCapture, StatusFooter
         )
     }
 }
@@ -136,6 +141,15 @@ fun PermissionsSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                     isGranted = permissions.hasWriteSettings,
                     isFocused = isFocused(item),
                     onClick = { viewModel.openWriteSettings() }
+                )
+
+                PermissionsItem.ScreenCapture -> PermissionCard(
+                    icon = Icons.Default.ScreenshotMonitor,
+                    title = "Screen Capture",
+                    description = "Enables ambient LED lighting to sample screen colors while playing games.",
+                    isGranted = permissions.hasScreenCapture,
+                    isFocused = isFocused(item),
+                    onClick = { viewModel.requestScreenCapturePermission() }
                 )
 
                 PermissionsItem.StatusFooter -> Column {

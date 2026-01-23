@@ -1,7 +1,9 @@
 package com.nendo.argosy.ui.theme
 
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nendo.argosy.BuildConfig
 import com.nendo.argosy.data.cache.GradientPreset
 import com.nendo.argosy.data.preferences.BoxArtBorderStyle
 import com.nendo.argosy.data.preferences.BoxArtBorderThickness
@@ -16,10 +18,14 @@ import com.nendo.argosy.data.preferences.SystemIconPadding
 import com.nendo.argosy.data.preferences.SystemIconPosition
 import com.nendo.argosy.data.preferences.ThemeMode
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
+import com.nendo.argosy.hardware.AmbientLedContext
+import com.nendo.argosy.hardware.AmbientLedManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -48,8 +54,24 @@ data class ThemeState(
 
 @HiltViewModel
 class ThemeViewModel @Inject constructor(
-    private val preferencesRepository: UserPreferencesRepository
+    private val preferencesRepository: UserPreferencesRepository,
+    private val ambientLedManager: AmbientLedManager
 ) : ViewModel() {
+
+    init {
+        observeThemeForLed()
+    }
+
+    private fun observeThemeForLed() {
+        preferencesRepository.userPreferences
+            .onEach { prefs ->
+                val defaultPrimary = if (BuildConfig.DEBUG) ALauncherColors.Orange else ALauncherColors.Indigo
+                val primary = prefs.primaryColor?.let { Color(it) } ?: defaultPrimary
+                val secondary = prefs.secondaryColor?.let { Color(it) }
+                ambientLedManager.setUiColors(primary, secondary)
+            }
+            .launchIn(viewModelScope)
+    }
 
     val themeState: StateFlow<ThemeState> = preferencesRepository.userPreferences
         .map { prefs ->

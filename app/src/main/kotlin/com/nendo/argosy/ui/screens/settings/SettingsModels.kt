@@ -25,6 +25,7 @@ import com.nendo.argosy.data.preferences.SyncFilterPreferences
 import com.nendo.argosy.data.preferences.SystemIconPadding
 import com.nendo.argosy.data.preferences.SystemIconPosition
 import com.nendo.argosy.data.preferences.ThemeMode
+import com.nendo.argosy.data.preferences.AmbientLedColorMode
 import com.nendo.argosy.ui.input.SoundConfig
 import com.nendo.argosy.ui.input.SoundPreset
 import com.nendo.argosy.ui.input.SoundType
@@ -126,7 +127,13 @@ data class DisplayState(
     val videoWallpaperEnabled: Boolean = false,
     val videoWallpaperDelaySeconds: Int = 3,
     val videoWallpaperMuted: Boolean = false,
-    val uiScale: Int = 100
+    val uiScale: Int = 100,
+    val ambientLedEnabled: Boolean = false,
+    val ambientLedAudioBrightness: Boolean = true,
+    val ambientLedAudioColors: Boolean = false,
+    val ambientLedColorMode: AmbientLedColorMode = AmbientLedColorMode.DOMINANT_3,
+    val ambientLedAvailable: Boolean = false,
+    val hasScreenCapturePermission: Boolean = true
 )
 
 data class ControlsState(
@@ -350,17 +357,26 @@ data class PermissionsState(
     val hasUsageStats: Boolean = false,
     val hasNotificationPermission: Boolean = false,
     val hasWriteSettings: Boolean = false,
-    val isWriteSettingsRelevant: Boolean = false
+    val isWriteSettingsRelevant: Boolean = false,
+    val hasScreenCapture: Boolean = false,
+    val isScreenCaptureRelevant: Boolean = false
 ) {
     val allGranted: Boolean get() = hasStorageAccess && hasUsageStats && hasNotificationPermission &&
-        (!isWriteSettingsRelevant || hasWriteSettings)
+        (!isWriteSettingsRelevant || hasWriteSettings) &&
+        (!isScreenCaptureRelevant || hasScreenCapture)
     val grantedCount: Int get() = listOf(
         hasStorageAccess,
         hasUsageStats,
         hasNotificationPermission,
-        if (isWriteSettingsRelevant) hasWriteSettings else null
+        if (isWriteSettingsRelevant) hasWriteSettings else null,
+        if (isScreenCaptureRelevant) hasScreenCapture else null
     ).count { it == true }
-    val totalCount: Int get() = if (isWriteSettingsRelevant) 4 else 3
+    val totalCount: Int get() {
+        var count = 3
+        if (isWriteSettingsRelevant) count++
+        if (isScreenCaptureRelevant) count++
+        return count
+    }
 }
 
 data class BiosFirmwareItem(

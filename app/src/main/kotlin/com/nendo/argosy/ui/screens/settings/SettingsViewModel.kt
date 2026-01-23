@@ -57,6 +57,8 @@ import com.nendo.argosy.ui.screens.settings.delegates.SyncSettingsDelegate
 import com.nendo.argosy.ui.screens.settings.sections.aboutMaxFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.boxArtMaxFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.controlsMaxFocusIndex
+import com.nendo.argosy.ui.screens.settings.sections.DisplayItem
+import com.nendo.argosy.ui.screens.settings.sections.displayItemAtFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.displayMaxFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.emulatorsMaxFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.homeScreenMaxFocusIndex
@@ -135,6 +137,9 @@ class SettingsViewModel @Inject constructor(
     private val _requestStoragePermissionEvent = MutableSharedFlow<Unit>()
     val requestStoragePermissionEvent: SharedFlow<Unit> = _requestStoragePermissionEvent.asSharedFlow()
 
+    private val _requestScreenCapturePermissionEvent = MutableSharedFlow<Unit>()
+    val requestScreenCapturePermissionEvent: SharedFlow<Unit> = _requestScreenCapturePermissionEvent.asSharedFlow()
+
     val imageCacheProgress: StateFlow<ImageCacheProgress> = imageCacheManager.progress
 
     val openBackgroundPickerEvent: SharedFlow<Unit> = displayDelegate.openBackgroundPickerEvent
@@ -163,6 +168,7 @@ class SettingsViewModel @Inject constructor(
         observeConnectionState()
         loadSettings()
         displayDelegate.loadPreviewGame(viewModelScope)
+        displayDelegate.observeScreenCapturePermission(viewModelScope)
         startControllerDetectionPolling()
     }
 
@@ -450,7 +456,13 @@ class SettingsViewModel @Inject constructor(
                 videoWallpaperEnabled = prefs.videoWallpaperEnabled,
                 videoWallpaperDelaySeconds = prefs.videoWallpaperDelaySeconds,
                 videoWallpaperMuted = prefs.videoWallpaperMuted,
-                uiScale = prefs.uiScale
+                uiScale = prefs.uiScale,
+                ambientLedEnabled = prefs.ambientLedEnabled,
+                ambientLedAudioBrightness = prefs.ambientLedAudioBrightness,
+                ambientLedAudioColors = prefs.ambientLedAudioColors,
+                ambientLedColorMode = prefs.ambientLedColorMode,
+                ambientLedAvailable = displayDelegate.isAmbientLedAvailable(),
+                hasScreenCapturePermission = displayDelegate.hasScreenCapturePermission()
             ))
 
             val detectionResult = ControllerDetector.detectFromActiveGamepad()
@@ -926,7 +938,7 @@ class SettingsViewModel @Inject constructor(
                     state.storage.platformsExpanded,
                     state.storage.platformConfigs.size
                 )
-                SettingsSection.DISPLAY -> displayMaxFocusIndex()
+                SettingsSection.DISPLAY -> displayMaxFocusIndex(state.display)
                 SettingsSection.HOME_SCREEN -> homeScreenMaxFocusIndex(state.display)
                 SettingsSection.BOX_ART -> boxArtMaxFocusIndex(state.display)
                 SettingsSection.CONTROLS -> controlsMaxFocusIndex(state.controls)
@@ -1156,6 +1168,22 @@ class SettingsViewModel @Inject constructor(
 
     fun setVideoWallpaperMuted(muted: Boolean) {
         displayDelegate.setVideoWallpaperMuted(viewModelScope, muted)
+    }
+
+    fun setAmbientLedEnabled(enabled: Boolean) {
+        displayDelegate.setAmbientLedEnabled(viewModelScope, enabled)
+    }
+
+    fun setAmbientLedAudioBrightness(enabled: Boolean) {
+        displayDelegate.setAmbientLedAudioBrightness(viewModelScope, enabled)
+    }
+
+    fun setAmbientLedAudioColors(enabled: Boolean) {
+        displayDelegate.setAmbientLedAudioColors(viewModelScope, enabled)
+    }
+
+    fun cycleAmbientLedColorMode(direction: Int = 1) {
+        displayDelegate.cycleAmbientLedColorMode(viewModelScope, direction)
     }
 
     fun loadPreviewGames() {
@@ -1406,6 +1434,12 @@ class SettingsViewModel @Inject constructor(
 
     fun openWriteSettings() {
         permissionsDelegate.openWriteSettings()
+    }
+
+    fun requestScreenCapturePermission() {
+        viewModelScope.launch {
+            _requestScreenCapturePermissionEvent.emit(Unit)
+        }
     }
 
     fun refreshPermissions() {
@@ -2144,8 +2178,8 @@ class SettingsViewModel @Inject constructor(
                 InputResult.HANDLED
             }
             SettingsSection.DISPLAY -> {
-                when (state.focusedIndex) {
-                    0 -> {
+                when (displayItemAtFocusIndex(state.focusedIndex, state.display)) {
+                    DisplayItem.Theme -> {
                         val next = when (state.display.themeMode) {
                             ThemeMode.SYSTEM -> ThemeMode.LIGHT
                             ThemeMode.LIGHT -> ThemeMode.DARK
@@ -2153,7 +2187,7 @@ class SettingsViewModel @Inject constructor(
                         }
                         setThemeMode(next)
                     }
-                    3 -> {
+                    DisplayItem.GridDensity -> {
                         val next = when (state.display.gridDensity) {
                             GridDensity.COMPACT -> GridDensity.NORMAL
                             GridDensity.NORMAL -> GridDensity.SPACIOUS
@@ -2161,13 +2195,18 @@ class SettingsViewModel @Inject constructor(
                         }
                         setGridDensity(next)
                     }
-                    4 -> cycleUiScale()
-                    5 -> navigateToBoxArt()
-                    6 -> navigateToHomeScreen()
-                    7 -> cycleDefaultView()
-                    8 -> toggleScreenDimmer()
-                    9 -> cycleScreenDimmerTimeout()
-                    10 -> cycleScreenDimmerLevel()
+                    DisplayItem.UiScale -> cycleUiScale()
+                    DisplayItem.BoxArt -> navigateToBoxArt()
+                    DisplayItem.HomeScreen -> navigateToHomeScreen()
+                    DisplayItem.DefaultView -> cycleDefaultView()
+                    DisplayItem.ScreenDimmer -> toggleScreenDimmer()
+                    DisplayItem.DimAfter -> cycleScreenDimmerTimeout()
+                    DisplayItem.DimLevel -> cycleScreenDimmerLevel()
+                    DisplayItem.AmbientLed -> setAmbientLedEnabled(!state.display.ambientLedEnabled)
+                    DisplayItem.AmbientLedAudioBrightness -> setAmbientLedAudioBrightness(!state.display.ambientLedAudioBrightness)
+                    DisplayItem.AmbientLedAudioColors -> setAmbientLedAudioColors(!state.display.ambientLedAudioColors)
+                    DisplayItem.AmbientLedColorMode -> cycleAmbientLedColorMode()
+                    else -> {}
                 }
                 InputResult.HANDLED
             }
@@ -2347,6 +2386,7 @@ class SettingsViewModel @Inject constructor(
                     1 -> openUsageStatsSettings()
                     2 -> openNotificationSettings()
                     3 -> openWriteSettings()
+                    4 -> requestScreenCapturePermission()
                 }
                 InputResult.HANDLED
             }

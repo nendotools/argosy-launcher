@@ -7,6 +7,7 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -21,11 +22,15 @@ import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.remote.romm.RomMRepository
 import com.nendo.argosy.util.Logger
 import com.nendo.argosy.ui.ArgosyApp
+import com.nendo.argosy.hardware.AmbientLedContext
+import com.nendo.argosy.hardware.AmbientLedManager
+import com.nendo.argosy.hardware.ScreenCaptureManager
 import com.nendo.argosy.ui.audio.AmbientAudioManager
 import com.nendo.argosy.ui.input.GamepadInputHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import com.nendo.argosy.ui.theme.ALauncherTheme
@@ -55,7 +60,22 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var ambientAudioManager: AmbientAudioManager
 
+    @Inject
+    lateinit var ambientLedManager: AmbientLedManager
+
+    @Inject
+    lateinit var screenCaptureManager: ScreenCaptureManager
+
     private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    private val screenCaptureLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        screenCaptureManager.onPermissionResult(result.resultCode, result.data)
+        if (screenCaptureManager.hasPermission.value) {
+            screenCaptureManager.startCapture()
+        }
+    }
     private var hasResumedBefore = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -128,6 +148,12 @@ class MainActivity : ComponentActivity() {
         ambientAudioManager.suspend()
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        screenCaptureManager.stopCapture()
+        activityScope.cancel()
+    }
+
     @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN) {
@@ -153,11 +179,18 @@ class MainActivity : ComponentActivity() {
             window.decorView.requestFocus()
             launchRetryTracker.onFocusGained()
             ambientAudioManager.fadeIn()
+            ambientLedManager.setContext(AmbientLedContext.ARGOSY_UI)
+            ambientLedManager.clearInGameColors()
             gamepadInputHandler.blockInputFor(200)
         } else {
             launchRetryTracker.onFocusLost()
             ambientAudioManager.fadeOut()
+            ambientLedManager.setContext(AmbientLedContext.IN_GAME)
         }
+    }
+
+    fun requestScreenCapturePermission() {
+        screenCaptureManager.requestPermission(this, screenCaptureLauncher)
     }
 
     private fun hideSystemUI() {

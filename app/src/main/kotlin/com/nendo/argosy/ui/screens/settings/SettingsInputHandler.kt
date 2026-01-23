@@ -3,6 +3,8 @@ package com.nendo.argosy.ui.screens.settings
 import com.nendo.argosy.ui.input.InputHandler
 import com.nendo.argosy.ui.input.InputResult
 import com.nendo.argosy.ui.input.SoundType
+import com.nendo.argosy.ui.screens.settings.sections.DisplayItem
+import com.nendo.argosy.ui.screens.settings.sections.displayItemAtFocusIndex
 
 class SettingsInputHandler(
     private val viewModel: SettingsViewModel,
@@ -135,12 +137,14 @@ class SettingsInputHandler(
         }
 
         if (state.currentSection == SettingsSection.DISPLAY) {
-            when (state.focusedIndex) {
-                1 -> { viewModel.adjustHue(-HUE_STEP); return InputResult.HANDLED }
-                2 -> { viewModel.adjustSecondaryHue(-HUE_STEP); return InputResult.HANDLED }
-                4 -> { viewModel.adjustUiScale(-5); return InputResult.HANDLED }
-                9 -> { viewModel.adjustScreenDimmerTimeout(-1); return InputResult.HANDLED }
-                10 -> { viewModel.adjustScreenDimmerLevel(-1); return InputResult.HANDLED }
+            when (displayItemAtFocusIndex(state.focusedIndex, state.display)) {
+                DisplayItem.AccentColor -> { viewModel.adjustHue(-HUE_STEP); return InputResult.HANDLED }
+                DisplayItem.SecondaryColor -> { viewModel.adjustSecondaryHue(-HUE_STEP); return InputResult.HANDLED }
+                DisplayItem.UiScale -> { viewModel.adjustUiScale(-5); return InputResult.HANDLED }
+                DisplayItem.DimAfter -> { viewModel.adjustScreenDimmerTimeout(-1); return InputResult.HANDLED }
+                DisplayItem.DimLevel -> { viewModel.adjustScreenDimmerLevel(-1); return InputResult.HANDLED }
+                DisplayItem.AmbientLedColorMode -> { viewModel.cycleAmbientLedColorMode(-1); return InputResult.HANDLED }
+                else -> {}
             }
         }
 
@@ -323,12 +327,14 @@ class SettingsInputHandler(
         }
 
         if (state.currentSection == SettingsSection.DISPLAY) {
-            when (state.focusedIndex) {
-                1 -> { viewModel.adjustHue(HUE_STEP); return InputResult.HANDLED }
-                2 -> { viewModel.adjustSecondaryHue(HUE_STEP); return InputResult.HANDLED }
-                4 -> { viewModel.adjustUiScale(5); return InputResult.HANDLED }
-                9 -> { viewModel.adjustScreenDimmerTimeout(1); return InputResult.HANDLED }
-                10 -> { viewModel.adjustScreenDimmerLevel(1); return InputResult.HANDLED }
+            when (displayItemAtFocusIndex(state.focusedIndex, state.display)) {
+                DisplayItem.AccentColor -> { viewModel.adjustHue(HUE_STEP); return InputResult.HANDLED }
+                DisplayItem.SecondaryColor -> { viewModel.adjustSecondaryHue(HUE_STEP); return InputResult.HANDLED }
+                DisplayItem.UiScale -> { viewModel.adjustUiScale(5); return InputResult.HANDLED }
+                DisplayItem.DimAfter -> { viewModel.adjustScreenDimmerTimeout(1); return InputResult.HANDLED }
+                DisplayItem.DimLevel -> { viewModel.adjustScreenDimmerLevel(1); return InputResult.HANDLED }
+                DisplayItem.AmbientLedColorMode -> { viewModel.cycleAmbientLedColorMode(1); return InputResult.HANDLED }
+                else -> {}
             }
         }
 
@@ -526,14 +532,18 @@ class SettingsInputHandler(
             return InputResult.HANDLED
         }
 
-        if (state.currentSection == SettingsSection.DISPLAY && state.focusedIndex == 1) {
-            viewModel.resetToDefaultColor()
-            return InputResult.HANDLED
-        }
-
-        if (state.currentSection == SettingsSection.DISPLAY && state.focusedIndex == 2) {
-            viewModel.resetToDefaultSecondaryColor()
-            return InputResult.HANDLED
+        if (state.currentSection == SettingsSection.DISPLAY) {
+            when (displayItemAtFocusIndex(state.focusedIndex, state.display)) {
+                DisplayItem.AccentColor -> {
+                    viewModel.resetToDefaultColor()
+                    return InputResult.HANDLED
+                }
+                DisplayItem.SecondaryColor -> {
+                    viewModel.resetToDefaultSecondaryColor()
+                    return InputResult.HANDLED
+                }
+                else -> {}
+            }
         }
 
         if (state.currentSection == SettingsSection.EMULATORS) {

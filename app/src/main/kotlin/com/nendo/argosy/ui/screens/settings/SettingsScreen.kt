@@ -199,6 +199,12 @@ fun SettingsScreen(
     }
 
     LaunchedEffect(Unit) {
+        viewModel.requestScreenCapturePermissionEvent.collect {
+            (context as? com.nendo.argosy.MainActivity)?.requestScreenCapturePermission()
+        }
+    }
+
+    LaunchedEffect(Unit) {
         viewModel.openBackgroundPickerEvent.collect {
             backgroundPickerLauncher.launch(arrayOf("image/*"))
         }

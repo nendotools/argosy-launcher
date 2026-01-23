@@ -17,7 +17,10 @@ import com.nendo.argosy.data.preferences.GridDensity
 import com.nendo.argosy.data.preferences.SystemIconPadding
 import com.nendo.argosy.data.preferences.SystemIconPosition
 import com.nendo.argosy.data.preferences.ThemeMode
+import com.nendo.argosy.data.preferences.AmbientLedColorMode
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
+import com.nendo.argosy.hardware.LEDController
+import com.nendo.argosy.hardware.ScreenCaptureManager
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.entity.GameListItem
 import com.nendo.argosy.ui.screens.settings.DisplayState
@@ -34,7 +37,9 @@ import javax.inject.Inject
 
 class DisplaySettingsDelegate @Inject constructor(
     private val preferencesRepository: UserPreferencesRepository,
-    private val gameDao: GameDao
+    private val gameDao: GameDao,
+    private val ledController: LEDController,
+    private val screenCaptureManager: ScreenCaptureManager
 ) {
     private val _state = MutableStateFlow(DisplayState())
     val state: StateFlow<DisplayState> = _state.asStateFlow()
@@ -422,6 +427,50 @@ class DisplaySettingsDelegate @Inject constructor(
         scope.launch {
             preferencesRepository.setVideoWallpaperMuted(muted)
             _state.update { it.copy(videoWallpaperMuted = muted) }
+        }
+    }
+
+    fun isAmbientLedAvailable(): Boolean = ledController.isAvailable
+
+    fun setAmbientLedEnabled(scope: CoroutineScope, enabled: Boolean) {
+        scope.launch {
+            preferencesRepository.setAmbientLedEnabled(enabled)
+            _state.update { it.copy(ambientLedEnabled = enabled) }
+        }
+    }
+
+    fun setAmbientLedAudioBrightness(scope: CoroutineScope, enabled: Boolean) {
+        scope.launch {
+            preferencesRepository.setAmbientLedAudioBrightness(enabled)
+            _state.update { it.copy(ambientLedAudioBrightness = enabled) }
+        }
+    }
+
+    fun setAmbientLedAudioColors(scope: CoroutineScope, enabled: Boolean) {
+        scope.launch {
+            preferencesRepository.setAmbientLedAudioColors(enabled)
+            _state.update { it.copy(ambientLedAudioColors = enabled) }
+        }
+    }
+
+    fun cycleAmbientLedColorMode(scope: CoroutineScope, direction: Int = 1) {
+        val current = _state.value.ambientLedColorMode
+        val values = AmbientLedColorMode.entries
+        val currentIndex = values.indexOf(current)
+        val next = values[(currentIndex + direction + values.size) % values.size]
+        scope.launch {
+            preferencesRepository.setAmbientLedColorMode(next)
+            _state.update { it.copy(ambientLedColorMode = next) }
+        }
+    }
+
+    fun hasScreenCapturePermission(): Boolean = screenCaptureManager.hasPermission.value
+
+    fun observeScreenCapturePermission(scope: CoroutineScope) {
+        scope.launch {
+            screenCaptureManager.hasPermission.collect { hasPermission ->
+                _state.update { it.copy(hasScreenCapturePermission = hasPermission) }
+            }
         }
     }
 }

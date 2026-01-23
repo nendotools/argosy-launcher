@@ -318,16 +318,18 @@ class ArgosyViewModel @Inject constructor(
     )
 
     private val _deviceSettings = MutableStateFlow(DeviceSettingsState())
+    private val _vibrationStrength = MutableStateFlow(hapticManager.getSystemVibrationStrength())
 
     val quickSettingsState: StateFlow<QuickSettingsUiState> = combine(
         preferencesRepository.userPreferences,
-        _deviceSettings
-    ) { prefs, device ->
+        _deviceSettings,
+        _vibrationStrength
+    ) { prefs, device, vibrationStrength ->
         QuickSettingsUiState(
             themeMode = prefs.themeMode,
             soundEnabled = prefs.soundEnabled,
             hapticEnabled = prefs.hapticEnabled,
-            vibrationStrength = hapticManager.getSystemVibrationStrength(),
+            vibrationStrength = vibrationStrength,
             vibrationSupported = hapticManager.supportsSystemVibration,
             ambientAudioEnabled = prefs.ambientAudioEnabled,
             fanMode = device.fanMode,
@@ -432,7 +434,9 @@ class ArgosyViewModel @Inject constructor(
     }
 
     fun setVibrationStrength(strength: Float) {
-        hapticManager.setSystemVibrationStrength(strength)
+        val coercedStrength = strength.coerceIn(0f, 1f)
+        hapticManager.setSystemVibrationStrength(coercedStrength)
+        _vibrationStrength.value = coercedStrength
         hapticManager.vibrate(HapticPattern.STRENGTH_PREVIEW)
     }
 

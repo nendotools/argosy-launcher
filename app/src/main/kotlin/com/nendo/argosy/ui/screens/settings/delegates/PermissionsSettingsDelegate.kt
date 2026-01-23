@@ -9,17 +9,23 @@ import android.os.Build
 import android.os.Environment
 import android.provider.Settings
 import androidx.core.content.ContextCompat
+import com.nendo.argosy.hardware.LEDController
+import com.nendo.argosy.hardware.ScreenCaptureManager
 import com.nendo.argosy.ui.screens.settings.PermissionsState
 import com.nendo.argosy.util.PermissionHelper
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 class PermissionsSettingsDelegate @Inject constructor(
     private val application: Application,
-    private val permissionHelper: PermissionHelper
+    private val permissionHelper: PermissionHelper,
+    private val screenCaptureManager: ScreenCaptureManager,
+    private val ledController: LEDController
 ) {
     private val _state = MutableStateFlow(PermissionsState())
     val state: StateFlow<PermissionsState> = _state.asStateFlow()
@@ -43,6 +49,8 @@ class PermissionsSettingsDelegate @Inject constructor(
         }
         val hasWriteSettings = Settings.System.canWrite(application)
         val isDeviceWithFanControl = fanSpeedFile.exists()
+        val hasScreenCapture = screenCaptureManager.hasPermission.value
+        val isLedAvailable = ledController.isAvailable
 
         _state.update {
             it.copy(
@@ -50,10 +58,24 @@ class PermissionsSettingsDelegate @Inject constructor(
                 hasUsageStats = hasUsageStats,
                 hasNotificationPermission = hasNotification,
                 hasWriteSettings = hasWriteSettings,
-                isWriteSettingsRelevant = isDeviceWithFanControl
+                isWriteSettingsRelevant = isDeviceWithFanControl,
+                hasScreenCapture = hasScreenCapture,
+                isScreenCaptureRelevant = isLedAvailable
             )
         }
     }
+
+    fun observeScreenCapturePermission(scope: CoroutineScope) {
+        scope.launch {
+            screenCaptureManager.hasPermission.collect { hasPermission ->
+                _state.update { it.copy(hasScreenCapture = hasPermission) }
+            }
+        }
+    }
+
+    fun hasScreenCapturePermission(): Boolean = screenCaptureManager.hasPermission.value
+
+    fun isScreenCaptureRelevant(): Boolean = ledController.isAvailable
 
     fun openStorageSettings() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {

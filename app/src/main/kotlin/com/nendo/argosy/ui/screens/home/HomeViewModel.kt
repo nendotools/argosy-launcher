@@ -49,6 +49,8 @@ import com.nendo.argosy.ui.screens.common.GameLaunchDelegate
 import com.nendo.argosy.ui.screens.common.SyncOverlayState
 import com.nendo.argosy.ui.screens.gamedetail.CollectionItemUi
 import com.nendo.argosy.ui.ModalResetSignal
+import com.nendo.argosy.hardware.AmbientLedContext
+import com.nendo.argosy.hardware.AmbientLedManager
 import android.content.Intent
 import android.net.Uri
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -351,7 +353,8 @@ class HomeViewModel @Inject constructor(
     private val gameRepository: GameRepository,
     private val playStoreService: com.nendo.argosy.data.remote.playstore.PlayStoreService,
     private val imageCacheManager: com.nendo.argosy.data.cache.ImageCacheManager,
-    private val gradientColorExtractor: com.nendo.argosy.data.cache.GradientColorExtractor
+    private val gradientColorExtractor: com.nendo.argosy.data.cache.GradientColorExtractor,
+    private val ambientLedManager: AmbientLedManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(restoreInitialState())
@@ -390,10 +393,35 @@ class HomeViewModel @Inject constructor(
         observeAchievementUpdates()
         observePinnedCollections()
         observeRecentlyPlayedChanges()
+        observeFocusedGameForLed()
     }
 
     private fun resetMenus() {
         _uiState.update { it.copy(showGameMenu = false) }
+    }
+
+    private fun observeFocusedGameForLed() {
+        viewModelScope.launch {
+            var previousGameId: Long? = null
+            _uiState.collect { state ->
+                val focusedGame = state.focusedGame
+                if (focusedGame != null && focusedGame.id != previousGameId) {
+                    previousGameId = focusedGame.id
+                    ambientLedManager.setContext(AmbientLedContext.GAME_HOVER)
+                    val primary = focusedGame.gradientColors?.first
+                    val secondary = focusedGame.gradientColors?.second
+                    if (primary != null) {
+                        ambientLedManager.setHoverColors(primary, secondary)
+                    } else {
+                        ambientLedManager.clearHoverColors()
+                    }
+                } else if (focusedGame == null && previousGameId != null) {
+                    previousGameId = null
+                    ambientLedManager.clearHoverColors()
+                    ambientLedManager.setContext(AmbientLedContext.ARGOSY_UI)
+                }
+            }
+        }
     }
 
     private fun observeAchievementUpdates() {
@@ -675,6 +703,13 @@ class HomeViewModel @Inject constructor(
                 }
             )
         }
+        updateHoverColorsForFocusedGame()
+    }
+
+    private fun updateHoverColorsForFocusedGame() {
+        val focusedGame = _uiState.value.focusedGame ?: return
+        val colors = extractedGradients[focusedGame.id] ?: return
+        ambientLedManager.setHoverColors(colors.first, colors.second)
     }
 
     fun extractGradientForGame(gameId: Long, coverPath: String) {

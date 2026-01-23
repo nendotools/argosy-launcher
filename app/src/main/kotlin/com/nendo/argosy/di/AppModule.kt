@@ -5,6 +5,8 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
+import com.nendo.argosy.hardware.LEDController
+import com.nendo.argosy.hardware.OdinLEDController
 import com.squareup.moshi.Moshi
 import dagger.Module
 import dagger.Provides
@@ -35,5 +37,11 @@ object AppModule {
         dataStore: DataStore<Preferences>
     ): UserPreferencesRepository {
         return UserPreferencesRepository(dataStore)
+    }
+
+    @Provides
+    @Singleton
+    fun provideLEDController(): LEDController {
+        return OdinLEDController()
     }
 }

@@ -113,6 +113,11 @@ class UserPreferencesRepository @Inject constructor(
         val VIDEO_WALLPAPER_DELAY_SECONDS = intPreferencesKey("video_wallpaper_delay_seconds")
         val VIDEO_WALLPAPER_MUTED = booleanPreferencesKey("video_wallpaper_muted")
         val UI_SCALE = intPreferencesKey("ui_scale")
+
+        val AMBIENT_LED_ENABLED = booleanPreferencesKey("ambient_led_enabled")
+        val AMBIENT_LED_AUDIO_BRIGHTNESS = booleanPreferencesKey("ambient_led_audio_brightness")
+        val AMBIENT_LED_AUDIO_COLORS = booleanPreferencesKey("ambient_led_audio_colors")
+        val AMBIENT_LED_COLOR_MODE = stringPreferencesKey("ambient_led_color_mode")
     }
 
     val userPreferences: Flow<UserPreferences> = dataStore.data.map { prefs ->
@@ -224,7 +229,11 @@ class UserPreferencesRepository @Inject constructor(
             videoWallpaperEnabled = prefs[Keys.VIDEO_WALLPAPER_ENABLED] ?: false,
             videoWallpaperDelaySeconds = prefs[Keys.VIDEO_WALLPAPER_DELAY_SECONDS] ?: 3,
             videoWallpaperMuted = prefs[Keys.VIDEO_WALLPAPER_MUTED] ?: false,
-            uiScale = prefs[Keys.UI_SCALE] ?: 100
+            uiScale = prefs[Keys.UI_SCALE] ?: 100,
+            ambientLedEnabled = prefs[Keys.AMBIENT_LED_ENABLED] ?: false,
+            ambientLedAudioBrightness = prefs[Keys.AMBIENT_LED_AUDIO_BRIGHTNESS] ?: true,
+            ambientLedAudioColors = prefs[Keys.AMBIENT_LED_AUDIO_COLORS] ?: false,
+            ambientLedColorMode = AmbientLedColorMode.fromString(prefs[Keys.AMBIENT_LED_COLOR_MODE])
         )
     }
 
@@ -814,6 +823,30 @@ class UserPreferencesRepository @Inject constructor(
             prefs[Keys.UI_SCALE] = scale.coerceIn(75, 150)
         }
     }
+
+    suspend fun setAmbientLedEnabled(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.AMBIENT_LED_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setAmbientLedAudioBrightness(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.AMBIENT_LED_AUDIO_BRIGHTNESS] = enabled
+        }
+    }
+
+    suspend fun setAmbientLedAudioColors(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.AMBIENT_LED_AUDIO_COLORS] = enabled
+        }
+    }
+
+    suspend fun setAmbientLedColorMode(mode: AmbientLedColorMode) {
+        dataStore.edit { prefs ->
+            prefs[Keys.AMBIENT_LED_COLOR_MODE] = mode.name
+        }
+    }
 }
 
 data class UserPreferences(
@@ -892,7 +925,11 @@ data class UserPreferences(
     val videoWallpaperEnabled: Boolean = false,
     val videoWallpaperDelaySeconds: Int = 3,
     val videoWallpaperMuted: Boolean = false,
-    val uiScale: Int = 100
+    val uiScale: Int = 100,
+    val ambientLedEnabled: Boolean = false,
+    val ambientLedAudioBrightness: Boolean = true,
+    val ambientLedAudioColors: Boolean = false,
+    val ambientLedColorMode: AmbientLedColorMode = AmbientLedColorMode.DOMINANT_3
 )
 
 enum class ThemeMode(val displayName: String) {
@@ -1039,5 +1076,16 @@ enum class BoxArtShape(val aspectRatio: Float, val displayName: String) {
     companion object {
         fun fromString(value: String?): BoxArtShape =
             entries.find { it.name == value } ?: STANDARD
+    }
+}
+
+enum class AmbientLedColorMode(val displayName: String) {
+    DOMINANT_3("Dominant Colors"),
+    VIBRANT_MUTED("Vibrant & Muted"),
+    HUE_FAMILIES("Hue Families");
+
+    companion object {
+        fun fromString(value: String?): AmbientLedColorMode =
+            entries.find { it.name == value } ?: DOMINANT_3
     }
 }
