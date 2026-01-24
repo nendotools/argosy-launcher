@@ -1114,7 +1114,11 @@ class SaveSyncRepository @Inject constructor(
             return@withContext SaveSyncResult.NotConfigured
         }
 
-        val localModified = Instant.ofEpochMilli(saveLocation.lastModified())
+        val localModified = if (saveLocation.isDirectory) {
+            Instant.ofEpochMilli(findNewestFileTime(saveLocation))
+        } else {
+            Instant.ofEpochMilli(saveLocation.lastModified())
+        }
         Logger.debug(TAG, "[SaveSync] UPLOAD gameId=$gameId | Local modified time | localModified=$localModified")
 
         var tempZipFile: File? = null

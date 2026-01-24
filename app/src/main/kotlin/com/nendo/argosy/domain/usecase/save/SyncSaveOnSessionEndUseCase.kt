@@ -152,7 +152,12 @@ class SyncSaveOnSessionEndUseCase @Inject constructor(
         }
 
         val saveSize = if (saveFile.isDirectory) saveFile.walkTopDown().filter { it.isFile }.sumOf { it.length() } else saveFile.length()
-        val localModified = Instant.ofEpochMilli(saveFile.lastModified())
+        val localModified = if (saveFile.isDirectory) {
+            val newestTime = saveFile.walkTopDown().filter { it.isFile }.maxOfOrNull { it.lastModified() } ?: 0L
+            Instant.ofEpochMilli(newestTime)
+        } else {
+            Instant.ofEpochMilli(saveFile.lastModified())
+        }
         val activeChannel = game.activeSaveChannel
         Logger.debug(TAG, "[SaveSync] SESSION gameId=$gameId | Save ready for upload | path=$savePath, size=${saveSize}bytes, modified=$localModified, channel=$activeChannel")
 
