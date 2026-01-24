@@ -37,18 +37,25 @@ import androidx.compose.ui.unit.dp
 
 sealed class InGameMenuAction {
     data object Resume : InGameMenuAction()
+    data object QuickSave : InGameMenuAction()
+    data object QuickLoad : InGameMenuAction()
     data object Quit : InGameMenuAction()
 }
 
 @Composable
 fun InGameMenu(
     gameName: String,
+    hasQuickSave: Boolean,
     onAction: (InGameMenuAction) -> Unit
 ) {
-    val menuItems = listOf(
-        "Resume" to InGameMenuAction.Resume,
-        "Quit Game" to InGameMenuAction.Quit
-    )
+    val menuItems = buildList {
+        add("Resume" to InGameMenuAction.Resume)
+        add("Quick Save" to InGameMenuAction.QuickSave)
+        if (hasQuickSave) {
+            add("Quick Load" to InGameMenuAction.QuickLoad)
+        }
+        add("Quit Game" to InGameMenuAction.Quit)
+    }
 
     var focusedIndex by remember { mutableIntStateOf(0) }
     val focusRequester = remember { FocusRequester() }

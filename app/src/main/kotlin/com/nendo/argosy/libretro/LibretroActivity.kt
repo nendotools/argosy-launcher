@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.widget.FrameLayout
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
@@ -22,10 +23,13 @@ import java.io.File
 
 class LibretroActivity : ComponentActivity() {
     private lateinit var retroView: GLRetroView
+    private lateinit var statesDir: File
+    private lateinit var romPath: String
 
     private var startPressed = false
     private var selectPressed = false
     private var menuVisible by mutableStateOf(false)
+    private var hasQuickSave by mutableStateOf(false)
     private var gameName: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,7 +37,7 @@ class LibretroActivity : ComponentActivity() {
         enableEdgeToEdge()
         enterImmersiveMode()
 
-        val romPath = intent.getStringExtra(EXTRA_ROM_PATH) ?: return finish()
+        romPath = intent.getStringExtra(EXTRA_ROM_PATH) ?: return finish()
         val corePath = intent.getStringExtra(EXTRA_CORE_PATH) ?: return finish()
         val systemPath = intent.getStringExtra(EXTRA_SYSTEM_DIR)
         gameName = intent.getStringExtra(EXTRA_GAME_NAME) ?: File(romPath).nameWithoutExtension
@@ -41,6 +45,9 @@ class LibretroActivity : ComponentActivity() {
         val systemDir = if (systemPath != null) File(systemPath) else File(filesDir, "libretro/system")
         systemDir.mkdirs()
         val savesDir = File(filesDir, "libretro/saves").apply { mkdirs() }
+        statesDir = File(filesDir, "libretro/states").apply { mkdirs() }
+
+        hasQuickSave = getQuickSaveFile().exists()
 
         retroView = GLRetroView(
             this,
@@ -65,6 +72,7 @@ class LibretroActivity : ComponentActivity() {
                             if (menuVisible) {
                                 InGameMenu(
                                     gameName = gameName,
+                                    hasQuickSave = hasQuickSave,
                                     onAction = ::handleMenuAction
                                 )
                             }
@@ -79,15 +87,54 @@ class LibretroActivity : ComponentActivity() {
         setContentView(container)
     }
 
+    private fun getQuickSaveFile(): File {
+        val romName = File(romPath).nameWithoutExtension
+        return File(statesDir, "$romName.state")
+    }
+
     private fun handleMenuAction(action: InGameMenuAction) {
         when (action) {
             InGameMenuAction.Resume -> {
                 menuVisible = false
                 retroView.onResume()
             }
+            InGameMenuAction.QuickSave -> {
+                performQuickSave()
+                menuVisible = false
+                retroView.onResume()
+            }
+            InGameMenuAction.QuickLoad -> {
+                performQuickLoad()
+                menuVisible = false
+                retroView.onResume()
+            }
             InGameMenuAction.Quit -> {
                 finish()
             }
+        }
+    }
+
+    private fun performQuickSave() {
+        try {
+            val stateData = retroView.serializeState()
+            getQuickSaveFile().writeBytes(stateData)
+            hasQuickSave = true
+            Toast.makeText(this, "State saved", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Failed to save state", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun performQuickLoad() {
+        try {
+            val stateFile = getQuickSaveFile()
+            if (stateFile.exists()) {
+                val stateData = stateFile.readBytes()
+                retroView.unserializeState(stateData)
+                Toast.makeText(this, "State loaded", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "Failed to load state", Toast.LENGTH_SHORT).show()
         }
     }
 
