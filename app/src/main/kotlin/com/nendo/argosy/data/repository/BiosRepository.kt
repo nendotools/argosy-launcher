@@ -2,6 +2,7 @@ package com.nendo.argosy.data.repository
 
 import android.content.Context
 import com.nendo.argosy.data.emulator.BiosPathRegistry
+import com.nendo.argosy.data.emulator.EmulatorRegistry
 import com.nendo.argosy.data.local.dao.FirmwareDao
 import com.nendo.argosy.data.platform.PlatformDefinitions
 import com.nendo.argosy.data.local.dao.PlatformDao
@@ -70,6 +71,12 @@ class BiosRepository @Inject constructor(
 
     private fun getInternalBiosPlatformDir(platformSlug: String): File {
         val dir = File(getInternalBiosDir(), platformSlug)
+        if (!dir.exists()) dir.mkdirs()
+        return dir
+    }
+
+    fun getLibretroSystemDir(): File {
+        val dir = File(context.filesDir, "libretro/system")
         if (!dir.exists()) dir.mkdirs()
         return dir
     }
@@ -205,18 +212,24 @@ class BiosRepository @Inject constructor(
         emulatorId: String
     ): Int = withContext(Dispatchers.IO) {
         val config = BiosPathRegistry.getEmulatorBiosPaths(emulatorId) ?: return@withContext 0
-        // Normalize slug to canonical form (e.g., "segacd" -> "scd")
         val canonicalSlug = PlatformDefinitions.getCanonicalSlug(platformSlug)
         if (canonicalSlug !in config.supportedPlatforms) return@withContext 0
 
         val downloaded = firmwareDao.getByPlatformSlug(platformSlug).filter { it.localPath != null }
         if (downloaded.isEmpty()) return@withContext 0
 
-        // Emulators that require exact BIOS filenames (use MD5-based renaming)
-        val requiresExactFilenames = emulatorId.startsWith("retroarch") || emulatorId == "melonds"
+        val requiresExactFilenames = emulatorId.startsWith("retroarch") ||
+            emulatorId == "melonds" ||
+            emulatorId == EmulatorRegistry.BUILTIN_PACKAGE
+
+        val targetPaths = if (emulatorId == EmulatorRegistry.BUILTIN_PACKAGE) {
+            listOf(getLibretroSystemDir().absolutePath)
+        } else {
+            config.defaultPaths
+        }
 
         var copiedCount = 0
-        for (targetPath in config.defaultPaths) {
+        for (targetPath in targetPaths) {
             val targetDir = File(targetPath)
             if (!targetDir.exists()) {
                 if (!targetDir.mkdirs()) continue
@@ -227,7 +240,6 @@ class BiosRepository @Inject constructor(
                 val sourceFile = File(firmware.localPath!!)
                 if (!sourceFile.exists()) continue
 
-                // Use MD5-based filename mapping for emulators with strict naming requirements
                 val targetFileName = if (requiresExactFilenames) {
                     val md5 = firmware.md5Hash ?: calculateMd5(sourceFile)
                     BiosPathRegistry.getRetroArchBiosName(md5) ?: firmware.fileName
@@ -237,7 +249,6 @@ class BiosRepository @Inject constructor(
 
                 val targetFile = File(targetDir, targetFileName)
                 try {
-                    // Create parent directories if needed (e.g., dc/ subfolder for Dreamcast)
                     targetFile.parentFile?.mkdirs()
                     sourceFile.copyTo(targetFile, overwrite = true)
                     Logger.debug(TAG, "Copied ${firmware.fileName} -> $targetFileName to $targetPath")

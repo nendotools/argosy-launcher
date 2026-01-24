@@ -12,8 +12,11 @@ data class SavePathConfig(
     val usesGameIdSubfolder: Boolean = false,
     val usesSharedMemoryCard: Boolean = false,
     val usesPackageTemplate: Boolean = false,
+    val usesInternalStorage: Boolean = false,
     val supported: Boolean = true
 )
+
+private const val BUILTIN_EMULATOR_ID = "argosy.builtin.libretro"
 
 object SavePathRegistry {
 
@@ -389,6 +392,13 @@ object SavePathRegistry {
             ),
             saveExtensions = listOf("*"),
             supported = false
+        ),
+
+        BUILTIN_EMULATOR_ID to SavePathConfig(
+            emulatorId = BUILTIN_EMULATOR_ID,
+            defaultPaths = listOf("{filesDir}/libretro/saves"),
+            saveExtensions = listOf("srm"),
+            usesInternalStorage = true
         )
     )
 
@@ -422,7 +432,12 @@ object SavePathRegistry {
         return Environment.getExternalStorageDirectory().absolutePath
     }
 
-    private fun expandPath(path: String, packageName: String? = null, core: String? = null): String {
+    private fun expandPath(
+        path: String,
+        packageName: String? = null,
+        core: String? = null,
+        filesDir: String? = null
+    ): String {
         var result = path.replace("{extStorage}", getExternalStoragePath())
         if (packageName != null) {
             result = result.replace("{package}", packageName)
@@ -430,23 +445,27 @@ object SavePathRegistry {
         if (core != null) {
             result = result.replace("{core}", core)
         }
+        if (filesDir != null) {
+            result = result.replace("{filesDir}", filesDir)
+        }
         return result
     }
 
     fun resolvePath(
         config: SavePathConfig,
-        platformId: String
+        platformId: String,
+        filesDir: String? = null
     ): List<String> {
         val canonical = PlatformDefinitions.getCanonicalSlug(platformId)
         val core = if (config.usesCore) getRetroArchCore(canonical) else null
 
         val paths = config.defaultPaths.map { path ->
-            expandPath(path, core = core)
+            expandPath(path, core = core, filesDir = filesDir)
         }
 
         if (core != null) {
             val withoutCore = config.defaultPaths.map { path ->
-                expandPath(path.replace("/{core}", "").replace("{core}", ""))
+                expandPath(path.replace("/{core}", "").replace("{core}", ""), filesDir = filesDir)
             }
             return paths + withoutCore
         }

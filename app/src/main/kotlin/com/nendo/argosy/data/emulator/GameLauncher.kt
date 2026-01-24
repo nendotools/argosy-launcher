@@ -9,6 +9,7 @@ import android.net.Uri
 import androidx.core.content.FileProvider
 import com.nendo.argosy.data.launcher.SteamLaunchers
 import com.nendo.argosy.data.local.dao.EmulatorConfigDao
+import com.nendo.argosy.data.repository.BiosRepository
 import com.nendo.argosy.libretro.LibretroActivity
 import com.nendo.argosy.libretro.LibretroCoreManager
 import com.nendo.argosy.data.local.dao.GameDao
@@ -52,7 +53,8 @@ class GameLauncher @Inject constructor(
     private val emulatorConfigDao: EmulatorConfigDao,
     private val emulatorDetector: EmulatorDetector,
     private val m3uManager: M3uManager,
-    private val libretroCoreMgr: LibretroCoreManager
+    private val libretroCoreMgr: LibretroCoreManager,
+    private val biosRepository: BiosRepository
 ) {
     suspend fun launch(
         gameId: Long,
@@ -298,10 +300,14 @@ class GameLauncher @Inject constructor(
             return null
         }
 
+        biosRepository.distributeBiosToEmulator(game.platformSlug, EmulatorRegistry.BUILTIN_PACKAGE)
+        val systemDir = biosRepository.getLibretroSystemDir()
+
         Logger.info(TAG, "Launching via built-in libretro: ${romFile.name}")
         return Intent(context, LibretroActivity::class.java).apply {
             putExtra(LibretroActivity.EXTRA_ROM_PATH, romFile.absolutePath)
             putExtra(LibretroActivity.EXTRA_CORE_PATH, corePath)
+            putExtra(LibretroActivity.EXTRA_SYSTEM_DIR, systemDir.absolutePath)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
     }

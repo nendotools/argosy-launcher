@@ -25,8 +25,10 @@ class LibretroActivity : ComponentActivity() {
 
         val romPath = intent.getStringExtra(EXTRA_ROM_PATH) ?: return finish()
         val corePath = intent.getStringExtra(EXTRA_CORE_PATH) ?: return finish()
+        val systemPath = intent.getStringExtra(EXTRA_SYSTEM_DIR)
 
-        val systemDir = File(filesDir, "libretro/system").apply { mkdirs() }
+        val systemDir = if (systemPath != null) File(systemPath) else File(filesDir, "libretro/system")
+        systemDir.mkdirs()
         val savesDir = File(filesDir, "libretro/saves").apply { mkdirs() }
 
         retroView = GLRetroView(
@@ -90,5 +92,6 @@ class LibretroActivity : ComponentActivity() {
     companion object {
         const val EXTRA_ROM_PATH = "rom_path"
         const val EXTRA_CORE_PATH = "core_path"
+        const val EXTRA_SYSTEM_DIR = "system_dir"
     }
 }

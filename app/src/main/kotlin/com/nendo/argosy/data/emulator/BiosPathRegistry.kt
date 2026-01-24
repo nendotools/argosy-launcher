@@ -2,6 +2,8 @@ package com.nendo.argosy.data.emulator
 
 import com.nendo.argosy.data.platform.PlatformDefinitions
 
+private const val BUILTIN_EMULATOR_ID = "argosy.builtin.libretro"
+
 data class BiosRequirement(
     val platformSlug: String,
     val fileName: String,
@@ -221,6 +223,14 @@ object BiosPathRegistry {
                 "/storage/emulated/0/Android/data/xyz.aethersx2.android/files/bios"
             ),
             supportedPlatforms = setOf("ps2")
+        ),
+        BUILTIN_EMULATOR_ID to BiosPathConfig(
+            emulatorId = BUILTIN_EMULATOR_ID,
+            defaultPaths = emptyList(), // Paths set dynamically via getBuiltInSystemDir()
+            supportedPlatforms = setOf(
+                "psx", "saturn", "scd", "dreamcast", "dc", "neogeo",
+                "gba", "tgcd", "lynx"
+            )
         )
     )
 

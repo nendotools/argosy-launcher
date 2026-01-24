@@ -181,6 +181,11 @@ class SaveSyncRepository @Inject constructor(
         }
     }
 
+    private fun resolveSavePaths(config: SavePathConfig, platformSlug: String): List<String> {
+        val filesDir = if (config.usesInternalStorage) context.filesDir.absolutePath else null
+        return SavePathRegistry.resolvePath(config, platformSlug, filesDir)
+    }
+
     private suspend fun isFolderSaveSyncEnabled(): Boolean {
         val prefs = userPreferencesRepository.preferences.first()
         return prefs.saveSyncEnabled && prefs.experimentalFolderSaveSync
@@ -270,7 +275,7 @@ class SaveSyncRepository @Inject constructor(
                 } + retroArchConfigParser.resolveSavePaths(packageName, platformSlug, null, contentDir, basePathOverride)
             }
         } else {
-            SavePathRegistry.resolvePath(config, platformSlug)
+            resolveSavePaths(config, platformSlug)
         }
 
         Logger.debug(TAG, "discoverSavePath: searching ${paths.size} paths for '$gameTitle' (romPath=$romPath)")
@@ -738,7 +743,7 @@ class SaveSyncRepository @Inject constructor(
         } else {
             null
         } ?: run {
-            val resolvedPaths = SavePathRegistry.resolvePath(config, platformSlug)
+            val resolvedPaths = resolveSavePaths(config, platformSlug)
             resolvedPaths.firstOrNull { File(it).exists() }
                 ?: resolvedPaths.firstOrNull()
         } ?: return null
@@ -778,7 +783,7 @@ class SaveSyncRepository @Inject constructor(
                 }
             }
             else -> {
-                val defaultPaths = SavePathRegistry.resolvePath(saveConfig, platformSlug)
+                val defaultPaths = resolveSavePaths(saveConfig, platformSlug)
                 defaultPaths.firstOrNull { File(it).exists() }
                     ?: defaultPaths.firstOrNull()
             }
@@ -842,7 +847,7 @@ class SaveSyncRepository @Inject constructor(
             return getRetroArchSaveDirectory(emulatorId, platformSlug, romPath)
         }
 
-        val resolvedPaths = SavePathRegistry.resolvePath(config, platformSlug)
+        val resolvedPaths = resolveSavePaths(config, platformSlug)
         return resolvedPaths.firstOrNull { File(it).exists() }
             ?: resolvedPaths.firstOrNull()
     }
@@ -873,7 +878,7 @@ class SaveSyncRepository @Inject constructor(
                 }
             }
             else -> {
-                val defaultPaths = SavePathRegistry.resolvePath(saveConfig, platformSlug)
+                val defaultPaths = resolveSavePaths(saveConfig, platformSlug)
                 defaultPaths.firstOrNull { File(it).exists() }
                     ?: defaultPaths.firstOrNull()
             }
