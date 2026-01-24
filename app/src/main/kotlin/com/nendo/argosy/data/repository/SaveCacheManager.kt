@@ -33,6 +33,14 @@ class SaveCacheManager @Inject constructor(
         private const val MIN_UNLOCKED_SLOTS = 5
     }
 
+    sealed class CacheResult {
+        data object Created : CacheResult()
+        data object Duplicate : CacheResult()
+        data object Failed : CacheResult()
+
+        val success: Boolean get() = this != Failed
+    }
+
     private val cacheBaseDir: File
         get() = File(context.filesDir, "save_cache")
 
@@ -42,11 +50,11 @@ class SaveCacheManager @Inject constructor(
         savePath: String,
         channelName: String? = null,
         isLocked: Boolean = false
-    ): Boolean = withContext(Dispatchers.IO) {
+    ): CacheResult = withContext(Dispatchers.IO) {
         val saveFile = File(savePath)
         if (!saveFile.exists()) {
             Log.w(TAG, "Save file does not exist: $savePath")
-            return@withContext false
+            return@withContext CacheResult.Failed
         }
 
         var tempFile: File? = null
@@ -56,7 +64,7 @@ class SaveCacheManager @Inject constructor(
                 tempFile = File(context.cacheDir, "temp_save_${System.currentTimeMillis()}.zip")
                 if (!saveArchiver.zipFolder(saveFile, tempFile)) {
                     Log.e(TAG, "Failed to zip save folder")
-                    return@withContext false
+                    return@withContext CacheResult.Failed
                 }
                 saveArchiver.calculateFileHash(tempFile) to tempFile
             } else {
@@ -67,7 +75,7 @@ class SaveCacheManager @Inject constructor(
             if (existingWithHash != null) {
                 Log.d(TAG, "Duplicate save detected for game $gameId (hash=$contentHash), skipping cache")
                 tempFile?.delete()
-                return@withContext true
+                return@withContext CacheResult.Duplicate
             }
 
             val now = Instant.now()
@@ -105,11 +113,11 @@ class SaveCacheManager @Inject constructor(
             Log.d(TAG, "Cached save for game $gameId at $cachePath (hash=$contentHash)${channelName?.let { " (channel: $it)" } ?: ""}")
 
             pruneOldCaches(gameId)
-            true
+            CacheResult.Created
         } catch (e: Exception) {
             Log.e(TAG, "Failed to cache save", e)
             tempFile?.delete()
-            false
+            CacheResult.Failed
         }
     }
 

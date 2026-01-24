@@ -16,7 +16,7 @@ data class SavePathConfig(
     val supported: Boolean = true
 )
 
-private const val BUILTIN_EMULATOR_ID = "argosy.builtin.libretro"
+private const val BUILTIN_EMULATOR_ID = "builtin"
 
 object SavePathRegistry {
 

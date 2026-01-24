@@ -2,6 +2,7 @@ package com.nendo.argosy.ui.common.savechannel
 
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.repository.SaveCacheManager
+import com.nendo.argosy.data.repository.SaveSyncRepository
 import com.nendo.argosy.data.repository.StateCacheManager
 import com.nendo.argosy.domain.model.UnifiedSaveEntry
 import com.nendo.argosy.domain.model.UnifiedStateEntry
@@ -32,6 +33,7 @@ class SaveChannelDelegate @Inject constructor(
     private val restoreStateUseCase: RestoreStateUseCase,
     private val restoreCachedStatesUseCase: RestoreCachedStatesUseCase,
     private val saveCacheManager: SaveCacheManager,
+    private val saveSyncRepository: SaveSyncRepository,
     private val stateCacheManager: StateCacheManager,
     private val gameDao: GameDao,
     private val notificationManager: NotificationManager,
@@ -118,8 +120,7 @@ class SaveChannelDelegate @Inject constructor(
         } else if (activeChannel != null) {
             sorted.firstOrNull { it.channelName == activeChannel }
         } else {
-            sorted.firstOrNull { it.channelName == null && it.isLatest }
-                ?: sorted.firstOrNull { it.channelName == null }
+            sorted.firstOrNull { it.channelName == null }
         }
 
         return sorted.mapIndexed { index, entry ->
@@ -410,7 +411,6 @@ class SaveChannelDelegate @Inject constructor(
     fun confirmCreateChannel(scope: CoroutineScope) {
         val state = _state.value
         val entry = state.renameEntry ?: return
-        val cacheId = entry.localCacheId ?: return
         val newName = state.renameText.trim()
 
         if (newName.isBlank()) {
@@ -419,16 +419,32 @@ class SaveChannelDelegate @Inject constructor(
         }
 
         scope.launch {
-            saveCacheManager.copyToChannel(cacheId, newName)
-            refreshEntries()
-            _state.update {
-                it.copy(
-                    showRenameDialog = false,
-                    renameEntry = null,
-                    renameText = ""
+            val success = if (entry.localCacheId != null) {
+                saveCacheManager.copyToChannel(entry.localCacheId, newName) != null
+            } else if (entry.serverSaveId != null) {
+                saveSyncRepository.downloadSaveAsChannel(
+                    currentGameId,
+                    entry.serverSaveId,
+                    newName,
+                    state.emulatorId
                 )
+            } else {
+                false
             }
-            notificationManager.showSuccess("Created save slot '$newName'")
+
+            if (success) {
+                refreshEntries()
+                _state.update {
+                    it.copy(
+                        showRenameDialog = false,
+                        renameEntry = null,
+                        renameText = ""
+                    )
+                }
+                notificationManager.showSuccess("Created save slot '$newName'")
+            } else {
+                notificationManager.showError("Failed to create save slot")
+            }
         }
     }
 

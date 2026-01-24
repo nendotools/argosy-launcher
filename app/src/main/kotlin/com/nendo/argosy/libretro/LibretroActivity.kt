@@ -14,6 +14,8 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.nendo.argosy.data.emulator.EmulatorRegistry
+import com.nendo.argosy.data.emulator.PlaySessionTracker
 import com.nendo.argosy.libretro.ui.InGameMenu
 import com.nendo.argosy.libretro.ui.InGameMenuAction
 import com.nendo.argosy.ui.theme.ALauncherTheme
@@ -21,18 +23,26 @@ import com.swordfish.libretrodroid.GLRetroView
 import com.swordfish.libretrodroid.GLRetroViewData
 import dagger.hilt.android.AndroidEntryPoint
 import java.io.File
+import java.security.MessageDigest
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class LibretroActivity : ComponentActivity() {
+    @Inject lateinit var playSessionTracker: PlaySessionTracker
+
     private lateinit var retroView: GLRetroView
     private lateinit var statesDir: File
+    private lateinit var savesDir: File
     private lateinit var romPath: String
 
+    private var gameId: Long = -1L
+    private var coreName: String? = null
     private var startPressed = false
     private var selectPressed = false
     private var menuVisible by mutableStateOf(false)
     private var hasQuickSave by mutableStateOf(false)
     private var gameName: String = ""
+    private var lastSramHash: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,13 +53,18 @@ class LibretroActivity : ComponentActivity() {
         val corePath = intent.getStringExtra(EXTRA_CORE_PATH) ?: return finish()
         val systemPath = intent.getStringExtra(EXTRA_SYSTEM_DIR)
         gameName = intent.getStringExtra(EXTRA_GAME_NAME) ?: File(romPath).nameWithoutExtension
+        gameId = intent.getLongExtra(EXTRA_GAME_ID, -1L)
+        coreName = intent.getStringExtra(EXTRA_CORE_NAME)
 
         val systemDir = if (systemPath != null) File(systemPath) else File(filesDir, "libretro/system")
         systemDir.mkdirs()
-        val savesDir = File(filesDir, "libretro/saves").apply { mkdirs() }
+        savesDir = File(filesDir, "libretro/saves").apply { mkdirs() }
         statesDir = File(filesDir, "libretro/states").apply { mkdirs() }
 
         hasQuickSave = getQuickSaveFile().exists()
+
+        val existingSram = getSramFile().takeIf { it.exists() }?.readBytes()
+        lastSramHash = existingSram?.let { hashBytes(it) }
 
         retroView = GLRetroView(
             this,
@@ -58,6 +73,7 @@ class LibretroActivity : ComponentActivity() {
                 gameFilePath = romPath
                 systemDirectory = systemDir.absolutePath
                 savesDirectory = savesDir.absolutePath
+                saveRAMState = existingSram
             }
         )
 
@@ -87,11 +103,40 @@ class LibretroActivity : ComponentActivity() {
         }
 
         setContentView(container)
+
+        if (gameId != -1L) {
+            playSessionTracker.startSession(gameId, EmulatorRegistry.BUILTIN_PACKAGE, coreName)
+        }
     }
 
     private fun getQuickSaveFile(): File {
         val romName = File(romPath).nameWithoutExtension
         return File(statesDir, "$romName.state")
+    }
+
+    private fun getSramFile(): File {
+        val romName = File(romPath).nameWithoutExtension
+        return File(savesDir, "$romName.srm")
+    }
+
+    private fun saveSram() {
+        try {
+            val sramData = retroView.serializeSRAM()
+            if (sramData.isEmpty()) return
+
+            val currentHash = hashBytes(sramData)
+            if (currentHash == lastSramHash) return
+
+            getSramFile().writeBytes(sramData)
+            lastSramHash = currentHash
+        } catch (e: Exception) {
+            // SRAM save failed silently - some cores don't support SRAM
+        }
+    }
+
+    private fun hashBytes(data: ByteArray): String {
+        val digest = MessageDigest.getInstance("MD5")
+        return digest.digest(data).joinToString("") { "%02x".format(it) }
     }
 
     private fun handleMenuAction(action: InGameMenuAction) {
@@ -199,8 +244,16 @@ class LibretroActivity : ComponentActivity() {
     }
 
     override fun onPause() {
+        saveSram()
         retroView.onPause()
         super.onPause()
+    }
+
+    override fun onDestroy() {
+        if (isFinishing && gameId != -1L) {
+            playSessionTracker.endSession()
+        }
+        super.onDestroy()
     }
 
     companion object {
@@ -208,5 +261,7 @@ class LibretroActivity : ComponentActivity() {
         const val EXTRA_CORE_PATH = "core_path"
         const val EXTRA_SYSTEM_DIR = "system_dir"
         const val EXTRA_GAME_NAME = "game_name"
+        const val EXTRA_GAME_ID = "game_id"
+        const val EXTRA_CORE_NAME = "core_name"
     }
 }

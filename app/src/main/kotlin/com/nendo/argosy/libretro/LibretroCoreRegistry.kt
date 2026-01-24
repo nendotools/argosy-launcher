@@ -97,6 +97,16 @@ object LibretroCoreRegistry {
             estimatedSizeBytes = 6_000_000L
         ),
 
+        // Nintendo GameCube/Wii
+        CoreInfo(
+            coreId = "dolphin",
+            fileName = "dolphin_libretro_android.so",
+            displayName = "Dolphin",
+            platforms = setOf("gc", "ngc", "gamecube", "wii"),
+            estimatedSizeBytes = 5_500_000L,
+            isDefault = true
+        ),
+
         // Sega 8/16-bit
         CoreInfo(
             coreId = "genesis_plus_gx",

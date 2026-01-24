@@ -17,7 +17,8 @@ data class UnifiedSaveEntry(
     enum class Source { LOCAL, SERVER, BOTH }
 
     val isChannel: Boolean get() = isLocked && channelName != null
-    val canBecomeChannel: Boolean get() = localCacheId != null && channelName == null
+    val canBecomeChannel: Boolean get() = channelName == null
+    val isServerOnly: Boolean get() = localCacheId == null && serverSaveId != null
     val canDeleteFromServer: Boolean get() = serverSaveId != null
 
     val displayName: String

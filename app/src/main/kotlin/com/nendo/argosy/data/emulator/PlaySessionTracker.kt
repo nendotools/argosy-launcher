@@ -352,16 +352,24 @@ class PlaySessionTracker @Inject constructor(
 
             if (savePath != null) {
                 val activeChannel = game.activeSaveChannel
-                val cached = saveCacheManager.get().cacheCurrentSave(
+                val cacheResult = saveCacheManager.get().cacheCurrentSave(
                     gameId = session.gameId,
                     emulatorId = emulatorId,
                     savePath = savePath,
                     channelName = activeChannel,
                     isLocked = false
                 )
-                if (cached) {
-                    gameDao.updateActiveSaveTimestamp(session.gameId, null)
-                    Logger.debug(TAG, "[SaveSync] SESSION gameId=${session.gameId} | Cached local save | path=$savePath, channel=$activeChannel")
+                when (cacheResult) {
+                    is SaveCacheManager.CacheResult.Created -> {
+                        gameDao.updateActiveSaveTimestamp(session.gameId, null)
+                        Logger.debug(TAG, "[SaveSync] SESSION gameId=${session.gameId} | Cached local save | path=$savePath, channel=$activeChannel")
+                    }
+                    is SaveCacheManager.CacheResult.Duplicate -> {
+                        Logger.debug(TAG, "[SaveSync] SESSION gameId=${session.gameId} | Save unchanged (duplicate hash), keeping active timestamp | path=$savePath")
+                    }
+                    is SaveCacheManager.CacheResult.Failed -> {
+                        Logger.warn(TAG, "[SaveSync] SESSION gameId=${session.gameId} | Failed to cache save | path=$savePath")
+                    }
                 }
             } else {
                 Logger.debug(TAG, "[SaveSync] SESSION gameId=${session.gameId} | No save path found for caching | emulator=$emulatorId")

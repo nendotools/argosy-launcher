@@ -303,12 +303,17 @@ class GameLauncher @Inject constructor(
         biosRepository.distributeBiosToEmulator(game.platformSlug, EmulatorRegistry.BUILTIN_PACKAGE)
         val systemDir = biosRepository.getLibretroSystemDir()
 
+        val coreName = File(corePath).nameWithoutExtension
+            .removeSuffix("_libretro_android")
+
         Logger.info(TAG, "Launching via built-in libretro: ${romFile.name}")
         return Intent(context, LibretroActivity::class.java).apply {
             putExtra(LibretroActivity.EXTRA_ROM_PATH, romFile.absolutePath)
             putExtra(LibretroActivity.EXTRA_CORE_PATH, corePath)
             putExtra(LibretroActivity.EXTRA_SYSTEM_DIR, systemDir.absolutePath)
             putExtra(LibretroActivity.EXTRA_GAME_NAME, game.title)
+            putExtra(LibretroActivity.EXTRA_GAME_ID, game.id)
+            putExtra(LibretroActivity.EXTRA_CORE_NAME, coreName)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
     }

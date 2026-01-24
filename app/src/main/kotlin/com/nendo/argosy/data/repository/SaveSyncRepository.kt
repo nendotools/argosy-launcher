@@ -2175,6 +2175,63 @@ class SaveSyncRepository @Inject constructor(
         return false
     }
 
+    suspend fun downloadSaveAsChannel(
+        gameId: Long,
+        serverSaveId: Long,
+        channelName: String,
+        emulatorId: String?
+    ): Boolean = withContext(Dispatchers.IO) {
+        val api = this@SaveSyncRepository.api ?: return@withContext false
+
+        val serverSave = try {
+            api.getSave(serverSaveId).body()
+        } catch (e: Exception) {
+            Logger.error(TAG, "downloadSaveAsChannel: getSave failed", e)
+            return@withContext false
+        } ?: return@withContext false
+
+        val downloadPath = serverSave.downloadPath ?: return@withContext false
+
+        val response = try {
+            api.downloadRaw(downloadPath)
+        } catch (e: Exception) {
+            Logger.error(TAG, "downloadSaveAsChannel: download failed", e)
+            return@withContext false
+        }
+
+        if (!response.isSuccessful) {
+            Logger.error(TAG, "downloadSaveAsChannel: download failed with ${response.code()}")
+            return@withContext false
+        }
+
+        val tempFile = File(context.cacheDir, "save_channel_${System.currentTimeMillis()}.tmp")
+        try {
+            response.body()?.byteStream()?.use { input ->
+                tempFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            } ?: return@withContext false
+
+            if (tempFile.length() == 0L) {
+                Logger.error(TAG, "downloadSaveAsChannel: empty save data")
+                return@withContext false
+            }
+
+            val cacheResult = saveCacheManager.get().cacheCurrentSave(
+                gameId = gameId,
+                emulatorId = emulatorId ?: "unknown",
+                savePath = tempFile.absolutePath,
+                channelName = channelName,
+                isLocked = true
+            )
+
+            Logger.debug(TAG, "downloadSaveAsChannel: result=$cacheResult, channel=$channelName")
+            cacheResult.success
+        } finally {
+            tempFile.delete()
+        }
+    }
+
     companion object {
         private val ROMM_TIMESTAMP_TAG = Regex("""^\[\d{4}-\d{2}-\d{2} \d{2}-\d{2}-\d{2}(-\d+)?\]$""")
         private val SWITCH_EMULATOR_IDS = setOf(
