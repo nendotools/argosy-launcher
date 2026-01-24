@@ -68,6 +68,7 @@ class MainActivity : ComponentActivity() {
 
     private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
+    private var screenCapturePromptedThisSession = false
     private val screenCaptureLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -96,6 +97,11 @@ class MainActivity : ComponentActivity() {
             imageCacheManager.resumePendingCoverCache()
             imageCacheManager.resumePendingLogoCache()
             imageCacheManager.resumePendingBadgeCache()
+
+            if (prefs.ambientLedEnabled && !screenCaptureManager.hasPermission.value && !screenCapturePromptedThisSession) {
+                screenCapturePromptedThisSession = true
+                screenCaptureManager.requestPermission(this@MainActivity, screenCaptureLauncher)
+            }
         }
 
         activityScope.launch {

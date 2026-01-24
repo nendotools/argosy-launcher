@@ -147,7 +147,7 @@ class SettingsInputHandler(
                 DisplayItem.UiScale -> { viewModel.adjustUiScale(-5); return InputResult.HANDLED }
                 DisplayItem.DimAfter -> { viewModel.adjustScreenDimmerTimeout(-1); return InputResult.HANDLED }
                 DisplayItem.DimLevel -> { viewModel.adjustScreenDimmerLevel(-1); return InputResult.HANDLED }
-                DisplayItem.AmbientLedBrightness -> { viewModel.adjustAmbientLedBrightness(-10); return InputResult.HANDLED }
+                DisplayItem.AmbientLedBrightness -> { viewModel.adjustAmbientLedBrightness(-5); return InputResult.HANDLED }
                 DisplayItem.AmbientLedColorMode -> { viewModel.cycleAmbientLedColorMode(-1); return InputResult.HANDLED }
                 else -> {}
             }
@@ -336,7 +336,7 @@ class SettingsInputHandler(
                 DisplayItem.UiScale -> { viewModel.adjustUiScale(5); return InputResult.HANDLED }
                 DisplayItem.DimAfter -> { viewModel.adjustScreenDimmerTimeout(1); return InputResult.HANDLED }
                 DisplayItem.DimLevel -> { viewModel.adjustScreenDimmerLevel(1); return InputResult.HANDLED }
-                DisplayItem.AmbientLedBrightness -> { viewModel.adjustAmbientLedBrightness(10); return InputResult.HANDLED }
+                DisplayItem.AmbientLedBrightness -> { viewModel.adjustAmbientLedBrightness(5); return InputResult.HANDLED }
                 DisplayItem.AmbientLedColorMode -> { viewModel.cycleAmbientLedColorMode(1); return InputResult.HANDLED }
                 else -> {}
             }

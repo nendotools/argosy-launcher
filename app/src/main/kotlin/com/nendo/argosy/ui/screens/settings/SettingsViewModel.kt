@@ -1200,6 +1200,10 @@ class SettingsViewModel @Inject constructor(
         displayDelegate.setAmbientLedEnabled(viewModelScope, enabled)
     }
 
+    fun setAmbientLedBrightness(brightness: Int) {
+        displayDelegate.setAmbientLedBrightness(viewModelScope, brightness)
+    }
+
     fun adjustAmbientLedBrightness(delta: Int) {
         displayDelegate.adjustAmbientLedBrightness(viewModelScope, delta)
     }

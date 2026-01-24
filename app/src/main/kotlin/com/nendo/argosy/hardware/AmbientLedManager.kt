@@ -84,6 +84,8 @@ class AmbientLedManager @Inject constructor(
         scope.launch {
             preferencesRepository.userPreferences.collectLatest { prefs ->
                 val wasEnabled = isEnabled
+                val oldBrightness = brightnessScalar
+
                 isEnabled = prefs.ambientLedEnabled
                 brightnessScalar = prefs.ambientLedBrightness / 100f
                 audioBrightnessEnabled = prefs.ambientLedAudioBrightness
@@ -94,6 +96,8 @@ class AmbientLedManager @Inject constructor(
                     start()
                 } else if (!isEnabled && wasEnabled) {
                     stop()
+                } else if (isEnabled && oldBrightness != brightnessScalar) {
+                    updateLeds()
                 }
             }
         }

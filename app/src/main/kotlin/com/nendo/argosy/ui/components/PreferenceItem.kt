@@ -24,6 +24,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,7 +42,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import com.nendo.argosy.ui.theme.AspectRatioClass
 import com.nendo.argosy.ui.theme.Dimens
+import com.nendo.argosy.ui.theme.LocalUiScale
 
 @Composable
 private fun preferenceModifier(
@@ -212,6 +216,97 @@ fun SliderPreference(
                         .background(dotColor)
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun TrackSliderPreference(
+    title: String,
+    value: Float,
+    minValue: Float = 0f,
+    maxValue: Float = 1f,
+    steps: Int = 0,
+    isFocused: Boolean,
+    suffix: String = "%",
+    onValueChange: (Float) -> Unit
+) {
+    val displayValue = (value * 100).toInt()
+    val aspectRatioClass = LocalUiScale.current.aspectRatioClass
+    val isWideDisplay = aspectRatioClass == AspectRatioClass.ULTRA_WIDE ||
+                        aspectRatioClass == AspectRatioClass.WIDE
+
+    val sliderColors = SliderDefaults.colors(
+        thumbColor = if (isFocused) MaterialTheme.colorScheme.onPrimaryContainer
+                     else MaterialTheme.colorScheme.primary,
+        activeTrackColor = if (isFocused) MaterialTheme.colorScheme.onPrimaryContainer
+                           else MaterialTheme.colorScheme.primary,
+        inactiveTrackColor = if (isFocused) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.3f)
+                             else MaterialTheme.colorScheme.surfaceVariant
+    )
+
+    if (isWideDisplay) {
+        Row(
+            modifier = preferenceModifier(isFocused),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = preferenceContentColor(isFocused),
+                modifier = Modifier.weight(1f)
+            )
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
+            ) {
+                Slider(
+                    value = value,
+                    onValueChange = onValueChange,
+                    valueRange = minValue..maxValue,
+                    steps = steps,
+                    colors = sliderColors,
+                    modifier = Modifier.weight(1f).height(Dimens.iconMd)
+                )
+                Text(
+                    text = "$displayValue$suffix",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (isFocused) MaterialTheme.colorScheme.onPrimaryContainer
+                            else MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    } else {
+        Column(
+            modifier = preferenceModifier(isFocused)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = preferenceContentColor(isFocused)
+                )
+                Text(
+                    text = "$displayValue$suffix",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (isFocused) MaterialTheme.colorScheme.onPrimaryContainer
+                            else MaterialTheme.colorScheme.primary
+                )
+            }
+            Spacer(modifier = Modifier.height(Dimens.spacingXs))
+            Slider(
+                value = value,
+                onValueChange = onValueChange,
+                valueRange = minValue..maxValue,
+                steps = steps,
+                colors = sliderColors,
+                modifier = Modifier.height(Dimens.iconMd)
+            )
         }
     }
 }

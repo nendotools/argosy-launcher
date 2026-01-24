@@ -92,7 +92,7 @@ class SoundFeedbackManager @Inject constructor(
     )
 
     init {
-        initSoundPool()
+        // SoundPool is initialized lazily on first play to avoid audio focus side effects
     }
 
     private fun initSoundPool() {
@@ -130,6 +130,31 @@ class SoundFeedbackManager @Inject constructor(
 
     fun setEnabled(enabled: Boolean) {
         this.enabled = enabled
+        if (!enabled) {
+            releaseSoundPool()
+        }
+    }
+
+    private fun ensureSoundPoolInitialized() {
+        if (soundPool == null && enabled) {
+            initSoundPool()
+        }
+    }
+
+    private fun releaseSoundPool() {
+        soundPool?.release()
+        soundPool = null
+        soundIds.clear()
+        lastPlayTime.clear()
+        soundsLoaded = false
+    }
+
+    private fun shouldPlaySound(type: SoundType): Boolean {
+        if (!enabled) return false
+        if (type == SoundType.SILENT) return false
+        val config = soundConfigs[type]
+        if (config?.presetName == SoundPreset.SILENT.name) return false
+        return true
     }
 
     fun setVolume(volume: Int) {
@@ -150,6 +175,7 @@ class SoundFeedbackManager @Inject constructor(
         if (!enabled) return
         if (preset == SoundPreset.SILENT || preset == SoundPreset.CUSTOM) return
 
+        ensureSoundPoolInitialized()
         val soundId = soundIds[preset] ?: return
         if (soundId == 0) return
 
@@ -168,12 +194,10 @@ class SoundFeedbackManager @Inject constructor(
     }
 
     fun play(type: SoundType) {
-        if (!enabled) return
-        if (type == SoundType.SILENT) return
+        if (!shouldPlaySound(type)) return
 
         val config = soundConfigs[type]
         when {
-            config?.presetName == SoundPreset.SILENT.name -> return
             config?.customFilePath != null -> {
                 playCustomFile(config.customFilePath)
                 return
@@ -197,10 +221,6 @@ class SoundFeedbackManager @Inject constructor(
     }
 
     fun release() {
-        soundPool?.release()
-        soundPool = null
-        soundIds.clear()
-        lastPlayTime.clear()
-        soundsLoaded = false
+        releaseSoundPool()
     }
 }

@@ -24,6 +24,7 @@ import com.nendo.argosy.ui.components.NavigationPreference
 import com.nendo.argosy.ui.components.SectionFocusedScroll
 import com.nendo.argosy.ui.components.SliderPreference
 import com.nendo.argosy.ui.components.SwitchPreference
+import com.nendo.argosy.ui.components.TrackSliderPreference
 import com.nendo.argosy.ui.components.colorIntToHue
 import com.nendo.argosy.ui.components.hueToColorInt
 import com.nendo.argosy.ui.screens.settings.DisplayState
@@ -294,13 +295,12 @@ fun DisplaySection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                     )
                 }
 
-                DisplayItem.AmbientLedBrightness -> SliderPreference(
+                DisplayItem.AmbientLedBrightness -> TrackSliderPreference(
                     title = "Brightness",
-                    value = display.ambientLedBrightness / 10,
-                    minValue = 0,
-                    maxValue = 10,
+                    value = display.ambientLedBrightness / 100f,
+                    steps = 19,
                     isFocused = isFocused(item),
-                    onClick = { viewModel.cycleAmbientLedBrightness() }
+                    onValueChange = { viewModel.setAmbientLedBrightness((it * 100).toInt()) }
                 )
 
                 DisplayItem.AmbientLedAudioBrightness -> SwitchPreference(
