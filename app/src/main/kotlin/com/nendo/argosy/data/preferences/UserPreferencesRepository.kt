@@ -134,7 +134,7 @@ class UserPreferencesRepository @Inject constructor(
         val BUILTIN_FAST_FORWARD_SPEED = intPreferencesKey("builtin_fast_forward_speed")
         val BUILTIN_ROTATION = intPreferencesKey("builtin_rotation")
         val BUILTIN_OVERSCAN_CROP = intPreferencesKey("builtin_overscan_crop")
-        val BUILTIN_MIGRATION_V1 = booleanPreferencesKey("builtin_migration_v1")
+        val BUILTIN_MIGRATION_V1 = booleanPreferencesKey("builtin_migration_v2")
     }
 
     val userPreferences: Flow<UserPreferences> = dataStore.data.map { prefs ->

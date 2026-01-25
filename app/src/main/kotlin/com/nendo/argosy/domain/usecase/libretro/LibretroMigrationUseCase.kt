@@ -27,9 +27,9 @@ class LibretroMigrationUseCase @Inject constructor(
 
         Log.i(TAG, "Starting built-in emulator migration for existing users")
 
-        val platformsWithGames = platformDao.getPlatformsWithGames()
+        val platformsWithGames = platformDao.getSyncEnabledPlatforms()
         if (platformsWithGames.isEmpty()) {
-            Log.d(TAG, "No platforms with games, marking migration complete")
+            Log.d(TAG, "No sync-enabled platforms, marking migration complete")
             preferencesRepository.setBuiltinMigrationComplete()
             return MigrationResult.NoPlatforms
         }
@@ -68,9 +68,15 @@ class LibretroMigrationUseCase @Inject constructor(
             if (platform.slug !in supportedPlatformSlugs) continue
 
             val existingConfig = emulatorConfigDao.getDefaultForPlatform(platform.id)
+            val isUserConfigured = existingConfig != null &&
+                !existingConfig.packageName.isNullOrEmpty() &&
+                existingConfig.packageName != EmulatorRegistry.BUILTIN_PACKAGE
 
-            if (existingConfig == null) {
-                Log.i(TAG, "No emulator configured for ${platform.slug}, setting to built-in")
+            if (!isUserConfigured) {
+                Log.i(TAG, "Setting ${platform.slug} to built-in (previous: ${existingConfig?.packageName})")
+                if (existingConfig != null) {
+                    emulatorConfigDao.clearPlatformDefaults(platform.id)
+                }
                 emulatorConfigDao.insert(
                     EmulatorConfigEntity(
                         platformId = platform.id,
@@ -83,7 +89,7 @@ class LibretroMigrationUseCase @Inject constructor(
                 )
                 platformsSetToBuiltin++
             } else {
-                Log.d(TAG, "Platform ${platform.slug} already has emulator: ${existingConfig.packageName}")
+                Log.d(TAG, "Platform ${platform.slug} has user-configured emulator: ${existingConfig.packageName}")
             }
         }
 
