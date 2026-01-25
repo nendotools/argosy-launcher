@@ -19,3 +19,11 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Keep classes accessed via JNI from native code
+-keep class com.swordfish.libretrodroid.GLRetroShader { *; }
+-keep class com.swordfish.libretrodroid.GLRetroView { *; }
+-keep class com.swordfish.libretrodroid.GLRetroViewData { *; }
+-keep class com.swordfish.libretrodroid.Variable { *; }
+-keep class com.swordfish.libretrodroid.RumbleEvent { *; }
+-keep class com.swordfish.libretrodroid.ControllerInfo { *; }

@@ -135,13 +135,16 @@ class GameLauncher @Inject constructor(
         Logger.debug(TAG, "Emulator resolved: ${emulator.displayName} (${emulator.packageName})")
 
         val intent = buildIntent(emulator, romFile, game, forResume)
-            ?: return if (emulator.launchConfig is LaunchConfig.RetroArch) {
-                LaunchResult.NoCore(game.platformSlug).also {
-                    Logger.warn(TAG, "launch() failed: no RetroArch core for platform=${game.platformSlug}")
+            ?: return when (emulator.launchConfig) {
+                is LaunchConfig.RetroArch, is LaunchConfig.BuiltIn -> {
+                    LaunchResult.NoCore(game.platformSlug).also {
+                        Logger.warn(TAG, "launch() failed: no core for platform=${game.platformSlug}")
+                    }
                 }
-            } else {
-                LaunchResult.Error("Failed to build launch intent").also {
-                    Logger.error(TAG, "launch() failed: could not build intent")
+                else -> {
+                    LaunchResult.Error("Failed to build launch intent").also {
+                        Logger.error(TAG, "launch() failed: could not build intent")
+                    }
                 }
             }
 
@@ -294,10 +297,15 @@ class GameLauncher @Inject constructor(
     }
 
     private suspend fun buildBuiltInIntent(romFile: File, game: GameEntity): Intent? {
-        val corePath = libretroCoreMgr.getCorePathForPlatform(game.platformSlug)
+        var corePath = libretroCoreMgr.getCorePathForPlatform(game.platformSlug)
         if (corePath == null) {
-            Logger.warn(TAG, "No built-in core available for platform: ${game.platformSlug}")
-            return null
+            Logger.info(TAG, "Core not downloaded for ${game.platformSlug}, attempting download...")
+            corePath = libretroCoreMgr.downloadCoreForPlatform(game.platformSlug)
+            if (corePath == null) {
+                Logger.warn(TAG, "Failed to download core for platform: ${game.platformSlug}")
+                return null
+            }
+            Logger.info(TAG, "Successfully downloaded core for ${game.platformSlug}")
         }
 
         biosRepository.distributeBiosToEmulator(game.platformSlug, EmulatorRegistry.BUILTIN_PACKAGE)

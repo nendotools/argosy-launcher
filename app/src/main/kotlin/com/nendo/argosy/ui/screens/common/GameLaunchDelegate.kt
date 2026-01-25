@@ -123,7 +123,7 @@ class GameLaunchDelegate @Inject constructor(
                             notificationManager.showError("Steam launcher not installed")
                         }
                         is LaunchResult.NoCore -> {
-                            notificationManager.showError("No compatible RetroArch core installed for ${result.platformSlug}")
+                            notificationManager.showError("No core available for ${result.platformSlug}")
                         }
                         is LaunchResult.MissingDiscs -> {
                             val discText = result.missingDiscNumbers.joinToString(", ")
@@ -198,7 +198,7 @@ class GameLaunchDelegate @Inject constructor(
                         notificationManager.showError("Steam launcher not installed")
                     }
                     is LaunchResult.NoCore -> {
-                        notificationManager.showError("No compatible RetroArch core installed for ${result.platformSlug}")
+                        notificationManager.showError("No core available for ${result.platformSlug}")
                     }
                     is LaunchResult.MissingDiscs -> {
                         val discText = result.missingDiscNumbers.joinToString(", ")
