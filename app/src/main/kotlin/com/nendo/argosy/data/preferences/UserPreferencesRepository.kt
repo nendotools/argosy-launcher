@@ -134,6 +134,7 @@ class UserPreferencesRepository @Inject constructor(
         val BUILTIN_FAST_FORWARD_SPEED = intPreferencesKey("builtin_fast_forward_speed")
         val BUILTIN_ROTATION = intPreferencesKey("builtin_rotation")
         val BUILTIN_OVERSCAN_CROP = intPreferencesKey("builtin_overscan_crop")
+        val BUILTIN_MIGRATION_V1 = booleanPreferencesKey("builtin_migration_v1")
     }
 
     val userPreferences: Flow<UserPreferences> = dataStore.data.map { prefs ->
@@ -994,6 +995,16 @@ class UserPreferencesRepository @Inject constructor(
     suspend fun setBuiltinDpadAsAnalog(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[Keys.BUILTIN_DPAD_AS_ANALOG] = enabled
+        }
+    }
+
+    fun isBuiltinMigrationComplete(): Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.BUILTIN_MIGRATION_V1] ?: false
+    }
+
+    suspend fun setBuiltinMigrationComplete() {
+        dataStore.edit { prefs ->
+            prefs[Keys.BUILTIN_MIGRATION_V1] = true
         }
     }
 }

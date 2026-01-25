@@ -17,6 +17,7 @@ import com.nendo.argosy.ui.components.FanMode
 import com.nendo.argosy.ui.components.PerformanceMode
 import com.nendo.argosy.util.PServerExecutor
 import com.nendo.argosy.data.repository.GameRepository
+import com.nendo.argosy.domain.usecase.libretro.LibretroMigrationUseCase
 import com.nendo.argosy.ui.input.ControllerDetector
 import com.nendo.argosy.ui.input.DetectedLayout
 import com.nendo.argosy.ui.input.GamepadInputHandler
@@ -100,7 +101,8 @@ class ArgosyViewModel @Inject constructor(
     private val modalResetSignal: ModalResetSignal,
     private val playSessionTracker: PlaySessionTracker,
     private val saveSyncRepository: SaveSyncRepository,
-    private val gameDao: GameDao
+    private val gameDao: GameDao,
+    private val libretroMigrationUseCase: LibretroMigrationUseCase
 ) : ViewModel() {
 
     private val contentResolver get() = application.contentResolver
@@ -152,11 +154,29 @@ class ArgosyViewModel @Inject constructor(
             if (ready) {
                 validateAndRecoverDownloads()
                 syncCollectionsOnStartup()
+                runBuiltinEmulatorMigration()
             } else {
                 android.util.Log.w("ArgosyViewModel", "Storage not ready after timeout, scheduling retry")
                 kotlinx.coroutines.delay(30_000L)
                 scheduleDownloadValidation()
             }
+        }
+    }
+
+    private suspend fun runBuiltinEmulatorMigration() {
+        val result = libretroMigrationUseCase.runMigrationIfNeeded()
+        when (result) {
+            is com.nendo.argosy.domain.usecase.libretro.MigrationResult.Success -> {
+                if (result.coresDownloaded.isNotEmpty()) {
+                    notificationManager.show(
+                        title = "Built-in Emulator Ready",
+                        subtitle = "Downloaded ${result.coresDownloaded.size} cores",
+                        type = com.nendo.argosy.ui.notification.NotificationType.INFO,
+                        duration = com.nendo.argosy.ui.notification.NotificationDuration.MEDIUM
+                    )
+                }
+            }
+            else -> { /* No notification needed */ }
         }
     }
 
