@@ -61,6 +61,14 @@ class LibretroActivity : ComponentActivity() {
     private var aspectRatioMode: String = "Auto"
     private var screenWidth: Int = 0
     private var screenHeight: Int = 0
+    private var fastForwardSpeed: Int = 4
+    private var overscanCrop: Int = 0
+    private var rotationDegrees: Int = -1
+    private var isFastForwarding = false
+    private var isRewinding = false
+    private var rewindEnabled = false
+    private var rewindCaptureInterval = 30
+    private var frameCounter = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -88,6 +96,11 @@ class LibretroActivity : ComponentActivity() {
             preferencesRepository.getBuiltinEmulatorSettings().first()
         }
         aspectRatioMode = settings.aspectRatio
+        fastForwardSpeed = settings.fastForwardSpeed
+        overscanCrop = settings.overscanCrop
+        rotationDegrees = settings.rotation
+        rewindEnabled = true
+        rewindCaptureInterval = 30
 
         retroView = GLRetroView(
             this,
@@ -111,6 +124,10 @@ class LibretroActivity : ComponentActivity() {
 
         if (settings.rumbleEnabled) {
             setupRumble()
+        }
+
+        if (rewindEnabled) {
+            setupRewind()
         }
 
         val container = FrameLayout(this).apply {
@@ -145,6 +162,8 @@ class LibretroActivity : ComponentActivity() {
             Handler(Looper.getMainLooper()).postDelayed({
                 Log.d("LibretroActivity", "Applying aspect ratio after delay: $aspectRatioMode")
                 applyAspectRatio()
+                applyOverscanCrop()
+                applyRotation()
             }, 500)
         }
 
@@ -178,6 +197,28 @@ class LibretroActivity : ComponentActivity() {
 
         Log.d("LibretroActivity", "Setting aspect ratio override: $overrideRatio for mode: $aspectRatioMode")
         retroView.aspectRatioOverride = overrideRatio
+    }
+
+    private fun applyOverscanCrop() {
+        if (overscanCrop == 0) {
+            retroView.viewport = RectF(0f, 0f, 1f, 1f)
+            return
+        }
+
+        val cropPercentX = overscanCrop / 256f
+        val cropPercentY = overscanCrop / 240f
+        val left = cropPercentX
+        val top = cropPercentY
+        val right = 1f - cropPercentX
+        val bottom = 1f - cropPercentY
+
+        Log.d("LibretroActivity", "Applying overscan crop: ${overscanCrop}px -> viewport($left, $top, $right, $bottom)")
+        retroView.viewport = RectF(left, top, right, bottom)
+    }
+
+    private fun applyRotation() {
+        Log.d("LibretroActivity", "Applying rotation: $rotationDegrees degrees")
+        retroView.rotation = rotationDegrees
     }
 
     private fun getQuickSaveFile(): File {
@@ -229,6 +270,39 @@ class LibretroActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun setupRewind() {
+        lifecycleScope.launch {
+            retroView.getGLRetroEvents().collect { event ->
+                when (event) {
+                    is GLRetroView.GLRetroEvents.SurfaceCreated -> {
+                        val slotCount = 60
+                        val maxStateSize = 4 * 1024 * 1024
+                        retroView.initRewindBuffer(slotCount, maxStateSize)
+                        Log.d("LibretroActivity", "Rewind buffer initialized: $slotCount slots, ${maxStateSize / 1024}KB max state")
+                    }
+                    is GLRetroView.GLRetroEvents.FrameRendered -> {
+                        if (!menuVisible) {
+                            if (isRewinding) {
+                                performRewind()
+                            } else {
+                                frameCounter++
+                                if (frameCounter >= rewindCaptureInterval) {
+                                    frameCounter = 0
+                                    retroView.captureRewindState()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun performRewind(): Boolean {
+        if (!rewindEnabled) return false
+        return retroView.rewindFrame()
     }
 
     private fun handleMenuAction(action: InGameMenuAction) {
@@ -296,6 +370,21 @@ class LibretroActivity : ComponentActivity() {
         when (keyCode) {
             KeyEvent.KEYCODE_BUTTON_START -> startPressed = true
             KeyEvent.KEYCODE_BUTTON_SELECT -> selectPressed = true
+            KeyEvent.KEYCODE_BUTTON_R2 -> {
+                if (!isFastForwarding) {
+                    isFastForwarding = true
+                    retroView.frameSpeed = fastForwardSpeed
+                }
+                return true
+            }
+            KeyEvent.KEYCODE_BUTTON_L2 -> {
+                if (rewindEnabled && !isRewinding) {
+                    isRewinding = true
+                    retroView.frameSpeed = 1
+                    performRewind()
+                }
+                return true
+            }
         }
 
         if (startPressed && selectPressed) {
@@ -316,6 +405,17 @@ class LibretroActivity : ComponentActivity() {
         when (keyCode) {
             KeyEvent.KEYCODE_BUTTON_START -> startPressed = false
             KeyEvent.KEYCODE_BUTTON_SELECT -> selectPressed = false
+            KeyEvent.KEYCODE_BUTTON_R2 -> {
+                if (isFastForwarding) {
+                    isFastForwarding = false
+                    retroView.frameSpeed = 1
+                }
+                return true
+            }
+            KeyEvent.KEYCODE_BUTTON_L2 -> {
+                isRewinding = false
+                return true
+            }
         }
 
         return retroView.onKeyUp(keyCode, event) || super.onKeyUp(keyCode, event)
@@ -342,6 +442,9 @@ class LibretroActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        if (rewindEnabled) {
+            retroView.destroyRewindBuffer()
+        }
         if (isFinishing && gameId != -1L) {
             playSessionTracker.endSession()
         }

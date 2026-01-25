@@ -608,7 +608,10 @@ class SettingsViewModel @Inject constructor(
                         aspectRatio = builtinSettings.aspectRatio,
                         skipDuplicateFrames = builtinSettings.skipDuplicateFrames,
                         blackFrameInsertion = builtinSettings.blackFrameInsertion,
-                        displayRefreshRate = refreshRate
+                        displayRefreshRate = refreshRate,
+                        fastForwardSpeed = builtinSettings.fastForwardSpeedDisplay,
+                        rotation = builtinSettings.rotationDisplay,
+                        overscanCrop = builtinSettings.overscanCropDisplay
                     ),
                     builtinAudio = BuiltinAudioState(
                         lowLatencyAudio = builtinSettings.lowLatencyAudio,
@@ -751,6 +754,73 @@ class SettingsViewModel @Inject constructor(
         val currentIndex = options.indexOf(current).coerceAtLeast(0)
         val nextIndex = (currentIndex + direction + options.size) % options.size
         setBuiltinAspectRatio(options[nextIndex])
+    }
+
+    fun cycleBuiltinFastForwardSpeed(direction: Int) {
+        val options = listOf(2, 4, 8)
+        val currentDisplay = _uiState.value.builtinVideo.fastForwardSpeed
+        val current = currentDisplay.removeSuffix("x").toIntOrNull() ?: 4
+        val currentIndex = options.indexOf(current).coerceAtLeast(0)
+        val nextIndex = (currentIndex + direction + options.size) % options.size
+        setBuiltinFastForwardSpeed(options[nextIndex])
+    }
+
+    fun cycleBuiltinRotation(direction: Int) {
+        val options = listOf(-1, 0, 90, 180, 270)
+        val currentDisplay = _uiState.value.builtinVideo.rotation
+        val current = when (currentDisplay) {
+            "Auto" -> -1
+            "0°" -> 0
+            "90°" -> 90
+            "180°" -> 180
+            "270°" -> 270
+            else -> -1
+        }
+        val currentIndex = options.indexOf(current).coerceAtLeast(0)
+        val nextIndex = (currentIndex + direction + options.size) % options.size
+        setBuiltinRotation(options[nextIndex])
+    }
+
+    fun cycleBuiltinOverscanCrop(direction: Int) {
+        val options = listOf(0, 4, 8, 12, 16)
+        val currentDisplay = _uiState.value.builtinVideo.overscanCrop
+        val current = when (currentDisplay) {
+            "Off" -> 0
+            else -> currentDisplay.removeSuffix("px").toIntOrNull() ?: 0
+        }
+        val currentIndex = options.indexOf(current).coerceAtLeast(0)
+        val nextIndex = (currentIndex + direction + options.size) % options.size
+        setBuiltinOverscanCrop(options[nextIndex])
+    }
+
+    private fun setBuiltinFastForwardSpeed(speed: Int) {
+        _uiState.update { it.copy(builtinVideo = it.builtinVideo.copy(fastForwardSpeed = "${speed}x")) }
+        viewModelScope.launch {
+            preferencesRepository.setBuiltinFastForwardSpeed(speed)
+        }
+    }
+
+    private fun setBuiltinRotation(rotation: Int) {
+        val display = when (rotation) {
+            -1 -> "Auto"
+            0 -> "0°"
+            90 -> "90°"
+            180 -> "180°"
+            270 -> "270°"
+            else -> "Auto"
+        }
+        _uiState.update { it.copy(builtinVideo = it.builtinVideo.copy(rotation = display)) }
+        viewModelScope.launch {
+            preferencesRepository.setBuiltinRotation(rotation)
+        }
+    }
+
+    private fun setBuiltinOverscanCrop(crop: Int) {
+        val display = if (crop == 0) "Off" else "${crop}px"
+        _uiState.update { it.copy(builtinVideo = it.builtinVideo.copy(overscanCrop = display)) }
+        viewModelScope.launch {
+            preferencesRepository.setBuiltinOverscanCrop(crop)
+        }
     }
 
     fun loadCoreManagementState(preserveFocus: Boolean = false) {

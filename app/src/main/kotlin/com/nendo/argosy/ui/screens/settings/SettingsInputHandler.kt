@@ -310,6 +310,9 @@ class SettingsInputHandler(
                 BuiltinVideoItem.Shader -> { viewModel.cycleBuiltinShader(-1); return InputResult.HANDLED }
                 BuiltinVideoItem.Filter -> { viewModel.cycleBuiltinFilter(-1); return InputResult.HANDLED }
                 BuiltinVideoItem.AspectRatio -> { viewModel.cycleBuiltinAspectRatio(-1); return InputResult.HANDLED }
+                BuiltinVideoItem.Rotation -> { viewModel.cycleBuiltinRotation(-1); return InputResult.HANDLED }
+                BuiltinVideoItem.OverscanCrop -> { viewModel.cycleBuiltinOverscanCrop(-1); return InputResult.HANDLED }
+                BuiltinVideoItem.FastForwardSpeed -> { viewModel.cycleBuiltinFastForwardSpeed(-1); return InputResult.HANDLED }
                 else -> {}
             }
         }
@@ -499,6 +502,9 @@ class SettingsInputHandler(
                 BuiltinVideoItem.Shader -> { viewModel.cycleBuiltinShader(1); return InputResult.HANDLED }
                 BuiltinVideoItem.Filter -> { viewModel.cycleBuiltinFilter(1); return InputResult.HANDLED }
                 BuiltinVideoItem.AspectRatio -> { viewModel.cycleBuiltinAspectRatio(1); return InputResult.HANDLED }
+                BuiltinVideoItem.Rotation -> { viewModel.cycleBuiltinRotation(1); return InputResult.HANDLED }
+                BuiltinVideoItem.OverscanCrop -> { viewModel.cycleBuiltinOverscanCrop(1); return InputResult.HANDLED }
+                BuiltinVideoItem.FastForwardSpeed -> { viewModel.cycleBuiltinFastForwardSpeed(1); return InputResult.HANDLED }
                 else -> {}
             }
         }
@@ -584,6 +590,18 @@ class SettingsInputHandler(
                 }
                 BuiltinVideoItem.AspectRatio -> {
                     viewModel.cycleBuiltinAspectRatio(1)
+                    return InputResult.HANDLED
+                }
+                BuiltinVideoItem.Rotation -> {
+                    viewModel.cycleBuiltinRotation(1)
+                    return InputResult.HANDLED
+                }
+                BuiltinVideoItem.OverscanCrop -> {
+                    viewModel.cycleBuiltinOverscanCrop(1)
+                    return InputResult.HANDLED
+                }
+                BuiltinVideoItem.FastForwardSpeed -> {
+                    viewModel.cycleBuiltinFastForwardSpeed(1)
                     return InputResult.HANDLED
                 }
                 BuiltinVideoItem.BlackFrameInsertion -> {

@@ -95,6 +95,7 @@ public:
     bool isBottomLeftOrigin() const;
 
     float getScreenRotation() const;
+    void setManualRotation(int degrees);
     bool isScreenRotationUpdated() const;
     void clearScreenRotationUpdated();
 
@@ -137,6 +138,7 @@ private:
     bool bottomLeftOrigin = false;
 
     float screenRotation = 0;
+    float manualRotation = -1;
     bool screenRotationUpdated = false;
 
     bool gameGeometryUpdated = false;

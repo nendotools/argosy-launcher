@@ -86,6 +86,8 @@ add_library(libretrodroid SHARED
         microphone/microphone.cpp
         microphone/microphoneinterface.h
         microphone/microphoneinterface.cpp
+        rewindbuffer.h
+        rewindbuffer.cpp
         ${LIBRETRO_COMMON}
 )
 

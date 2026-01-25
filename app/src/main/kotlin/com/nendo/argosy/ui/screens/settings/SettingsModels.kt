@@ -206,7 +206,10 @@ data class BuiltinVideoState(
     val aspectRatio: String = "Core Provided",
     val skipDuplicateFrames: Boolean = false,
     val blackFrameInsertion: Boolean = false,
-    val displayRefreshRate: Float = 60f
+    val displayRefreshRate: Float = 60f,
+    val fastForwardSpeed: String = "4x",
+    val rotation: String = "Auto",
+    val overscanCrop: String = "Off"
 ) {
     val canEnableBlackFrameInsertion: Boolean get() = displayRefreshRate >= 120f
 }

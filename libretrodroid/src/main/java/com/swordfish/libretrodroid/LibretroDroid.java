@@ -142,7 +142,16 @@ public class LibretroDroid {
 
     public static native void refreshAspectRatio();
     public static native void setAspectRatioOverride(float ratio);
+    public static native void setRotation(int degrees);
 
     public static native Controller[][] getControllers();
     public static native void setControllerType(int port, int type);
+
+    public static native void initRewindBuffer(int slotCount, int maxStateSize);
+    public static native boolean captureRewindState();
+    public static native boolean rewindFrame();
+    public static native void clearRewindBuffer();
+    public static native void destroyRewindBuffer();
+    public static native float getRewindBufferUsage();
+    public static native int getRewindBufferValidCount();
 }

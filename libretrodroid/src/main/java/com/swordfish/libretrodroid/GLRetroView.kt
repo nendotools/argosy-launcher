@@ -57,6 +57,10 @@ class GLRetroView(
         LibretroDroid.setFrameSpeed(value)
     }
 
+    var rotation: Int by Delegates.observable(-1) { _, _, value ->
+        LibretroDroid.setRotation(value)
+    }
+
     var shader: ShaderConfig by Delegates.observable(data.shader) { _, _, value ->
         LibretroDroid.setShaderConfig(buildShader(value))
     }
@@ -236,6 +240,30 @@ class GLRetroView(
     fun getAvailableDisks() = runOnGLThread { LibretroDroid.availableDisks() }
     fun getCurrentDisk() = runOnGLThread { LibretroDroid.currentDisk() }
     fun changeDisk(index: Int) = runOnGLThread { LibretroDroid.changeDisk(index) }
+
+    fun initRewindBuffer(slotCount: Int, maxStateSize: Int) = runOnGLThread {
+        LibretroDroid.initRewindBuffer(slotCount, maxStateSize)
+    }
+
+    fun captureRewindState(): Boolean = runOnGLThread {
+        LibretroDroid.captureRewindState()
+    }
+
+    fun rewindFrame(): Boolean = runOnGLThread {
+        LibretroDroid.rewindFrame()
+    }
+
+    fun clearRewindBuffer() = runOnGLThread {
+        LibretroDroid.clearRewindBuffer()
+    }
+
+    fun destroyRewindBuffer() = runOnGLThread {
+        LibretroDroid.destroyRewindBuffer()
+    }
+
+    fun getRewindBufferUsage(): Float = LibretroDroid.getRewindBufferUsage()
+
+    fun getRewindBufferValidCount(): Int = LibretroDroid.getRewindBufferValidCount()
 
     private fun getGLESVersion(context: Context): Int {
         val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager

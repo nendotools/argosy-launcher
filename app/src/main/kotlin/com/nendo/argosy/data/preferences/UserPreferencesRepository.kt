@@ -128,6 +128,9 @@ class UserPreferencesRepository @Inject constructor(
         val BUILTIN_RUMBLE_ENABLED = booleanPreferencesKey("builtin_rumble_enabled")
         val BUILTIN_BLACK_FRAME_INSERTION = booleanPreferencesKey("builtin_black_frame_insertion")
         val BUILTIN_CORE_SELECTIONS = stringPreferencesKey("builtin_core_selections")
+        val BUILTIN_FAST_FORWARD_SPEED = intPreferencesKey("builtin_fast_forward_speed")
+        val BUILTIN_ROTATION = intPreferencesKey("builtin_rotation")
+        val BUILTIN_OVERSCAN_CROP = intPreferencesKey("builtin_overscan_crop")
     }
 
     val userPreferences: Flow<UserPreferences> = dataStore.data.map { prefs ->
@@ -939,13 +942,34 @@ class UserPreferencesRepository @Inject constructor(
             skipDuplicateFrames = prefs[Keys.BUILTIN_SKIP_DUPLICATE_FRAMES] ?: false,
             lowLatencyAudio = prefs[Keys.BUILTIN_LOW_LATENCY_AUDIO] ?: true,
             rumbleEnabled = prefs[Keys.BUILTIN_RUMBLE_ENABLED] ?: true,
-            blackFrameInsertion = prefs[Keys.BUILTIN_BLACK_FRAME_INSERTION] ?: false
+            blackFrameInsertion = prefs[Keys.BUILTIN_BLACK_FRAME_INSERTION] ?: false,
+            fastForwardSpeed = prefs[Keys.BUILTIN_FAST_FORWARD_SPEED] ?: 4,
+            rotation = prefs[Keys.BUILTIN_ROTATION] ?: -1,
+            overscanCrop = prefs[Keys.BUILTIN_OVERSCAN_CROP] ?: 0
         )
     }
 
     suspend fun setBuiltinAspectRatio(aspectRatio: String) {
         dataStore.edit { prefs ->
             prefs[Keys.BUILTIN_ASPECT_RATIO] = aspectRatio
+        }
+    }
+
+    suspend fun setBuiltinFastForwardSpeed(speed: Int) {
+        dataStore.edit { prefs ->
+            prefs[Keys.BUILTIN_FAST_FORWARD_SPEED] = speed.coerceIn(2, 8)
+        }
+    }
+
+    suspend fun setBuiltinRotation(rotation: Int) {
+        dataStore.edit { prefs ->
+            prefs[Keys.BUILTIN_ROTATION] = rotation
+        }
+    }
+
+    suspend fun setBuiltinOverscanCrop(crop: Int) {
+        dataStore.edit { prefs ->
+            prefs[Keys.BUILTIN_OVERSCAN_CROP] = crop.coerceIn(0, 16)
         }
     }
 }
@@ -957,7 +981,10 @@ data class BuiltinEmulatorSettings(
     val skipDuplicateFrames: Boolean = false,
     val lowLatencyAudio: Boolean = true,
     val rumbleEnabled: Boolean = true,
-    val blackFrameInsertion: Boolean = false
+    val blackFrameInsertion: Boolean = false,
+    val fastForwardSpeed: Int = 4,
+    val rotation: Int = -1,
+    val overscanCrop: Int = 0
 ) {
     val shaderConfig: com.swordfish.libretrodroid.ShaderConfig
         get() = when (shader) {
@@ -979,6 +1006,25 @@ data class BuiltinEmulatorSettings(
 
     val isIntegerScaling: Boolean
         get() = aspectRatio == "Integer"
+
+    val fastForwardSpeedDisplay: String
+        get() = "${fastForwardSpeed}x"
+
+    val rotationDisplay: String
+        get() = when (rotation) {
+            -1 -> "Auto"
+            0 -> "0°"
+            90 -> "90°"
+            180 -> "180°"
+            270 -> "270°"
+            else -> "Auto"
+        }
+
+    val overscanCropDisplay: String
+        get() = when (overscanCrop) {
+            0 -> "Off"
+            else -> "${overscanCrop}px"
+        }
 }
 
 data class UserPreferences(

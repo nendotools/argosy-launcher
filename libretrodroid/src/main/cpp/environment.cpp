@@ -400,7 +400,19 @@ bool Environment::isBottomLeftOrigin() const {
 }
 
 float Environment::getScreenRotation() const {
+    if (manualRotation >= 0) {
+        return manualRotation;
+    }
     return screenRotation;
+}
+
+void Environment::setManualRotation(int degrees) {
+    if (degrees < 0) {
+        manualRotation = -1;
+    } else {
+        manualRotation = degrees * (float) (-M_PI / 180.0);
+    }
+    screenRotationUpdated = true;
 }
 
 bool Environment::isGameGeometryUpdated() const {

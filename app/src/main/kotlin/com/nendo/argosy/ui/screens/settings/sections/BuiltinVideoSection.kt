@@ -34,11 +34,14 @@ internal sealed class BuiltinVideoItem(
     data object Shader : BuiltinVideoItem("shader", "shaders")
     data object Filter : BuiltinVideoItem("filter", "shaders")
     data object AspectRatio : BuiltinVideoItem("aspectRatio", "display")
+    data object Rotation : BuiltinVideoItem("rotation", "display")
+    data object OverscanCrop : BuiltinVideoItem("overscanCrop", "display")
     data object BlackFrameInsertion : BuiltinVideoItem(
         "blackFrameInsertion",
         "display",
         visibleWhen = { it.canEnableBlackFrameInsertion }
     )
+    data object FastForwardSpeed : BuiltinVideoItem("fastForwardSpeed", "performance")
     data object SkipDuplicateFrames : BuiltinVideoItem("skipDuplicateFrames", "performance")
 
     companion object {
@@ -52,8 +55,11 @@ internal sealed class BuiltinVideoItem(
             Filter,
             DisplayHeader,
             AspectRatio,
+            Rotation,
+            OverscanCrop,
             BlackFrameInsertion,
             PerformanceHeader,
+            FastForwardSpeed,
             SkipDuplicateFrames
         )
     }
@@ -146,12 +152,33 @@ fun BuiltinVideoSection(
                     onClick = { viewModel.cycleBuiltinAspectRatio(1) }
                 )
 
+                BuiltinVideoItem.Rotation -> CyclePreference(
+                    title = "Screen Rotation",
+                    value = videoState.rotation,
+                    isFocused = isFocused(item),
+                    onClick = { viewModel.cycleBuiltinRotation(1) }
+                )
+
+                BuiltinVideoItem.OverscanCrop -> CyclePreference(
+                    title = "Crop Overscan",
+                    value = videoState.overscanCrop,
+                    isFocused = isFocused(item),
+                    onClick = { viewModel.cycleBuiltinOverscanCrop(1) }
+                )
+
                 BuiltinVideoItem.BlackFrameInsertion -> SwitchPreference(
                     title = "Black Frame Insertion",
                     subtitle = "Reduce motion blur (requires 120Hz+ display)",
                     isEnabled = videoState.blackFrameInsertion,
                     isFocused = isFocused(item),
                     onToggle = { viewModel.setBuiltinBlackFrameInsertion(it) }
+                )
+
+                BuiltinVideoItem.FastForwardSpeed -> CyclePreference(
+                    title = "Fast Forward Speed",
+                    value = videoState.fastForwardSpeed,
+                    isFocused = isFocused(item),
+                    onClick = { viewModel.cycleBuiltinFastForwardSpeed(1) }
                 )
 
                 BuiltinVideoItem.SkipDuplicateFrames -> SwitchPreference(
