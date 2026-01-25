@@ -1,20 +1,73 @@
 package com.nendo.argosy.ui.screens.settings.sections
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.nendo.argosy.ui.components.CyclePreference
-import com.nendo.argosy.ui.components.FocusedScroll
+import com.nendo.argosy.ui.components.SectionFocusedScroll
 import com.nendo.argosy.ui.components.SwitchPreference
+import com.nendo.argosy.ui.screens.settings.BuiltinVideoState
 import com.nendo.argosy.ui.screens.settings.SettingsUiState
 import com.nendo.argosy.ui.screens.settings.SettingsViewModel
+import com.nendo.argosy.ui.screens.settings.menu.SettingsLayout
 import com.nendo.argosy.ui.theme.Dimens
+
+internal sealed class BuiltinVideoItem(
+    val key: String,
+    val section: String,
+    val visibleWhen: (BuiltinVideoState) -> Boolean = { true }
+) {
+    val isFocusable: Boolean get() = this !is Header
+
+    class Header(key: String, section: String, val title: String) : BuiltinVideoItem(key, section)
+
+    data object Shader : BuiltinVideoItem("shader", "shaders")
+    data object Filter : BuiltinVideoItem("filter", "shaders")
+    data object AspectRatio : BuiltinVideoItem("aspectRatio", "display")
+    data object SkipDuplicateFrames : BuiltinVideoItem("skipDuplicateFrames", "performance")
+
+    companion object {
+        private val ShadersHeader = Header("shadersHeader", "shaders", "Shaders")
+        private val DisplayHeader = Header("displayHeader", "display", "Display")
+        private val PerformanceHeader = Header("performanceHeader", "performance", "Performance")
+
+        val ALL: List<BuiltinVideoItem> = listOf(
+            ShadersHeader,
+            Shader,
+            Filter,
+            DisplayHeader,
+            AspectRatio,
+            PerformanceHeader,
+            SkipDuplicateFrames
+        )
+    }
+}
+
+private val builtinVideoLayout = SettingsLayout<BuiltinVideoItem, BuiltinVideoState>(
+    allItems = BuiltinVideoItem.ALL,
+    isFocusable = { it.isFocusable },
+    visibleWhen = { item, state -> item.visibleWhen(state) },
+    sectionOf = { it.section }
+)
+
+internal fun builtinVideoMaxFocusIndex(state: BuiltinVideoState): Int =
+    builtinVideoLayout.maxFocusIndex(state)
+
+internal fun builtinVideoItemAtFocusIndex(index: Int, state: BuiltinVideoState): BuiltinVideoItem? =
+    builtinVideoLayout.itemAtFocusIndex(index, state)
+
+internal fun builtinVideoSections(state: BuiltinVideoState) =
+    builtinVideoLayout.buildSections(state)
 
 @Composable
 fun BuiltinVideoSection(
@@ -22,10 +75,23 @@ fun BuiltinVideoSection(
     viewModel: SettingsViewModel
 ) {
     val listState = rememberLazyListState()
+    val videoState = uiState.builtinVideo
 
-    FocusedScroll(
+    val visibleItems = remember(videoState) {
+        builtinVideoLayout.visibleItems(videoState)
+    }
+    val sections = remember(videoState) {
+        builtinVideoLayout.buildSections(videoState)
+    }
+
+    fun isFocused(item: BuiltinVideoItem): Boolean =
+        uiState.focusedIndex == builtinVideoLayout.focusIndexOf(item, videoState)
+
+    SectionFocusedScroll(
         listState = listState,
-        focusedIndex = uiState.focusedIndex
+        focusedIndex = uiState.focusedIndex,
+        focusToListIndex = { builtinVideoLayout.focusToListIndex(it, videoState) },
+        sections = sections
     )
 
     LazyColumn(
@@ -35,68 +101,53 @@ fun BuiltinVideoSection(
             .padding(Dimens.spacingMd),
         verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
-        item(key = "shader_header") {
-            Text(
-                text = "Shaders",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(
-                    start = Dimens.spacingSm,
-                    top = Dimens.spacingMd,
-                    bottom = Dimens.spacingXs
-                )
-            )
-        }
-
-        item(key = "shader") {
-            CyclePreference(
-                title = "Shader",
-                value = uiState.builtinVideo.shader,
-                isFocused = uiState.focusedIndex == 0,
-                onClick = {
-                    val options = listOf("None", "CRT", "LCD", "Sharp")
-                    val currentIndex = options.indexOf(uiState.builtinVideo.shader).coerceAtLeast(0)
-                    val nextIndex = (currentIndex + 1) % options.size
-                    viewModel.setBuiltinShader(options[nextIndex])
+        items(visibleItems, key = { it.key }) { item ->
+            when (item) {
+                is BuiltinVideoItem.Header -> {
+                    if (item.section != "shaders") {
+                        Spacer(modifier = Modifier.height(Dimens.spacingMd))
+                    }
+                    Text(
+                        text = item.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(
+                            start = Dimens.spacingSm,
+                            top = Dimens.spacingXs,
+                            bottom = Dimens.spacingXs
+                        )
+                    )
                 }
-            )
-        }
 
-        item(key = "scaling_header") {
-            Text(
-                text = "Scaling",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(
-                    start = Dimens.spacingSm,
-                    top = Dimens.spacingLg,
-                    bottom = Dimens.spacingXs
+                BuiltinVideoItem.Shader -> CyclePreference(
+                    title = "Shader",
+                    value = videoState.shader,
+                    isFocused = isFocused(item),
+                    onClick = { viewModel.cycleBuiltinShader(1) }
                 )
-            )
-        }
 
-        item(key = "aspect_ratio") {
-            CyclePreference(
-                title = "Aspect Ratio",
-                value = uiState.builtinVideo.aspectRatio,
-                isFocused = uiState.focusedIndex == 1,
-                onClick = {
-                    val options = listOf("Auto", "4:3", "16:9", "Native")
-                    val currentIndex = options.indexOf(uiState.builtinVideo.aspectRatio).coerceAtLeast(0)
-                    val nextIndex = (currentIndex + 1) % options.size
-                    viewModel.setBuiltinAspectRatio(options[nextIndex])
-                }
-            )
-        }
+                BuiltinVideoItem.Filter -> CyclePreference(
+                    title = "Filter",
+                    value = videoState.filter,
+                    isFocused = isFocused(item),
+                    onClick = { viewModel.cycleBuiltinFilter(1) }
+                )
 
-        item(key = "integer_scaling") {
-            SwitchPreference(
-                title = "Integer Scaling",
-                subtitle = "Scale only by whole numbers for pixel-perfect display",
-                isEnabled = uiState.builtinVideo.integerScaling,
-                isFocused = uiState.focusedIndex == 2,
-                onToggle = { viewModel.setBuiltinIntegerScaling(it) }
-            )
+                BuiltinVideoItem.AspectRatio -> CyclePreference(
+                    title = "Aspect Ratio",
+                    value = videoState.aspectRatio,
+                    isFocused = isFocused(item),
+                    onClick = { viewModel.cycleBuiltinAspectRatio(1) }
+                )
+
+                BuiltinVideoItem.SkipDuplicateFrames -> SwitchPreference(
+                    title = "Skip Duplicate Frames",
+                    subtitle = "Reduce CPU usage by skipping unchanged frames",
+                    isEnabled = videoState.skipDuplicateFrames,
+                    isFocused = isFocused(item),
+                    onToggle = { viewModel.setBuiltinSkipDuplicateFrames(it) }
+                )
+            }
         }
     }
 }

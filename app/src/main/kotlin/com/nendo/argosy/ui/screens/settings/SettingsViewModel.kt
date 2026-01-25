@@ -60,6 +60,8 @@ import com.nendo.argosy.ui.screens.settings.delegates.StorageSettingsDelegate
 import com.nendo.argosy.ui.screens.settings.delegates.SyncSettingsDelegate
 import com.nendo.argosy.ui.screens.settings.sections.aboutMaxFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.boxArtMaxFocusIndex
+import com.nendo.argosy.ui.screens.settings.sections.builtinAudioMaxFocusIndex
+import com.nendo.argosy.ui.screens.settings.sections.builtinVideoMaxFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.controlsMaxFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.emulatorsMaxFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.HomeScreenItem
@@ -590,12 +592,23 @@ class SettingsViewModel @Inject constructor(
                 defaultImageCachePath = imageCacheManager.getDefaultCachePath()
             ))
 
+            val builtinSettings = preferencesRepository.getBuiltinEmulatorSettings().first()
             _uiState.update {
                 it.copy(
                     betaUpdatesEnabled = prefs.betaUpdatesEnabled,
                     fileLoggingEnabled = prefs.fileLoggingEnabled,
                     fileLoggingPath = prefs.fileLoggingPath,
-                    fileLogLevel = prefs.fileLogLevel
+                    fileLogLevel = prefs.fileLogLevel,
+                    builtinVideo = BuiltinVideoState(
+                        shader = builtinSettings.shader,
+                        filter = builtinSettings.filter,
+                        aspectRatio = builtinSettings.aspectRatio,
+                        skipDuplicateFrames = builtinSettings.skipDuplicateFrames
+                    ),
+                    builtinAudio = BuiltinAudioState(
+                        lowLatencyAudio = builtinSettings.lowLatencyAudio,
+                        rumbleEnabled = builtinSettings.rumbleEnabled
+                    )
                 )
             }
 
@@ -669,6 +682,13 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setBuiltinFilter(value: String) {
+        _uiState.update { it.copy(builtinVideo = it.builtinVideo.copy(filter = value)) }
+        viewModelScope.launch {
+            preferencesRepository.setBuiltinFilter(value)
+        }
+    }
+
     fun setBuiltinAspectRatio(value: String) {
         _uiState.update { it.copy(builtinVideo = it.builtinVideo.copy(aspectRatio = value)) }
         viewModelScope.launch {
@@ -676,25 +696,49 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setBuiltinIntegerScaling(enabled: Boolean) {
-        _uiState.update { it.copy(builtinVideo = it.builtinVideo.copy(integerScaling = enabled)) }
+    fun setBuiltinSkipDuplicateFrames(enabled: Boolean) {
+        _uiState.update { it.copy(builtinVideo = it.builtinVideo.copy(skipDuplicateFrames = enabled)) }
         viewModelScope.launch {
-            preferencesRepository.setBuiltinIntegerScaling(enabled)
+            preferencesRepository.setBuiltinSkipDuplicateFrames(enabled)
         }
     }
 
-    fun setBuiltinAudioLatency(value: Int) {
-        _uiState.update { it.copy(builtinAudio = it.builtinAudio.copy(latency = value)) }
+    fun setBuiltinLowLatencyAudio(enabled: Boolean) {
+        _uiState.update { it.copy(builtinAudio = it.builtinAudio.copy(lowLatencyAudio = enabled)) }
         viewModelScope.launch {
-            preferencesRepository.setBuiltinAudioLatency(value)
+            preferencesRepository.setBuiltinLowLatencyAudio(enabled)
         }
     }
 
-    fun setBuiltinAudioSyncMode(value: String) {
-        _uiState.update { it.copy(builtinAudio = it.builtinAudio.copy(syncMode = value)) }
+    fun setBuiltinRumbleEnabled(enabled: Boolean) {
+        _uiState.update { it.copy(builtinAudio = it.builtinAudio.copy(rumbleEnabled = enabled)) }
         viewModelScope.launch {
-            preferencesRepository.setBuiltinAudioSyncMode(value)
+            preferencesRepository.setBuiltinRumbleEnabled(enabled)
         }
+    }
+
+    fun cycleBuiltinShader(direction: Int) {
+        val options = listOf("None", "Sharp", "CUT", "CUT2", "CUT3", "CRT", "LCD")
+        val current = _uiState.value.builtinVideo.shader
+        val currentIndex = options.indexOf(current).coerceAtLeast(0)
+        val nextIndex = (currentIndex + direction + options.size) % options.size
+        setBuiltinShader(options[nextIndex])
+    }
+
+    fun cycleBuiltinFilter(direction: Int) {
+        val options = listOf("Auto", "Nearest", "Bilinear")
+        val current = _uiState.value.builtinVideo.filter
+        val currentIndex = options.indexOf(current).coerceAtLeast(0)
+        val nextIndex = (currentIndex + direction + options.size) % options.size
+        setBuiltinFilter(options[nextIndex])
+    }
+
+    fun cycleBuiltinAspectRatio(direction: Int) {
+        val options = listOf("Core Provided", "4:3", "16:9", "Integer", "Stretch")
+        val current = _uiState.value.builtinVideo.aspectRatio
+        val currentIndex = options.indexOf(current).coerceAtLeast(0)
+        val nextIndex = (currentIndex + direction + options.size) % options.size
+        setBuiltinAspectRatio(options[nextIndex])
     }
 
     fun loadCoreManagementState(preserveFocus: Boolean = false) {
@@ -1195,8 +1239,8 @@ class SettingsViewModel @Inject constructor(
                     state.emulators.canAutoAssign,
                     state.emulators.platforms.size
                 )
-                SettingsSection.BUILTIN_VIDEO -> 2
-                SettingsSection.BUILTIN_AUDIO -> 1
+                SettingsSection.BUILTIN_VIDEO -> builtinVideoMaxFocusIndex(state.builtinVideo)
+                SettingsSection.BUILTIN_AUDIO -> builtinAudioMaxFocusIndex(state.builtinAudio)
                 SettingsSection.CORE_MANAGEMENT -> (state.coreManagement.platforms.size - 1).coerceAtLeast(0)
                 SettingsSection.BIOS -> {
                     // Summary card (0), Directory (1), platforms start at 2

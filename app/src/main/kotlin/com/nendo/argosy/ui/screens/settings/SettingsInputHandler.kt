@@ -3,10 +3,14 @@ package com.nendo.argosy.ui.screens.settings
 import com.nendo.argosy.ui.input.InputHandler
 import com.nendo.argosy.ui.input.InputResult
 import com.nendo.argosy.ui.input.SoundType
+import com.nendo.argosy.ui.screens.settings.sections.BuiltinAudioItem
+import com.nendo.argosy.ui.screens.settings.sections.BuiltinVideoItem
 import com.nendo.argosy.ui.screens.settings.sections.HomeScreenItem
 import com.nendo.argosy.ui.screens.settings.sections.InterfaceItem
 import com.nendo.argosy.ui.screens.settings.sections.InterfaceLayoutState
 import com.nendo.argosy.ui.screens.settings.sections.biosSections
+import com.nendo.argosy.ui.screens.settings.sections.builtinAudioItemAtFocusIndex
+import com.nendo.argosy.ui.screens.settings.sections.builtinVideoItemAtFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.homeScreenItemAtFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.homeScreenSections
 import com.nendo.argosy.ui.screens.settings.sections.interfaceItemAtFocusIndex
@@ -301,6 +305,15 @@ class SettingsInputHandler(
             return InputResult.HANDLED
         }
 
+        if (state.currentSection == SettingsSection.BUILTIN_VIDEO) {
+            when (builtinVideoItemAtFocusIndex(state.focusedIndex, state.builtinVideo)) {
+                BuiltinVideoItem.Shader -> { viewModel.cycleBuiltinShader(-1); return InputResult.HANDLED }
+                BuiltinVideoItem.Filter -> { viewModel.cycleBuiltinFilter(-1); return InputResult.HANDLED }
+                BuiltinVideoItem.AspectRatio -> { viewModel.cycleBuiltinAspectRatio(-1); return InputResult.HANDLED }
+                else -> {}
+            }
+        }
+
         return InputResult.UNHANDLED
     }
 
@@ -481,6 +494,15 @@ class SettingsInputHandler(
             return InputResult.HANDLED
         }
 
+        if (state.currentSection == SettingsSection.BUILTIN_VIDEO) {
+            when (builtinVideoItemAtFocusIndex(state.focusedIndex, state.builtinVideo)) {
+                BuiltinVideoItem.Shader -> { viewModel.cycleBuiltinShader(1); return InputResult.HANDLED }
+                BuiltinVideoItem.Filter -> { viewModel.cycleBuiltinFilter(1); return InputResult.HANDLED }
+                BuiltinVideoItem.AspectRatio -> { viewModel.cycleBuiltinAspectRatio(1); return InputResult.HANDLED }
+                else -> {}
+            }
+        }
+
         return InputResult.UNHANDLED
     }
 
@@ -547,6 +569,42 @@ class SettingsInputHandler(
                     viewModel.showSavePathModal(config)
                     return InputResult.HANDLED
                 }
+            }
+        }
+
+        if (state.currentSection == SettingsSection.BUILTIN_VIDEO) {
+            when (builtinVideoItemAtFocusIndex(state.focusedIndex, state.builtinVideo)) {
+                BuiltinVideoItem.Shader -> {
+                    viewModel.cycleBuiltinShader(1)
+                    return InputResult.HANDLED
+                }
+                BuiltinVideoItem.Filter -> {
+                    viewModel.cycleBuiltinFilter(1)
+                    return InputResult.HANDLED
+                }
+                BuiltinVideoItem.AspectRatio -> {
+                    viewModel.cycleBuiltinAspectRatio(1)
+                    return InputResult.HANDLED
+                }
+                BuiltinVideoItem.SkipDuplicateFrames -> {
+                    viewModel.setBuiltinSkipDuplicateFrames(!state.builtinVideo.skipDuplicateFrames)
+                    return InputResult.handled(SoundType.TOGGLE)
+                }
+                else -> {}
+            }
+        }
+
+        if (state.currentSection == SettingsSection.BUILTIN_AUDIO) {
+            when (builtinAudioItemAtFocusIndex(state.focusedIndex, state.builtinAudio)) {
+                BuiltinAudioItem.LowLatencyAudio -> {
+                    viewModel.setBuiltinLowLatencyAudio(!state.builtinAudio.lowLatencyAudio)
+                    return InputResult.handled(SoundType.TOGGLE)
+                }
+                BuiltinAudioItem.Rumble -> {
+                    viewModel.setBuiltinRumbleEnabled(!state.builtinAudio.rumbleEnabled)
+                    return InputResult.handled(SoundType.TOGGLE)
+                }
+                else -> {}
             }
         }
 

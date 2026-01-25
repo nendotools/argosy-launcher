@@ -202,13 +202,14 @@ data class EmulatorState(
 
 data class BuiltinVideoState(
     val shader: String = "None",
-    val aspectRatio: String = "Auto",
-    val integerScaling: Boolean = false
+    val filter: String = "Auto",
+    val aspectRatio: String = "Core Provided",
+    val skipDuplicateFrames: Boolean = false
 )
 
 data class BuiltinAudioState(
-    val latency: Int = 3,
-    val syncMode: String = "Auto"
+    val lowLatencyAudio: Boolean = true,
+    val rumbleEnabled: Boolean = true
 )
 
 enum class CoreChipStatus {

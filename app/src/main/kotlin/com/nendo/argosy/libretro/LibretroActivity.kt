@@ -1,6 +1,13 @@
 package com.nendo.argosy.libretro
 
+import android.graphics.RectF
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
+import android.util.Log
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.widget.FrameLayout
@@ -14,14 +21,20 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.lifecycleScope
 import com.nendo.argosy.data.emulator.EmulatorRegistry
 import com.nendo.argosy.data.emulator.PlaySessionTracker
+import com.nendo.argosy.data.preferences.BuiltinEmulatorSettings
+import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.libretro.ui.InGameMenu
 import com.nendo.argosy.libretro.ui.InGameMenuAction
 import com.nendo.argosy.ui.theme.ALauncherTheme
 import com.swordfish.libretrodroid.GLRetroView
 import com.swordfish.libretrodroid.GLRetroViewData
+import com.swordfish.libretrodroid.ShaderConfig
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.io.File
 import java.security.MessageDigest
 import javax.inject.Inject
@@ -29,8 +42,10 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class LibretroActivity : ComponentActivity() {
     @Inject lateinit var playSessionTracker: PlaySessionTracker
+    @Inject lateinit var preferencesRepository: UserPreferencesRepository
 
     private lateinit var retroView: GLRetroView
+    private var vibrator: Vibrator? = null
     private lateinit var statesDir: File
     private lateinit var savesDir: File
     private lateinit var romPath: String
@@ -43,6 +58,9 @@ class LibretroActivity : ComponentActivity() {
     private var hasQuickSave by mutableStateOf(false)
     private var gameName: String = ""
     private var lastSramHash: String? = null
+    private var aspectRatioMode: String = "Auto"
+    private var screenWidth: Int = 0
+    private var screenHeight: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,6 +84,11 @@ class LibretroActivity : ComponentActivity() {
         val existingSram = getSramFile().takeIf { it.exists() }?.readBytes()
         lastSramHash = existingSram?.let { hashBytes(it) }
 
+        val settings = kotlinx.coroutines.runBlocking {
+            preferencesRepository.getBuiltinEmulatorSettings().first()
+        }
+        aspectRatioMode = settings.aspectRatio
+
         retroView = GLRetroView(
             this,
             GLRetroViewData(this).apply {
@@ -74,11 +97,20 @@ class LibretroActivity : ComponentActivity() {
                 systemDirectory = systemDir.absolutePath
                 savesDirectory = savesDir.absolutePath
                 saveRAMState = existingSram
+                shader = settings.shaderConfig
+                skipDuplicateFrames = settings.skipDuplicateFrames
+                preferLowLatencyAudio = settings.lowLatencyAudio
+                rumbleEventsEnabled = settings.rumbleEnabled
             }
         )
 
         lifecycle.addObserver(retroView)
         retroView.audioEnabled = true
+        retroView.filterMode = settings.filterMode
+
+        if (settings.rumbleEnabled) {
+            setupRumble()
+        }
 
         val container = FrameLayout(this).apply {
             addView(retroView, FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
@@ -104,9 +136,47 @@ class LibretroActivity : ComponentActivity() {
 
         setContentView(container)
 
+        container.post {
+            screenWidth = container.width
+            screenHeight = container.height
+            Log.d("LibretroActivity", "Container size: ${screenWidth}x${screenHeight}, aspectRatioMode: $aspectRatioMode")
+
+            Handler(Looper.getMainLooper()).postDelayed({
+                Log.d("LibretroActivity", "Applying aspect ratio after delay: $aspectRatioMode")
+                applyAspectRatio()
+            }, 500)
+        }
+
         if (gameId != -1L) {
             playSessionTracker.startSession(gameId, EmulatorRegistry.BUILTIN_PACKAGE, coreName)
         }
+    }
+
+    private fun applyAspectRatio() {
+        if (screenWidth == 0 || screenHeight == 0) {
+            Log.w("LibretroActivity", "Cannot apply aspect ratio: screen size not available")
+            return
+        }
+
+        val screenRatio = screenWidth.toFloat() / screenHeight.toFloat()
+
+        if (aspectRatioMode == "Integer") {
+            Log.d("LibretroActivity", "Enabling integer scaling")
+            retroView.integerScaling = true
+            retroView.aspectRatioOverride = -1f
+            return
+        }
+
+        retroView.integerScaling = false
+        val overrideRatio = when (aspectRatioMode) {
+            "4:3" -> 4f / 3f
+            "16:9" -> 16f / 9f
+            "Stretch" -> screenRatio
+            else -> -1f
+        }
+
+        Log.d("LibretroActivity", "Setting aspect ratio override: $overrideRatio for mode: $aspectRatioMode")
+        retroView.aspectRatioOverride = overrideRatio
     }
 
     private fun getQuickSaveFile(): File {
@@ -137,6 +207,27 @@ class LibretroActivity : ComponentActivity() {
     private fun hashBytes(data: ByteArray): String {
         val digest = MessageDigest.getInstance("MD5")
         return digest.digest(data).joinToString("") { "%02x".format(it) }
+    }
+
+    private fun setupRumble() {
+        vibrator = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            val vibratorManager = getSystemService(VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+            vibratorManager?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            getSystemService(VIBRATOR_SERVICE) as? Vibrator
+        }
+
+        lifecycleScope.launch {
+            retroView.getRumbleEvents().collect { event ->
+                val strength = maxOf(event.strengthStrong, event.strengthWeak)
+                if (strength > 0f) {
+                    val amplitude = (strength * 255).toInt().coerceIn(1, 255)
+                    val duration = 50L
+                    vibrator?.vibrate(VibrationEffect.createOneShot(duration, amplitude))
+                }
+            }
+        }
     }
 
     private fun handleMenuAction(action: InGameMenuAction) {

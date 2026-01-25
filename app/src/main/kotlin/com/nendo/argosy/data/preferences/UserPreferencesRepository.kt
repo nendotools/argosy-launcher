@@ -121,10 +121,11 @@ class UserPreferencesRepository @Inject constructor(
         val AMBIENT_LED_COLOR_MODE = stringPreferencesKey("ambient_led_color_mode")
 
         val BUILTIN_SHADER = stringPreferencesKey("builtin_shader")
+        val BUILTIN_FILTER = stringPreferencesKey("builtin_filter")
         val BUILTIN_ASPECT_RATIO = stringPreferencesKey("builtin_aspect_ratio")
-        val BUILTIN_INTEGER_SCALING = booleanPreferencesKey("builtin_integer_scaling")
-        val BUILTIN_AUDIO_LATENCY = intPreferencesKey("builtin_audio_latency")
-        val BUILTIN_AUDIO_SYNC_MODE = stringPreferencesKey("builtin_audio_sync_mode")
+        val BUILTIN_SKIP_DUPLICATE_FRAMES = booleanPreferencesKey("builtin_skip_duplicate_frames")
+        val BUILTIN_LOW_LATENCY_AUDIO = booleanPreferencesKey("builtin_low_latency_audio")
+        val BUILTIN_RUMBLE_ENABLED = booleanPreferencesKey("builtin_rumble_enabled")
         val BUILTIN_CORE_SELECTIONS = stringPreferencesKey("builtin_core_selections")
     }
 
@@ -869,27 +870,27 @@ class UserPreferencesRepository @Inject constructor(
         }
     }
 
-    suspend fun setBuiltinAspectRatio(aspectRatio: String) {
+    suspend fun setBuiltinFilter(filter: String) {
         dataStore.edit { prefs ->
-            prefs[Keys.BUILTIN_ASPECT_RATIO] = aspectRatio
+            prefs[Keys.BUILTIN_FILTER] = filter
         }
     }
 
-    suspend fun setBuiltinIntegerScaling(enabled: Boolean) {
+    suspend fun setBuiltinSkipDuplicateFrames(enabled: Boolean) {
         dataStore.edit { prefs ->
-            prefs[Keys.BUILTIN_INTEGER_SCALING] = enabled
+            prefs[Keys.BUILTIN_SKIP_DUPLICATE_FRAMES] = enabled
         }
     }
 
-    suspend fun setBuiltinAudioLatency(latency: Int) {
+    suspend fun setBuiltinLowLatencyAudio(enabled: Boolean) {
         dataStore.edit { prefs ->
-            prefs[Keys.BUILTIN_AUDIO_LATENCY] = latency.coerceIn(1, 5)
+            prefs[Keys.BUILTIN_LOW_LATENCY_AUDIO] = enabled
         }
     }
 
-    suspend fun setBuiltinAudioSyncMode(syncMode: String) {
+    suspend fun setBuiltinRumbleEnabled(enabled: Boolean) {
         dataStore.edit { prefs ->
-            prefs[Keys.BUILTIN_AUDIO_SYNC_MODE] = syncMode
+            prefs[Keys.BUILTIN_RUMBLE_ENABLED] = enabled
         }
     }
 
@@ -922,6 +923,53 @@ class UserPreferencesRepository @Inject constructor(
             }
             ?: emptyMap()
     }
+
+    fun getBuiltinEmulatorSettings(): Flow<BuiltinEmulatorSettings> = dataStore.data.map { prefs ->
+        BuiltinEmulatorSettings(
+            shader = prefs[Keys.BUILTIN_SHADER] ?: "None",
+            filter = prefs[Keys.BUILTIN_FILTER] ?: "Auto",
+            aspectRatio = prefs[Keys.BUILTIN_ASPECT_RATIO] ?: "Core Provided",
+            skipDuplicateFrames = prefs[Keys.BUILTIN_SKIP_DUPLICATE_FRAMES] ?: false,
+            lowLatencyAudio = prefs[Keys.BUILTIN_LOW_LATENCY_AUDIO] ?: true,
+            rumbleEnabled = prefs[Keys.BUILTIN_RUMBLE_ENABLED] ?: true
+        )
+    }
+
+    suspend fun setBuiltinAspectRatio(aspectRatio: String) {
+        dataStore.edit { prefs ->
+            prefs[Keys.BUILTIN_ASPECT_RATIO] = aspectRatio
+        }
+    }
+}
+
+data class BuiltinEmulatorSettings(
+    val shader: String = "None",
+    val filter: String = "Auto",
+    val aspectRatio: String = "Core Provided",
+    val skipDuplicateFrames: Boolean = false,
+    val lowLatencyAudio: Boolean = true,
+    val rumbleEnabled: Boolean = true
+) {
+    val shaderConfig: com.swordfish.libretrodroid.ShaderConfig
+        get() = when (shader) {
+            "CRT" -> com.swordfish.libretrodroid.ShaderConfig.CRT
+            "LCD" -> com.swordfish.libretrodroid.ShaderConfig.LCD
+            "Sharp" -> com.swordfish.libretrodroid.ShaderConfig.Sharp
+            "CUT" -> com.swordfish.libretrodroid.ShaderConfig.CUT()
+            "CUT2" -> com.swordfish.libretrodroid.ShaderConfig.CUT2()
+            "CUT3" -> com.swordfish.libretrodroid.ShaderConfig.CUT3()
+            else -> com.swordfish.libretrodroid.ShaderConfig.Default
+        }
+
+    val filterMode: Int
+        get() = when (filter) {
+            "Nearest" -> 0
+            "Bilinear" -> 1
+            else -> -1  // Auto
+        }
+
+    val isIntegerScaling: Boolean
+        get() = aspectRatio == "Integer"
 }
 
 data class UserPreferences(
