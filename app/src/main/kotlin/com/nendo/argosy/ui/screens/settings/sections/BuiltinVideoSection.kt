@@ -42,6 +42,7 @@ internal sealed class BuiltinVideoItem(
         visibleWhen = { it.canEnableBlackFrameInsertion }
     )
     data object FastForwardSpeed : BuiltinVideoItem("fastForwardSpeed", "performance")
+    data object RewindEnabled : BuiltinVideoItem("rewindEnabled", "performance")
     data object SkipDuplicateFrames : BuiltinVideoItem("skipDuplicateFrames", "performance")
     data object LowLatencyAudio : BuiltinVideoItem("lowLatencyAudio", "performance")
 
@@ -61,6 +62,7 @@ internal sealed class BuiltinVideoItem(
             BlackFrameInsertion,
             PerformanceHeader,
             FastForwardSpeed,
+            RewindEnabled,
             SkipDuplicateFrames,
             LowLatencyAudio
         )
@@ -181,6 +183,14 @@ fun BuiltinVideoSection(
                     value = videoState.fastForwardSpeed,
                     isFocused = isFocused(item),
                     onClick = { viewModel.cycleBuiltinFastForwardSpeed(1) }
+                )
+
+                BuiltinVideoItem.RewindEnabled -> SwitchPreference(
+                    title = "Enable Rewind",
+                    subtitle = "May cause slowdowns on heavier platforms",
+                    isEnabled = videoState.rewindEnabled,
+                    isFocused = isFocused(item),
+                    onToggle = { viewModel.setBuiltinRewindEnabled(it) }
                 )
 
                 BuiltinVideoItem.SkipDuplicateFrames -> SwitchPreference(

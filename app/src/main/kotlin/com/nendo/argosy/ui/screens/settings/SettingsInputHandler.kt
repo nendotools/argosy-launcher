@@ -618,6 +618,10 @@ class SettingsInputHandler(
                     viewModel.setBuiltinBlackFrameInsertion(!state.builtinVideo.blackFrameInsertion)
                     return InputResult.handled(SoundType.TOGGLE)
                 }
+                BuiltinVideoItem.RewindEnabled -> {
+                    viewModel.setBuiltinRewindEnabled(!state.builtinVideo.rewindEnabled)
+                    return InputResult.handled(SoundType.TOGGLE)
+                }
                 BuiltinVideoItem.SkipDuplicateFrames -> {
                     viewModel.setBuiltinSkipDuplicateFrames(!state.builtinVideo.skipDuplicateFrames)
                     return InputResult.handled(SoundType.TOGGLE)

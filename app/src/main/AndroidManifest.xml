@@ -119,6 +119,7 @@
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:screenOrientation="sensorLandscape"
             android:theme="@style/Theme.Argosy"
+            android:taskAffinity=""
             android:exported="false" />
     </application>
 </manifest>

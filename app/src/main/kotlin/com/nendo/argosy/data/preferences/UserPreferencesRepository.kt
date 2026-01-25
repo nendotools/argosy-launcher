@@ -134,6 +134,7 @@ class UserPreferencesRepository @Inject constructor(
         val BUILTIN_FAST_FORWARD_SPEED = intPreferencesKey("builtin_fast_forward_speed")
         val BUILTIN_ROTATION = intPreferencesKey("builtin_rotation")
         val BUILTIN_OVERSCAN_CROP = intPreferencesKey("builtin_overscan_crop")
+        val BUILTIN_REWIND_ENABLED = booleanPreferencesKey("builtin_rewind_enabled")
         val BUILTIN_MIGRATION_V1 = booleanPreferencesKey("builtin_migration_v2")
     }
 
@@ -952,8 +953,15 @@ class UserPreferencesRepository @Inject constructor(
             dpadAsAnalog = prefs[Keys.BUILTIN_DPAD_AS_ANALOG] ?: false,
             fastForwardSpeed = prefs[Keys.BUILTIN_FAST_FORWARD_SPEED] ?: 4,
             rotation = prefs[Keys.BUILTIN_ROTATION] ?: -1,
-            overscanCrop = prefs[Keys.BUILTIN_OVERSCAN_CROP] ?: 0
+            overscanCrop = prefs[Keys.BUILTIN_OVERSCAN_CROP] ?: 0,
+            rewindEnabled = prefs[Keys.BUILTIN_REWIND_ENABLED] ?: true
         )
+    }
+
+    suspend fun setBuiltinRewindEnabled(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.BUILTIN_REWIND_ENABLED] = enabled
+        }
     }
 
     suspend fun setBuiltinAspectRatio(aspectRatio: String) {
@@ -1022,7 +1030,8 @@ data class BuiltinEmulatorSettings(
     val dpadAsAnalog: Boolean = false,
     val fastForwardSpeed: Int = 4,
     val rotation: Int = -1,
-    val overscanCrop: Int = 0
+    val overscanCrop: Int = 0,
+    val rewindEnabled: Boolean = true
 ) {
     val shaderConfig: com.swordfish.libretrodroid.ShaderConfig
         get() = when (shader) {

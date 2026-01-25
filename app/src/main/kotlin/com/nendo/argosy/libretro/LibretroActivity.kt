@@ -84,17 +84,11 @@ class LibretroActivity : ComponentActivity() {
     private var isFastForwarding = false
     private var isRewinding = false
     private var rewindEnabled = false
-    private var isHeavyCore = false
     private var lastCaptureTime = 0L
     private var lastRewindTime = 0L
     private var limitHotkeysToPlayer1 = true
-
-    // Rewind timing - heavy cores use throttled capture/playback
-    private val lightCoreCaptureIntervalMs = 16L    // ~60 captures/sec
-    private val lightCoreRewindIntervalMs = 16L     // ~60 rewinds/sec (with rewindSpeed multiplier)
-    private val heavyCoreCaptureIntervalMs = 1000L  // 1 capture/sec
-    private val heavyCoreRewindIntervalMs = 250L    // 4 rewinds/sec (1 sec back per 250ms)
-    private val lightCoreRewindSpeed = 2            // Steps per rewind tick for light cores
+    private val frameIntervalMs = 16L
+    private val rewindSpeed = 2
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -126,29 +120,21 @@ class LibretroActivity : ComponentActivity() {
         overscanCrop = settings.overscanCrop
         rotationDegrees = settings.rotation
 
-        // Heavy cores (32/64-bit systems) use throttled rewind: 1 capture/sec, 250ms rewind steps
+        // Disable rewind for heavy cores (32/64-bit systems) - state capture causes lag
         val heavyCorePatterns = listOf(
-            // N64
-            "mupen64plus", "parallel_n64",
-            // PlayStation
-            "pcsx", "duckstation", "beetle_psx", "swanstation",
-            // Saturn
-            "beetle_saturn", "yabause", "kronos",
-            // Dreamcast
-            "flycast", "redream",
-            // PSP
-            "ppsspp",
-            // DS
-            "desmume", "melonds",
-            // 3DO
-            "opera",
-            // Jaguar
-            "virtualjaguar"
+            "mupen64plus", "parallel_n64",  // N64
+            "pcsx", "duckstation", "beetle_psx", "swanstation",  // PlayStation
+            "beetle_saturn", "yabause", "kronos",  // Saturn
+            "flycast", "redream",  // Dreamcast
+            "ppsspp",  // PSP
+            "desmume", "melonds",  // DS
+            "opera",  // 3DO
+            "virtualjaguar"  // Jaguar
         )
-        isHeavyCore = coreName?.let { name ->
+        val isHeavyCore = coreName?.let { name ->
             heavyCorePatterns.any { pattern -> name.contains(pattern, ignoreCase = true) }
         } ?: false
-        rewindEnabled = true
+        rewindEnabled = settings.rewindEnabled && !isHeavyCore
 
         Log.d("LibretroActivity", "Core: $coreName, isHeavyCore: $isHeavyCore, rewindEnabled: $rewindEnabled")
 
@@ -392,29 +378,24 @@ class LibretroActivity : ComponentActivity() {
             retroView.getGLRetroEvents().collect { event ->
                 when (event) {
                     is GLRetroView.GLRetroEvents.SurfaceCreated -> {
-                        // Heavy cores need larger state buffer (N64 states can be 10-20MB)
-                        val slotCount = if (isHeavyCore) 60 else 900  // 60 sec for heavy, 15 sec for light
-                        val maxStateSize = if (isHeavyCore) 20 * 1024 * 1024 else 4 * 1024 * 1024
+                        val slotCount = 900  // ~15 sec at 60fps
+                        val maxStateSize = 4 * 1024 * 1024
                         retroView.initRewindBuffer(slotCount, maxStateSize)
-                        Log.d("LibretroActivity", "Rewind buffer initialized: $slotCount slots, ${maxStateSize / 1024}KB max state, isHeavyCore: $isHeavyCore")
+                        Log.d("LibretroActivity", "Rewind buffer initialized: $slotCount slots, ${maxStateSize / 1024}KB max state")
                         applyAllEnabledCheats()
                     }
                     is GLRetroView.GLRetroEvents.FrameRendered -> {
                         if (!menuVisible) {
                             val now = System.currentTimeMillis()
                             if (isRewinding) {
-                                val rewindInterval = if (isHeavyCore) heavyCoreRewindIntervalMs else lightCoreRewindIntervalMs
-                                if (now - lastRewindTime >= rewindInterval) {
+                                if (now - lastRewindTime >= frameIntervalMs) {
                                     lastRewindTime = now
-                                    // Heavy cores: 1 step per tick. Light cores: multiple steps per tick
-                                    val steps = if (isHeavyCore) 1 else lightCoreRewindSpeed
-                                    repeat(steps) { performRewind() }
+                                    repeat(rewindSpeed) { performRewind() }
                                 }
                             } else {
-                                val captureInterval = if (isHeavyCore) heavyCoreCaptureIntervalMs else lightCoreCaptureIntervalMs
-                                if (now - lastCaptureTime >= captureInterval) {
+                                if (now - lastCaptureTime >= frameIntervalMs) {
                                     lastCaptureTime = now
-                                    val captureCount = if (isFastForwarding && !isHeavyCore) fastForwardSpeed else 1
+                                    val captureCount = if (isFastForwarding) fastForwardSpeed else 1
                                     repeat(captureCount) { retroView.captureRewindState() }
                                 }
                             }

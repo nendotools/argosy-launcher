@@ -210,7 +210,8 @@ data class BuiltinVideoState(
     val fastForwardSpeed: String = "4x",
     val rotation: String = "Auto",
     val overscanCrop: String = "Off",
-    val lowLatencyAudio: Boolean = true
+    val lowLatencyAudio: Boolean = true,
+    val rewindEnabled: Boolean = true
 ) {
     val canEnableBlackFrameInsertion: Boolean get() = displayRefreshRate >= 120f
 }

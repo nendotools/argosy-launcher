@@ -613,7 +613,8 @@ class SettingsViewModel @Inject constructor(
                         fastForwardSpeed = builtinSettings.fastForwardSpeedDisplay,
                         rotation = builtinSettings.rotationDisplay,
                         overscanCrop = builtinSettings.overscanCropDisplay,
-                        lowLatencyAudio = builtinSettings.lowLatencyAudio
+                        lowLatencyAudio = builtinSettings.lowLatencyAudio,
+                        rewindEnabled = builtinSettings.rewindEnabled
                     ),
                     builtinControls = BuiltinControlsState(
                         rumbleEnabled = builtinSettings.rumbleEnabled,
@@ -731,6 +732,13 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             preferencesRepository.setBuiltinLowLatencyAudio(enabled)
             if (enabled) preferencesRepository.setBuiltinBlackFrameInsertion(false)
+        }
+    }
+
+    fun setBuiltinRewindEnabled(enabled: Boolean) {
+        _uiState.update { it.copy(builtinVideo = it.builtinVideo.copy(rewindEnabled = enabled)) }
+        viewModelScope.launch {
+            preferencesRepository.setBuiltinRewindEnabled(enabled)
         }
     }
 
