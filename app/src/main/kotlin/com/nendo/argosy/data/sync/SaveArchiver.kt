@@ -454,6 +454,24 @@ class SaveArchiver @Inject constructor() {
         return md.digest().joinToString("") { "%02x".format(it) }
     }
 
+    fun calculateFolderHash(folder: File): String {
+        val md = MessageDigest.getInstance("MD5")
+        folder.walkTopDown()
+            .filter { it.isFile }
+            .sortedBy { it.relativeTo(folder).path }
+            .forEach { file ->
+                md.update(file.relativeTo(folder).path.toByteArray())
+                file.inputStream().buffered().use { input ->
+                    val buffer = ByteArray(BUFFER_SIZE)
+                    var bytesRead: Int
+                    while (input.read(buffer).also { bytesRead = it } != -1) {
+                        md.update(buffer, 0, bytesRead)
+                    }
+                }
+            }
+        return md.digest().joinToString("") { "%02x".format(it) }
+    }
+
     companion object {
         private const val JKSV_META_FILE = ".nx_save_meta.bin"
         private const val JKSV_MAGIC = "JKSV"

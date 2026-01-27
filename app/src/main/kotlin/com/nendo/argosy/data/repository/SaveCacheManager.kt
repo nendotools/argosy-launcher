@@ -64,12 +64,13 @@ class SaveCacheManager @Inject constructor(
 
         try {
             val (contentHash, tempOrSource) = if (saveFile.isDirectory) {
+                val folderHash = saveArchiver.calculateFolderHash(saveFile)
                 tempFile = File(context.cacheDir, "temp_save_${System.currentTimeMillis()}.zip")
                 if (!saveArchiver.zipFolder(saveFile, tempFile)) {
                     Log.e(TAG, "Failed to zip save folder")
                     return@withContext CacheResult.Failed
                 }
-                saveArchiver.calculateFileHash(tempFile) to tempFile
+                folderHash to tempFile
             } else {
                 saveArchiver.calculateFileHash(saveFile) to saveFile
             }
