@@ -1,21 +1,33 @@
 package com.nendo.argosy.ui.screens.gamedetail.modals
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.SportsEsports
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import com.nendo.argosy.libretro.LaunchMode
-import com.nendo.argosy.ui.theme.Dimens
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import com.nendo.argosy.ui.components.Modal
-import com.nendo.argosy.ui.screens.gamedetail.components.OptionItem
+import com.nendo.argosy.ui.theme.Dimens
+import com.nendo.argosy.ui.util.clickableNoFocus
 
 private val goldColor = Color(0xFFFFD700)
 
@@ -38,66 +50,134 @@ fun PlayOptionsModal(
 ) {
     var currentIndex = 0
 
-    Modal(title = "PLAY OPTIONS", onDismiss = onDismiss) {
-        if (hasSaves) {
-            val idx = currentIndex++
-            OptionItem(
-                icon = Icons.Default.PlayArrow,
-                label = "Resume",
-                value = "Continue from last save",
-                isFocused = focusIndex == idx,
-                onClick = { onAction(PlayOptionAction.Resume) }
-            )
+    Modal(title = "START GAME", onDismiss = onDismiss) {
+        val hasContinueSection = hasSaves || hasHardcoreSave
+
+        if (hasContinueSection) {
+            SectionLabel("CONTINUE")
+            Spacer(Modifier.height(Dimens.spacingXs))
+
+            if (hasSaves) {
+                val idx = currentIndex++
+                PlayOptionRow(
+                    icon = Icons.Default.PlayArrow,
+                    label = "Latest",
+                    isFocused = focusIndex == idx,
+                    onClick = { onAction(PlayOptionAction.Resume) }
+                )
+            }
+
+            if (hasHardcoreSave) {
+                val idx = currentIndex++
+                PlayOptionRow(
+                    icon = Icons.Default.EmojiEvents,
+                    iconTint = goldColor,
+                    label = "Hardcore",
+                    isFocused = focusIndex == idx,
+                    onClick = { onAction(PlayOptionAction.ResumeHardcore) }
+                )
+            }
+
+            Spacer(Modifier.height(Dimens.spacingMd))
         }
 
-        if (hasSaves || hasHardcoreSave) {
-            HorizontalDivider(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = Dimens.spacingSm),
-                color = MaterialTheme.colorScheme.outlineVariant
-            )
-        }
+        SectionLabel("NEW GAME")
+        Spacer(Modifier.height(Dimens.spacingXs))
 
         val casualIdx = currentIndex++
-        OptionItem(
-            icon = Icons.Default.RestartAlt,
-            label = "New Game (Casual)",
-            value = "Start fresh, keep existing saves",
+        PlayOptionRow(
+            icon = Icons.Default.SportsEsports,
+            label = "Casual",
+            subtext = "Save states and cheats available",
             isFocused = focusIndex == casualIdx,
             onClick = { onAction(PlayOptionAction.NewCasual) }
         )
 
         if (isRALoggedIn) {
             val hardcoreIdx = currentIndex++
-            OptionItem(
+            PlayOptionRow(
                 icon = Icons.Default.EmojiEvents,
-                label = "New Game (Hardcore)",
-                value = if (isOnline) "Start fresh hardcore run" else "Requires internet",
+                iconTint = if (isOnline) goldColor else null,
+                label = "Hardcore",
+                subtext = if (isOnline) "Online-only, no save states or cheats" else "Requires internet connection",
                 isFocused = focusIndex == hardcoreIdx,
                 isEnabled = isOnline,
-                iconTint = if (isOnline) goldColor else MaterialTheme.colorScheme.onSurfaceVariant,
                 onClick = { onAction(PlayOptionAction.NewHardcore) }
             )
         }
+    }
+}
 
-        if (hasHardcoreSave && isRALoggedIn) {
-            HorizontalDivider(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = Dimens.spacingSm),
-                color = MaterialTheme.colorScheme.outlineVariant
-            )
+@Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(horizontal = Dimens.spacingXs)
+    )
+}
 
-            val resumeHardcoreIdx = currentIndex
-            OptionItem(
-                icon = Icons.Default.EmojiEvents,
-                label = "Resume Hardcore",
-                value = "Continue hardcore save",
-                isFocused = focusIndex == resumeHardcoreIdx,
-                iconTint = goldColor,
-                onClick = { onAction(PlayOptionAction.ResumeHardcore) }
+@Composable
+private fun PlayOptionRow(
+    icon: ImageVector,
+    label: String,
+    subtext: String? = null,
+    iconTint: Color? = null,
+    isFocused: Boolean = false,
+    isEnabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    val disabledAlpha = 0.38f
+    val contentColor = when {
+        !isEnabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = disabledAlpha)
+        isFocused -> MaterialTheme.colorScheme.onPrimaryContainer
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+    val subtextColor = when {
+        !isEnabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = disabledAlpha)
+        isFocused -> MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val backgroundColor = when {
+        !isEnabled -> Color.Transparent
+        isFocused -> MaterialTheme.colorScheme.primaryContainer
+        else -> Color.Transparent
+    }
+    val effectiveIconTint = when {
+        !isEnabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = disabledAlpha)
+        else -> iconTint ?: contentColor
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(Dimens.radiusMd))
+            .background(backgroundColor)
+            .then(if (isEnabled) Modifier.clickableNoFocus(onClick = onClick) else Modifier)
+            .padding(horizontal = Dimens.spacingMd, vertical = Dimens.spacingSm),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingMd)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = effectiveIconTint,
+            modifier = Modifier.size(Dimens.iconMd)
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = contentColor
             )
+            if (subtext != null) {
+                Text(
+                    text = subtext,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = subtextColor
+                )
+            }
         }
     }
 }

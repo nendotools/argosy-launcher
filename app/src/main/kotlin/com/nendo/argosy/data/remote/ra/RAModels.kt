@@ -21,6 +21,7 @@ data class RAAwardResponse(
     @Json(name = "SoftcoreScore") val softcoreScore: Long? = null,
     @Json(name = "AchievementID") val achievementId: Long? = null,
     @Json(name = "AchievementsRemaining") val achievementsRemaining: Int? = null,
+    @Json(name = "Warning") val warning: String? = null,
     @Json(name = "Error") val error: String? = null
 )
 
@@ -61,15 +62,60 @@ data class RAAchievementPatch(
 )
 
 @JsonClass(generateAdapter = true)
+data class RAUnlock(
+    @Json(name = "ID") val id: Long,
+    @Json(name = "When") val `when`: String? = null
+)
+
+@JsonClass(generateAdapter = true)
 data class RAStartSessionResponse(
     @Json(name = "Success") val success: Boolean,
-    @Json(name = "HardcoreUnlocks") val hardcoreUnlocks: List<Long>? = null,
-    @Json(name = "Unlocks") val unlocks: List<Long>? = null,
+    @Json(name = "HardcoreUnlocks") val hardcoreUnlocks: List<RAUnlock>? = null,
+    @Json(name = "Unlocks") val unlocks: List<RAUnlock>? = null,
     @Json(name = "ServerNow") val serverNow: Long? = null,
+    @Json(name = "Warning") val warning: String? = null,
+    @Json(name = "Error") val error: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class RAUnlocksResponse(
+    @Json(name = "Success") val success: Boolean,
+    @Json(name = "UserUnlocks") val userUnlocks: List<Long>? = null,
+    @Json(name = "HardcoreMode") val hardcoreMode: Boolean? = null,
+    @Json(name = "GameID") val gameId: Long? = null,
     @Json(name = "Error") val error: String? = null
 )
 
 data class RACredentials(
     val username: String,
     val token: String
+)
+
+// Web API response for game info with user progress
+@JsonClass(generateAdapter = true)
+data class RAGameInfoAndUserProgressResponse(
+    @Json(name = "ID") val id: Long,
+    @Json(name = "Title") val title: String? = null,
+    @Json(name = "ConsoleID") val consoleId: Int? = null,
+    @Json(name = "ConsoleName") val consoleName: String? = null,
+    @Json(name = "ImageIcon") val imageIcon: String? = null,
+    @Json(name = "NumAchievements") val numAchievements: Int? = null,
+    @Json(name = "NumAwardedToUser") val numAwardedToUser: Int? = null,
+    @Json(name = "NumAwardedToUserHardcore") val numAwardedToUserHardcore: Int? = null,
+    @Json(name = "UserCompletion") val userCompletion: String? = null,
+    @Json(name = "UserCompletionHardcore") val userCompletionHardcore: String? = null,
+    @Json(name = "Achievements") val achievements: Map<String, RAWebAchievement>? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class RAWebAchievement(
+    @Json(name = "ID") val id: Long,
+    @Json(name = "Title") val title: String,
+    @Json(name = "Description") val description: String? = null,
+    @Json(name = "Points") val points: Int,
+    @Json(name = "BadgeName") val badgeName: String? = null,
+    @Json(name = "DisplayOrder") val displayOrder: Int? = null,
+    @Json(name = "DateEarned") val dateEarned: String? = null,
+    @Json(name = "DateEarnedHardcore") val dateEarnedHardcore: String? = null,
+    @Json(name = "type") val type: String? = null
 )

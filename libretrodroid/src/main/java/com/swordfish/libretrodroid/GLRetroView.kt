@@ -575,6 +575,14 @@ class GLRetroView(
         }
     }
 
+    /** Called from native when an achievement is unlocked. */
+    @Suppress("unused")
+    private fun onAchievementUnlocked(achievementId: Long) {
+        achievementUnlockListener?.invoke(achievementId)
+    }
+
+    var achievementUnlockListener: ((Long) -> Unit)? = null
+
     private fun refreshAspectRatio() {
         runOnGLThread {
             LibretroDroid.refreshAspectRatio()

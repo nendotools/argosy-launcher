@@ -64,7 +64,12 @@ void Environment::deinitialize() {
     gameGeometryHeight = 0;
     gameGeometryAspectRatio = -1.0f;
 
-    rumbleStates.fill(libretrodroid::RumbleState {});
+    memoryDescriptors.clear();
+    memoryMapStorage.descriptors = nullptr;
+    memoryMapStorage.num_descriptors = 0;
+    hasMemoryMap = false;
+
+    rumbleStates.fill(libretrodroid::RumbleState());
 }
 
 void Environment::updateVariable(const std::string& key, const std::string& value) {
@@ -335,6 +340,24 @@ bool Environment::handle_callback_environment(unsigned cmd, void *data) {
             LOGD("Called RETRO_ENVIRONMENT_GET_MICROPHONE_INTERFACE");
             return environment_handle_get_microphone_interface(static_cast<struct retro_microphone_interface*>(data));
 
+        case RETRO_ENVIRONMENT_SET_MEMORY_MAPS: {
+            LOGD("Called RETRO_ENVIRONMENT_SET_MEMORY_MAPS");
+            auto* mmap = static_cast<const struct retro_memory_map*>(data);
+            if (mmap && mmap->num_descriptors > 0) {
+                // Deep copy the memory map - the core's pointer becomes invalid after this callback
+                memoryDescriptors.clear();
+                memoryDescriptors.reserve(mmap->num_descriptors);
+                for (unsigned i = 0; i < mmap->num_descriptors; i++) {
+                    memoryDescriptors.push_back(mmap->descriptors[i]);
+                }
+                memoryMapStorage.descriptors = memoryDescriptors.data();
+                memoryMapStorage.num_descriptors = mmap->num_descriptors;
+                hasMemoryMap = true;
+                LOGI("Memory map set with %u descriptors", mmap->num_descriptors);
+            }
+            return true;
+        }
+
         default:
             LOGD("callback environment has been called: %u", cmd);
             return false;
@@ -503,4 +526,8 @@ void Environment::setEnableVirtualFileSystem(bool value) {
 
 void Environment::setEnableMicrophone(bool value) {
     this->enableMicrophone = value;
+}
+
+const struct retro_memory_map* Environment::getMemoryMap() const {
+    return hasMemoryMap ? &memoryMapStorage : nullptr;
 }

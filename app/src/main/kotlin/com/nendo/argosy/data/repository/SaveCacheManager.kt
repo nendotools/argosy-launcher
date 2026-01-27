@@ -74,9 +74,17 @@ class SaveCacheManager @Inject constructor(
                 saveArchiver.calculateFileHash(saveFile) to saveFile
             }
 
-            val existingWithHash = saveCacheDao.getByGameAndHash(gameId, contentHash)
+            // For hardcore, only check duplicate against the hardcore slot
+            // For casual, check against all saves
+            val effectiveSlotName = if (isHardcore) SaveCacheEntity.SLOT_HARDCORE else slotName
+            val existingWithHash = if (isHardcore) {
+                saveCacheDao.getByGameAndSlot(gameId, SaveCacheEntity.SLOT_HARDCORE)
+                    ?.takeIf { it.contentHash == contentHash }
+            } else {
+                saveCacheDao.getByGameAndHash(gameId, contentHash)
+            }
             if (existingWithHash != null) {
-                Log.d(TAG, "Duplicate save detected for game $gameId (hash=$contentHash), skipping cache")
+                Log.d(TAG, "Duplicate save detected for game $gameId (hash=$contentHash, hardcore=$isHardcore), skipping cache")
                 tempFile?.delete()
                 return@withContext CacheResult.Duplicate
             }
@@ -103,7 +111,6 @@ class SaveCacheManager @Inject constructor(
             }
 
             // For hardcore slots, replace existing instead of creating new entries
-            val effectiveSlotName = if (isHardcore) SaveCacheEntity.SLOT_HARDCORE else slotName
             if (effectiveSlotName != null) {
                 val existing = saveCacheDao.getByGameAndSlot(gameId, effectiveSlotName)
                 if (existing != null) {
@@ -129,7 +136,12 @@ class SaveCacheManager @Inject constructor(
                 slotName = effectiveSlotName
             )
             saveCacheDao.insert(entity)
-            Log.d(TAG, "Cached save for game $gameId at $cachePath (hash=$contentHash)${channelName?.let { " (channel: $it)" } ?: ""}")
+            val slotInfo = when {
+                isHardcore -> " [HARDCORE]"
+                channelName != null -> " (channel: $channelName)"
+                else -> ""
+            }
+            Log.d(TAG, "Cached save for game $gameId at $cachePath (hash=$contentHash)$slotInfo")
 
             pruneOldCaches(gameId)
             CacheResult.Created

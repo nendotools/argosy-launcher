@@ -1,0 +1,3 @@
+[submodule "libretrodroid/src/main/cpp/rcheevos"]
+	path = libretrodroid/src/main/cpp/rcheevos
+	url = https://github.com/RetroAchievements/rcheevos.git

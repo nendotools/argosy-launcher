@@ -84,7 +84,7 @@ import com.nendo.argosy.data.local.entity.StateCacheEntity
         CheatEntity::class,
         PendingAchievementEntity::class
     ],
-    version = 56,
+    version = 57,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -927,6 +927,39 @@ abstract class ALauncherDatabase : RoomDatabase() {
         val MIGRATION_55_56 = object : Migration(55, 56) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE games ADD COLUMN raId INTEGER")
+            }
+        }
+
+        val MIGRATION_56_57 = object : Migration(56, 57) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("PRAGMA foreign_keys=OFF")
+                db.execSQL("""
+                    CREATE TABLE achievements_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        gameId INTEGER NOT NULL,
+                        raId INTEGER NOT NULL,
+                        title TEXT NOT NULL,
+                        description TEXT,
+                        points INTEGER NOT NULL,
+                        type TEXT,
+                        badgeUrl TEXT,
+                        badgeUrlLock TEXT,
+                        cachedBadgeUrl TEXT,
+                        cachedBadgeUrlLock TEXT,
+                        unlockedAt INTEGER,
+                        unlockedHardcoreAt INTEGER,
+                        FOREIGN KEY (gameId) REFERENCES games(id) ON DELETE CASCADE
+                    )
+                """)
+                db.execSQL("""
+                    INSERT INTO achievements_new (id, gameId, raId, title, description, points, type, badgeUrl, badgeUrlLock, cachedBadgeUrl, cachedBadgeUrlLock, unlockedAt, unlockedHardcoreAt)
+                    SELECT id, gameId, raId, title, description, points, type, badgeUrl, badgeUrlLock, cachedBadgeUrl, cachedBadgeUrlLock, unlockedAt, unlockedHardcoreAt
+                    FROM achievements
+                """)
+                db.execSQL("DROP TABLE achievements")
+                db.execSQL("ALTER TABLE achievements_new RENAME TO achievements")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_achievements_gameId ON achievements(gameId)")
+                db.execSQL("PRAGMA foreign_keys=ON")
             }
         }
     }

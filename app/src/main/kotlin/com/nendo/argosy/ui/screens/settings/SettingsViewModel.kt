@@ -2733,13 +2733,14 @@ class SettingsViewModel @Inject constructor(
                 } else {
                     val section = when (state.focusedIndex) {
                         1 -> SettingsSection.SERVER
-                        2 -> SettingsSection.STORAGE
-                        3 -> SettingsSection.INTERFACE
-                        4 -> SettingsSection.CONTROLS
-                        5 -> SettingsSection.EMULATORS
-                        6 -> SettingsSection.BIOS
-                        7 -> SettingsSection.PERMISSIONS
-                        8 -> SettingsSection.ABOUT
+                        2 -> SettingsSection.RETRO_ACHIEVEMENTS
+                        3 -> SettingsSection.STORAGE
+                        4 -> SettingsSection.INTERFACE
+                        5 -> SettingsSection.CONTROLS
+                        6 -> SettingsSection.EMULATORS
+                        7 -> SettingsSection.BIOS
+                        8 -> SettingsSection.PERMISSIONS
+                        9 -> SettingsSection.ABOUT
                         else -> null
                     }
                     section?.let { navigateToSection(it) }

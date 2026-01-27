@@ -610,6 +610,8 @@ class RomMRepository @Inject constructor(
             }
         }
 
+        Logger.debug(TAG, "syncRom: ${rom.name} - rom.raId=${rom.raId}, existing.raId=${existing?.raId}")
+
         val game = GameEntity(
             id = existing?.id ?: 0,
             platformId = platformId,

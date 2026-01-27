@@ -162,4 +162,13 @@ public class LibretroDroid {
     public static native void destroyRewindBuffer();
     public static native float getRewindBufferUsage();
     public static native int getRewindBufferValidCount();
+
+    public static native void initAchievements(AchievementDef[] achievements, int consoleId);
+    public static native void clearAchievements();
+
+    /**
+     * Run native achievement condition tests.
+     * @return Number of tests that passed
+     */
+    public static native int runAchievementTests();
 }

@@ -30,7 +30,9 @@ data class AchievementEntity(
     val badgeUrlLock: String?,
     val cachedBadgeUrl: String? = null,
     val cachedBadgeUrlLock: String? = null,
-    val isUnlocked: Boolean = false,
     val unlockedAt: Long? = null,
     val unlockedHardcoreAt: Long? = null
-)
+) {
+    val isUnlocked: Boolean
+        get() = unlockedAt != null || unlockedHardcoreAt != null
+}

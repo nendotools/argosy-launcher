@@ -4,6 +4,7 @@ import android.content.Context
 import com.nendo.argosy.data.local.dao.PendingAchievementDao
 import com.nendo.argosy.data.local.entity.PendingAchievementEntity
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
+import com.nendo.argosy.data.remote.ra.RAAchievementPatch
 import com.nendo.argosy.data.remote.ra.RAApi
 import com.nendo.argosy.data.remote.ra.RACredentials
 import com.nendo.argosy.data.remote.ra.RAPatchData
@@ -157,6 +158,10 @@ class RetroAchievementsRepository @Inject constructor(
                 }
             }
 
+            if (!body.warning.isNullOrBlank()) {
+                Logger.warn(TAG, "Award response warning: ${body.warning}")
+            }
+
             if (!body.success) {
                 val error = body.error ?: "Unknown error"
                 if (error.contains("already has", ignoreCase = true)) {
@@ -246,7 +251,12 @@ class RetroAchievementsRepository @Inject constructor(
     )
 
     suspend fun startSession(gameRaId: Long, hardcore: Boolean = false): RASessionResult {
-        val credentials = getCredentials() ?: return RASessionResult(false)
+        val credentials = getCredentials()
+        if (credentials == null) {
+            Logger.warn(TAG, "Cannot start RA session - not logged in to RetroAchievements")
+            return RASessionResult(false)
+        }
+        Logger.debug(TAG, "Starting RA session for game $gameRaId with user ${credentials.username}")
 
         return try {
             val response = api.startSession(
@@ -259,9 +269,12 @@ class RetroAchievementsRepository @Inject constructor(
             val body = response.body()
             if (response.isSuccessful && body?.success == true) {
                 Logger.info(TAG, "Session started for game $gameRaId (hardcore=$hardcore)")
+                if (!body.warning.isNullOrBlank()) {
+                    Logger.warn(TAG, "RA session warning: ${body.warning}")
+                }
                 val unlocked = mutableSetOf<Long>()
-                body.hardcoreUnlocks?.let { unlocked.addAll(it) }
-                body.unlocks?.let { unlocked.addAll(it) }
+                body.hardcoreUnlocks?.mapTo(unlocked) { it.id }
+                body.unlocks?.mapTo(unlocked) { it.id }
                 Logger.debug(TAG, "Pre-unlocked achievements: ${unlocked.size}")
                 RASessionResult(true, unlocked)
             } else {
@@ -316,6 +329,109 @@ class RetroAchievementsRepository @Inject constructor(
     fun observePendingCount(): Flow<Int> = pendingAchievementDao.observeCount()
 
     suspend fun getPendingCount(): Int = pendingAchievementDao.getCount()
+
+    data class RAGameAchievements(
+        val achievements: List<RAAchievementPatch>,
+        val unlockedIds: Set<Long>,
+        val totalCount: Int,
+        val earnedCount: Int
+    )
+
+    suspend fun getGameAchievementsWithProgress(gameRaId: Long): RAGameAchievements? {
+        val credentials = getCredentials() ?: return null
+
+        // Try Web API first (uses token as API key)
+        return try {
+            val response = api.getGameInfoAndUserProgress(
+                gameId = gameRaId,
+                username = credentials.username,
+                apiKey = credentials.token  // Try using login token as API key
+            )
+
+            if (response.isSuccessful) {
+                val body = response.body() ?: return fallbackToConnectApi(gameRaId, credentials)
+
+                val achievements = body.achievements?.values?.toList() ?: emptyList()
+                val unlockedIds = achievements
+                    .filter { it.dateEarned != null || it.dateEarnedHardcore != null }
+                    .map { it.id }
+                    .toSet()
+
+                // Convert Web API achievements to patch format for compatibility
+                val patchAchievements = achievements.map { ach ->
+                    RAAchievementPatch(
+                        id = ach.id,
+                        memAddr = "",  // Not needed for display
+                        title = ach.title,
+                        description = ach.description,
+                        points = ach.points,
+                        badgeName = ach.badgeName,
+                        type = ach.type
+                    )
+                }
+
+                RAGameAchievements(
+                    achievements = patchAchievements,
+                    unlockedIds = unlockedIds,
+                    totalCount = body.numAchievements ?: achievements.size,
+                    earnedCount = body.numAwardedToUser ?: unlockedIds.size
+                )
+            } else {
+                Logger.warn(TAG, "Web API failed (${response.code()}), falling back to Connect API")
+                fallbackToConnectApi(gameRaId, credentials)
+            }
+        } catch (e: Exception) {
+            Logger.error(TAG, "Web API exception: ${e.message}, falling back to Connect API")
+            fallbackToConnectApi(gameRaId, credentials)
+        }
+    }
+
+    private suspend fun fallbackToConnectApi(gameRaId: Long, credentials: RACredentials): RAGameAchievements? {
+        val patchData = getGamePatchData(gameRaId) ?: return null
+        val rawAchievements = patchData.achievements ?: return null
+
+        // Filter out warning messages that RA returns as pseudo-achievements
+        val achievements = rawAchievements.filter { ach ->
+            !ach.title.contains("Unknown Emulator", ignoreCase = true) &&
+            !ach.title.contains("Emulator Warning", ignoreCase = true) &&
+            ach.memAddr.isNotBlank()
+        }
+
+        if (achievements.size != rawAchievements.size) {
+            Logger.debug(TAG, "Filtered out ${rawAchievements.size - achievements.size} warning pseudo-achievements")
+        }
+
+        // Connect API for unlocks (may show emulator warning)
+        val unlocked = try {
+            val response = api.startSession(
+                username = credentials.username,
+                token = credentials.token,
+                gameId = gameRaId
+            )
+            if (response.isSuccessful) {
+                val body = response.body()
+                val ids = mutableSetOf<Long>()
+                body?.hardcoreUnlocks?.mapTo(ids) { it.id }
+                body?.unlocks?.mapTo(ids) { it.id }
+                ids
+            } else {
+                emptySet()
+            }
+        } catch (e: Exception) {
+            emptySet()
+        }
+
+        // Only count unlocks for valid (non-filtered) achievements
+        val validAchievementIds = achievements.map { it.id }.toSet()
+        val validUnlocks = unlocked.filter { it in validAchievementIds }
+
+        return RAGameAchievements(
+            achievements = achievements,
+            unlockedIds = validUnlocks.toSet(),
+            totalCount = achievements.size,
+            earnedCount = validUnlocks.size
+        )
+    }
 
     private fun generateValidation(achievementId: Long, username: String, hardcore: Boolean): String {
         val hardcoreFlag = if (hardcore) "1" else "0"

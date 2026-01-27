@@ -41,7 +41,8 @@ data class ActiveSession(
     val gameId: Long,
     val startTime: Instant,
     val emulatorPackage: String,
-    val coreName: String? = null
+    val coreName: String? = null,
+    val isHardcore: Boolean = false
 )
 
 data class SaveConflictEvent(
@@ -126,7 +127,7 @@ class PlaySessionTracker @Inject constructor(
         }
     }
 
-    fun startSession(gameId: Long, emulatorPackage: String, coreName: String? = null) {
+    fun startSession(gameId: Long, emulatorPackage: String, coreName: String? = null, isHardcore: Boolean = false) {
         screenOnDuration = Duration.ZERO
         lastScreenOnTime = Instant.now()
         isScreenOn = true
@@ -135,9 +136,10 @@ class PlaySessionTracker @Inject constructor(
             gameId = gameId,
             startTime = Instant.now(),
             emulatorPackage = emulatorPackage,
-            coreName = coreName
+            coreName = coreName,
+            isHardcore = isHardcore
         )
-        Logger.debug(TAG, "[SaveSync] SESSION gameId=$gameId | Session started | emulator=$emulatorPackage, core=$coreName")
+        Logger.debug(TAG, "[SaveSync] SESSION gameId=$gameId | Session started | emulator=$emulatorPackage, core=$coreName, hardcore=$isHardcore")
     }
 
     fun endSession() {
@@ -351,13 +353,14 @@ class PlaySessionTracker @Inject constructor(
             )
 
             if (savePath != null) {
-                val activeChannel = game.activeSaveChannel
+                val activeChannel = if (session.isHardcore) null else game.activeSaveChannel
                 val cacheResult = saveCacheManager.get().cacheCurrentSave(
                     gameId = session.gameId,
                     emulatorId = emulatorId,
                     savePath = savePath,
                     channelName = activeChannel,
-                    isLocked = false
+                    isLocked = false,
+                    isHardcore = session.isHardcore
                 )
                 when (cacheResult) {
                     is SaveCacheManager.CacheResult.Created -> {

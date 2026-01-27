@@ -42,4 +42,13 @@ interface AchievementDao {
 
     @Query("SELECT COUNT(*) FROM achievements WHERE cachedBadgeUrl IS NOT NULL")
     suspend fun countWithCachedBadges(): Int
+
+    @Query("UPDATE achievements SET unlockedAt = :unlockedAt WHERE gameId = :gameId AND raId = :raId")
+    suspend fun markUnlocked(gameId: Long, raId: Long, unlockedAt: Long)
+
+    @Query("UPDATE achievements SET unlockedHardcoreAt = :unlockedAt WHERE gameId = :gameId AND raId = :raId")
+    suspend fun markUnlockedHardcore(gameId: Long, raId: Long, unlockedAt: Long)
+
+    @Query("SELECT COUNT(*) FROM achievements WHERE gameId = :gameId AND (unlockedAt IS NOT NULL OR unlockedHardcoreAt IS NOT NULL)")
+    suspend fun countUnlockedByGameId(gameId: Long): Int
 }

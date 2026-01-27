@@ -479,6 +479,10 @@ void LibretroDroid::step() {
     for (size_t i = 0; i < frames * frameSpeed; i++)
         core->retro_run();
 
+    if (achievements.isActive()) {
+        achievements.evaluateFrame();
+    }
+
     if (video && !video->rendersInVideoCallback()) {
         video->renderFrame();
     }
@@ -698,6 +702,22 @@ void LibretroDroid::setViewport(Rect viewportRect) {
     if (video != nullptr) {
         video->updateViewportSize(viewportRect);
     }
+}
+
+void LibretroDroid::initAchievements(const std::vector<AchievementDef>& achievementDefs, uint32_t consoleId) {
+    Achievements::setCore(core.get());
+    achievements.init(achievementDefs);
+
+    const struct retro_memory_map* mmap = Environment::getInstance().getMemoryMap();
+    achievements.initMemory(consoleId, mmap);
+}
+
+void LibretroDroid::clearAchievements() {
+    achievements.clear();
+}
+
+void LibretroDroid::handleAchievementUnlocks(const std::function<void(uint32_t)>& handler) {
+    achievements.handleUnlocks(handler);
 }
 
 } //namespace libretrodroid

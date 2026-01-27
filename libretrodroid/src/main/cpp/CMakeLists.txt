@@ -13,6 +13,33 @@ include_directories (${OBOE_DIR}/src)
 
 include_directories("libretro/libretro-common/include")
 
+# rcheevos library for RetroAchievements
+set(RCHEEVOS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/rcheevos)
+include_directories(${RCHEEVOS_DIR}/include)
+include_directories(${RCHEEVOS_DIR}/src/rhash)
+include_directories(${RCHEEVOS_DIR}/src)
+
+set(RCHEEVOS_SOURCES
+    ${RCHEEVOS_DIR}/src/rcheevos/alloc.c
+    ${RCHEEVOS_DIR}/src/rcheevos/condition.c
+    ${RCHEEVOS_DIR}/src/rcheevos/condset.c
+    ${RCHEEVOS_DIR}/src/rcheevos/consoleinfo.c
+    ${RCHEEVOS_DIR}/src/rcheevos/format.c
+    ${RCHEEVOS_DIR}/src/rcheevos/lboard.c
+    ${RCHEEVOS_DIR}/src/rcheevos/memref.c
+    ${RCHEEVOS_DIR}/src/rcheevos/operand.c
+    ${RCHEEVOS_DIR}/src/rcheevos/richpresence.c
+    ${RCHEEVOS_DIR}/src/rcheevos/runtime.c
+    ${RCHEEVOS_DIR}/src/rcheevos/runtime_progress.c
+    ${RCHEEVOS_DIR}/src/rcheevos/trigger.c
+    ${RCHEEVOS_DIR}/src/rcheevos/value.c
+    ${RCHEEVOS_DIR}/src/rhash/md5.c
+    ${RCHEEVOS_DIR}/src/rc_compat.c
+    ${RCHEEVOS_DIR}/src/rc_util.c
+    ${RCHEEVOS_DIR}/src/rc_version.c
+    ${RCHEEVOS_DIR}/src/rc_libretro.c
+)
+
 set (LIBRETRO_COMMON
         libretro/libretro-common/vfs/vfs_implementation.c
         libretro/libretro-common/string/stdstring.c
@@ -88,7 +115,13 @@ add_library(libretrodroid SHARED
         microphone/microphoneinterface.cpp
         rewindbuffer.h
         rewindbuffer.cpp
+        achievements.h
+        achievements.cpp
+        achievements_test.h
+        achievements_test.cpp
         ${LIBRETRO_COMMON}
+        ${RCHEEVOS_SOURCES}
+        rcheevos_stubs.c
 )
 
 # Support 16k pages for Android 15

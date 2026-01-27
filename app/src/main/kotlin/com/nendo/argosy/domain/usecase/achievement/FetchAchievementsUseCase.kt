@@ -37,7 +37,6 @@ class FetchAchievementsUseCase @Inject constructor(
                     val earned = earnedByBadgeId[achievement.badgeId]
                     val unlockedAt = earned?.date?.let { parseTimestamp(it) }
                     val unlockedHardcoreAt = earned?.dateHardcore?.let { parseTimestamp(it) }
-                    val isUnlocked = earned != null
 
                     AchievementEntity(
                         gameId = gameId,
@@ -48,7 +47,6 @@ class FetchAchievementsUseCase @Inject constructor(
                         type = achievement.type,
                         badgeUrl = achievement.badgeUrl,
                         badgeUrlLock = achievement.badgeUrlLock,
-                        isUnlocked = isUnlocked,
                         unlockedAt = unlockedAt,
                         unlockedHardcoreAt = unlockedHardcoreAt
                     )

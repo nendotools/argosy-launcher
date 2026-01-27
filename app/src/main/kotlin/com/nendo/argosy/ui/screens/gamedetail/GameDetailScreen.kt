@@ -398,7 +398,7 @@ private fun GameDetailContent(
             ) {
                 val isInScreenshots = currentSnapState == SnapState.SCREENSHOTS && game.screenshots.isNotEmpty()
                 val canShowPlayOptions = uiState.downloadStatus == GameDownloadStatus.DOWNLOADED &&
-                    game.isRetroArchEmulator
+                    game.isBuiltInEmulator && game.achievements.isNotEmpty()
                 FooterBar(
                     hints = buildList {
                         add(InputButton.LB_RB to "Prev/Next Game")
@@ -417,7 +417,7 @@ private fun GameDetailContent(
                         })
                         add(InputButton.B to "Back")
                         if (canShowPlayOptions) {
-                            add(InputButton.X to "Play Options")
+                            add(InputButton.X to "New Game")
                         }
                         add(InputButton.Y to if (uiState.game?.isFavorite == true) "Unfavorite" else "Favorite")
                     }

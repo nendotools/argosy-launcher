@@ -111,6 +111,8 @@ public:
 
     const std::vector<std::vector<struct Controller>> &getControllers() const;
 
+    const struct retro_memory_map* getMemoryMap() const;
+
 private:
     bool environment_handle_set_variables(const struct retro_variable* received);
     bool environment_handle_get_variable(struct retro_variable* requested);
@@ -153,6 +155,11 @@ private:
     bool dirtyVariables = false;
 
     std::vector<std::vector<struct Controller>> controllers;
+
+    // Deep-copied memory map (the core's pointer becomes invalid after callback)
+    std::vector<struct retro_memory_descriptor> memoryDescriptors;
+    struct retro_memory_map memoryMapStorage = {nullptr, 0};
+    bool hasMemoryMap = false;
 };
 
 struct Variable {

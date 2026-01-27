@@ -14,11 +14,19 @@ import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.unit.dp
+import com.nendo.argosy.libretro.ui.RADiagnosticOverlay
 import com.nendo.argosy.ui.input.ControllerDetector
 import com.nendo.argosy.ui.input.DetectedLayout
 import com.nendo.argosy.ui.input.LocalABIconsSwapped
@@ -31,18 +39,17 @@ import androidx.lifecycle.lifecycleScope
 import com.nendo.argosy.data.cheats.CheatsRepository
 import com.nendo.argosy.data.emulator.EmulatorRegistry
 import com.nendo.argosy.data.emulator.PlaySessionTracker
+import com.nendo.argosy.data.local.dao.AchievementDao
 import com.nendo.argosy.data.local.dao.CheatDao
 import com.nendo.argosy.data.local.dao.GameDao
 import com.nendo.argosy.data.local.entity.CheatEntity
+import com.nendo.argosy.ui.screens.common.AchievementUpdateBus
 import com.nendo.argosy.data.local.entity.HotkeyAction
 import com.nendo.argosy.data.preferences.BuiltinEmulatorSettings
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.repository.InputConfigRepository
 import com.nendo.argosy.data.repository.RAAwardResult
 import com.nendo.argosy.data.repository.RetroAchievementsRepository
-import com.nendo.argosy.libretro.ra.AchievementDefinition
-import com.nendo.argosy.libretro.ra.RAConditionEvaluator
-import com.nendo.argosy.libretro.ra.RAConditionParser
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -76,8 +83,10 @@ class LibretroActivity : ComponentActivity() {
     @Inject lateinit var inputConfigRepository: InputConfigRepository
     @Inject lateinit var cheatDao: CheatDao
     @Inject lateinit var gameDao: GameDao
+    @Inject lateinit var achievementDao: AchievementDao
     @Inject lateinit var cheatsRepository: CheatsRepository
     @Inject lateinit var raRepository: RetroAchievementsRepository
+    @Inject lateinit var achievementUpdateBus: AchievementUpdateBus
 
     private lateinit var retroView: GLRetroView
     private val portResolver = ControllerPortResolver()
@@ -123,17 +132,15 @@ class LibretroActivity : ComponentActivity() {
     private var activeMenuHandler: InputHandler? = null
 
     private var sessionTainted = false
-    private var hardcoreMode = false
-    private var raSessionActive = false
+    private var hardcoreMode by mutableStateOf(false)
+    private var raSessionActive by mutableStateOf(false)
     private var gameRaId: Long? = null
     private var heartbeatJob: Job? = null
     private var launchMode = LaunchMode.RESUME
 
-    private val achievementEvaluator = RAConditionEvaluator()
-    private val achievementConditions = mutableMapOf<Long, AchievementDefinition>()
     private val achievementInfo = mutableMapOf<Long, AchievementPatchInfo>()
-    private val unlockedAchievements = mutableSetOf<Long>()
-    private var evaluationJob: Job? = null
+    private var totalAchievements by mutableStateOf(0)
+    private var earnedAchievements by mutableStateOf(0)
     private var currentAchievementUnlock by mutableStateOf<AchievementUnlock?>(null)
     private val achievementUnlockQueue = mutableListOf<AchievementUnlock>()
 
@@ -146,6 +153,7 @@ class LibretroActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.d("LibretroActivity", "onCreate: savedInstanceState=${savedInstanceState != null}")
         enableEdgeToEdge()
         enterImmersiveMode()
 
@@ -290,10 +298,23 @@ class LibretroActivity : ComponentActivity() {
                                     activeMenuHandler = null
                                 }
 
-                                AchievementPopup(
-                                    achievement = currentAchievementUnlock,
-                                    onDismiss = ::showNextAchievementUnlock
-                                )
+                                Box(modifier = Modifier.fillMaxSize()) {
+                                    AchievementPopup(
+                                        achievement = currentAchievementUnlock,
+                                        onDismiss = ::showNextAchievementUnlock
+                                    )
+
+                                    RADiagnosticOverlay(
+                                        isConnected = raSessionActive,
+                                        isHardcore = hardcoreMode,
+                                        earnedCount = earnedAchievements,
+                                        totalCount = totalAchievements,
+                                        modifier = Modifier
+                                            .align(Alignment.TopStart)
+                                            .statusBarsPadding()
+                                            .padding(8.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -327,44 +348,74 @@ class LibretroActivity : ComponentActivity() {
 
     private fun initializeRASession() {
         lifecycleScope.launch {
-            if (!raRepository.isLoggedIn()) {
+            val isLoggedIn = raRepository.isLoggedIn()
+            Log.d("LibretroActivity", "RA login check: isLoggedIn=$isLoggedIn")
+            if (!isLoggedIn) {
                 Log.d("LibretroActivity", "Not logged in to RA, skipping session")
                 return@launch
             }
 
             val game = gameDao.getById(gameId) ?: return@launch
             gameRaId = game.raId
+            Log.d("LibretroActivity", "Game loaded: title=${game.title}, raId=$gameRaId")
 
             if (gameRaId == null) {
                 Log.d("LibretroActivity", "Game has no RA ID, skipping RA session")
                 return@launch
             }
 
+            Log.d("LibretroActivity", "Starting RA session for raId=$gameRaId, hardcore=$hardcoreMode")
             val sessionResult = raRepository.startSession(gameRaId!!, hardcoreMode)
             if (sessionResult.success) {
                 raSessionActive = true
-                unlockedAchievements.addAll(sessionResult.unlockedAchievements)
-                Log.d("LibretroActivity", "RA session started for game $gameRaId (hardcore=$hardcoreMode), pre-unlocked=${sessionResult.unlockedAchievements.size}")
+                val preUnlocked = sessionResult.unlockedAchievements
+                Log.d("LibretroActivity", "RA session started for game $gameRaId (hardcore=$hardcoreMode), pre-unlocked=${preUnlocked.size}: $preUnlocked")
 
                 val patchData = raRepository.getGamePatchData(gameRaId!!)
                 if (patchData != null) {
-                    patchData.achievements?.forEach { patch ->
-                        val definition = RAConditionParser.parse(patch.memAddr)
-                        if (definition != null) {
-                            achievementConditions[patch.id] = definition
-                            achievementInfo[patch.id] = AchievementPatchInfo(
-                                title = patch.title,
-                                description = patch.description,
-                                points = patch.points,
-                                badgeName = patch.badgeName
-                            )
-                        }
+                    // Filter out warning pseudo-achievements (e.g., "Unknown Emulator" warnings)
+                    val validAchievements = patchData.achievements?.filter { ach ->
+                        !ach.title.contains("Unknown Emulator", ignoreCase = true) &&
+                        !ach.title.contains("Emulator Warning", ignoreCase = true) &&
+                        ach.memAddr.isNotBlank()
+                    } ?: emptyList()
+
+                    // Store info for popup display
+                    validAchievements.forEach { patch ->
+                        achievementInfo[patch.id] = AchievementPatchInfo(
+                            title = patch.title,
+                            description = patch.description,
+                            points = patch.points,
+                            badgeName = patch.badgeName
+                        )
                     }
-                    Log.d("LibretroActivity", "Loaded ${achievementConditions.size} achievement conditions")
+
+                    // Update diagnostic counters
+                    totalAchievements = validAchievements.size
+                    earnedAchievements = preUnlocked.count { it in validAchievements.map { a -> a.id }.toSet() }
+
+                    // Filter to only unearned achievements and send to native
+                    val toWatch = validAchievements
+                        .filter { it.id !in preUnlocked }
+
+                    if (toWatch.isNotEmpty()) {
+                        val achievementDefs = toWatch.map { patch ->
+                            com.swordfish.libretrodroid.AchievementDef(patch.id, patch.memAddr)
+                        }.toTypedArray()
+
+                        val raConsoleId = patchData.consoleId ?: 0
+                        Log.d("LibretroActivity", "Sending ${achievementDefs.size} achievements to native for console $raConsoleId")
+                        com.swordfish.libretrodroid.LibretroDroid.initAchievements(achievementDefs, raConsoleId)
+
+                        retroView.achievementUnlockListener = { achievementId ->
+                            onAchievementUnlocked(achievementId)
+                        }
+                    } else {
+                        Log.d("LibretroActivity", "No achievements to watch (all pre-unlocked)")
+                    }
                 }
 
                 startHeartbeatLoop()
-                startAchievementEvaluationLoop()
             } else {
                 Log.w("LibretroActivity", "Failed to start RA session")
             }
@@ -382,45 +433,20 @@ class LibretroActivity : ComponentActivity() {
         }
     }
 
-    private fun startAchievementEvaluationLoop() {
-        if (achievementConditions.isEmpty()) {
-            Log.d("LibretroActivity", "No achievement conditions to evaluate")
-            return
-        }
-
-        evaluationJob = lifecycleScope.launch {
-            Log.d("LibretroActivity", "Starting achievement evaluation loop")
-            while (isActive && raSessionActive) {
-                delay(100L) // 10 checks per second
-
-                if (menuVisible || cheatsMenuVisible) continue
-
-                val memory = try {
-                    retroView.getSystemRam()
-                } catch (e: Exception) {
-                    continue
-                }
-
-                if (memory == null || memory.isEmpty()) continue
-
-                for ((achievementId, definition) in achievementConditions) {
-                    if (achievementId in unlockedAchievements) continue
-
-                    if (achievementEvaluator.evaluate(definition, memory)) {
-                        onAchievementUnlocked(achievementId)
-                    }
-                }
-            }
-        }
-    }
-
     private fun onAchievementUnlocked(achievementId: Long) {
-        unlockedAchievements.add(achievementId)
         val info = achievementInfo[achievementId]
 
-        Log.i("LibretroActivity", "Achievement unlocked: $achievementId - ${info?.title}")
+        Log.i("LibretroActivity", "=== ACHIEVEMENT UNLOCKED ===")
+        Log.i("LibretroActivity", "  ID: $achievementId")
+        Log.i("LibretroActivity", "  Title: ${info?.title}")
+        Log.i("LibretroActivity", "  Points: ${info?.points}")
+        Log.i("LibretroActivity", "  Hardcore: $hardcoreMode")
+
+        earnedAchievements++
 
         lifecycleScope.launch {
+            // 1. Submit to RA server
+            Log.d("LibretroActivity", "Submitting achievement $achievementId to RA server...")
             val result = raRepository.awardAchievement(
                 gameId = gameId,
                 achievementRaId = achievementId,
@@ -429,18 +455,44 @@ class LibretroActivity : ComponentActivity() {
 
             when (result) {
                 is RAAwardResult.Success -> {
-                    Log.d("LibretroActivity", "Achievement $achievementId awarded successfully")
+                    Log.i("LibretroActivity", "Achievement $achievementId awarded to RA successfully")
                 }
                 is RAAwardResult.AlreadyAwarded -> {
-                    Log.d("LibretroActivity", "Achievement $achievementId already awarded")
+                    Log.d("LibretroActivity", "Achievement $achievementId already awarded on RA")
                 }
                 is RAAwardResult.Queued -> {
-                    Log.d("LibretroActivity", "Achievement $achievementId queued for later")
+                    Log.d("LibretroActivity", "Achievement $achievementId queued for later submission")
                 }
                 is RAAwardResult.Error -> {
-                    Log.e("LibretroActivity", "Failed to award achievement: ${result.message}")
+                    Log.e("LibretroActivity", "Failed to award achievement to RA: ${result.message}")
                 }
             }
+
+            // 2. Update local database
+            val now = System.currentTimeMillis()
+            if (hardcoreMode) {
+                achievementDao.markUnlockedHardcore(gameId, achievementId, now)
+                Log.d("LibretroActivity", "Marked achievement $achievementId as hardcore unlocked in local DB")
+            } else {
+                achievementDao.markUnlocked(gameId, achievementId, now)
+                Log.d("LibretroActivity", "Marked achievement $achievementId as unlocked in local DB")
+            }
+
+            // 3. Update game's earned count
+            gameDao.incrementEarnedAchievementCount(gameId)
+            Log.d("LibretroActivity", "Incremented earned achievement count for game $gameId")
+
+            // 4. Emit update to bus for UI refresh
+            val totalCount = achievementDao.countByGameId(gameId)
+            val earnedCount = achievementDao.countUnlockedByGameId(gameId)
+            achievementUpdateBus.emit(
+                AchievementUpdateBus.AchievementUpdate(
+                    gameId = gameId,
+                    totalCount = totalCount,
+                    earnedCount = earnedCount
+                )
+            )
+            Log.d("LibretroActivity", "Emitted achievement update: $earnedCount/$totalCount earned for game $gameId")
         }
 
         val badgeUrl = info?.badgeName?.let {
@@ -942,10 +994,10 @@ class LibretroActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        Log.d("LibretroActivity", "onDestroy: isFinishing=$isFinishing, isChangingConfigurations=$isChangingConfigurations")
         heartbeatJob?.cancel()
-        evaluationJob?.cancel()
         raSessionActive = false
-        achievementEvaluator.reset()
+        com.swordfish.libretrodroid.LibretroDroid.clearAchievements()
         if (rewindEnabled && !hardcoreMode) {
             retroView.destroyRewindBuffer()
         }

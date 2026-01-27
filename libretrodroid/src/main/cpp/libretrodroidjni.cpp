@@ -44,6 +44,7 @@
 #include "renderers/es3/imagerendereres3.h"
 #include "utils/jnistring.h"
 #include "rewindbuffer.h"
+#include "achievements_test.h"
 
 namespace libretrodroid {
 
@@ -587,6 +588,12 @@ JNIEXPORT void JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_step(
             env->CallVoidMethod(glRetroView, sendRumbleStrengthMethodID, port, weak, strong);
         });
     }
+
+    LibretroDroid::getInstance().handleAchievementUnlocks([&](uint32_t achievementId) {
+        jclass cls = env->GetObjectClass(glRetroView);
+        jmethodID onAchievementUnlockedMethodID = env->GetMethodID(cls, "onAchievementUnlocked", "(J)V");
+        env->CallVoidMethod(glRetroView, onAchievementUnlockedMethodID, static_cast<jlong>(achievementId));
+    });
 }
 
 JNIEXPORT void JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_setRumbleEnabled(
@@ -779,6 +786,67 @@ JNIEXPORT jint JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_getRewindB
         return 0;
     }
     return static_cast<jint>(rewindBuffer->getValidCount());
+}
+
+JNIEXPORT void JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_initAchievements(
+    JNIEnv* env,
+    jclass obj,
+    jobjectArray achievementArray,
+    jint consoleId
+) {
+    std::vector<AchievementDef> achievements;
+
+    jsize count = env->GetArrayLength(achievementArray);
+    LOGI("initAchievements JNI called: count=%d, consoleId=%d", count, consoleId);
+    if (count == 0) {
+        LOGI("No achievements to initialize - empty array");
+        return;
+    }
+
+    jclass achClass = env->FindClass("com/swordfish/libretrodroid/AchievementDef");
+    jfieldID idField = env->GetFieldID(achClass, "id", "J");
+    jfieldID memAddrField = env->GetFieldID(achClass, "memAddr", "Ljava/lang/String;");
+
+    for (jsize i = 0; i < count; i++) {
+        jobject achObj = env->GetObjectArrayElement(achievementArray, i);
+
+        AchievementDef def;
+        def.id = static_cast<uint32_t>(env->GetLongField(achObj, idField));
+
+        jstring memAddr = static_cast<jstring>(env->GetObjectField(achObj, memAddrField));
+        const char* memAddrStr = env->GetStringUTFChars(memAddr, nullptr);
+        def.memAddr = memAddrStr;
+        env->ReleaseStringUTFChars(memAddr, memAddrStr);
+
+        achievements.push_back(def);
+        env->DeleteLocalRef(achObj);
+        env->DeleteLocalRef(memAddr);
+    }
+
+    LOGI("Initializing %zu achievements in native for console %d", achievements.size(), consoleId);
+    LibretroDroid::getInstance().initAchievements(achievements, static_cast<uint32_t>(consoleId));
+}
+
+JNIEXPORT void JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_clearAchievements(
+    JNIEnv* env,
+    jclass obj
+) {
+    LibretroDroid::getInstance().clearAchievements();
+}
+
+JNIEXPORT jint JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_runAchievementTests(
+    JNIEnv* env,
+    jclass obj
+) {
+    test::AchievementTester tester;
+    auto results = tester.runAllTests();
+
+    int passed = 0;
+    for (const auto& result : results) {
+        if (result.passed) passed++;
+    }
+
+    return static_cast<jint>(passed);
 }
 
 }

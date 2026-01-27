@@ -247,11 +247,12 @@ class GameDetailViewModel @Inject constructor(
             val emulatorDef = emulatorConfig?.packageName?.let { emulatorDetector.getByPackage(it) }
                 ?: emulatorDetector.getPreferredEmulator(game.platformSlug)?.def
             val isRetroArch = emulatorDef?.launchConfig is LaunchConfig.RetroArch
+            val isBuiltIn = emulatorDef?.launchConfig is LaunchConfig.BuiltIn
 
             val selectedCoreId = gameSpecificConfig?.coreName
                 ?: platformDefaultConfig?.coreName
                 ?: EmulatorRegistry.getDefaultCore(game.platformSlug)?.id
-            val selectedCoreName = if (isRetroArch) {
+            val selectedCoreName = if (isRetroArch || isBuiltIn) {
                 EmulatorRegistry.getCoresForPlatform(game.platformSlug)
                     .find { it.id == selectedCoreId }?.displayName
             } else null
@@ -322,6 +323,7 @@ class GameDetailViewModel @Inject constructor(
                         emulatorName = emulatorName,
                         canPlay = canPlay,
                         isRetroArch = isRetroArch,
+                        isBuiltIn = isBuiltIn,
                         selectedCoreName = selectedCoreName,
                         achievements = cachedAchievements,
                         canManageSaves = canManageSaves,
@@ -508,6 +510,76 @@ class GameDetailViewModel @Inject constructor(
     }
 
     private suspend fun fetchAndCacheAchievements(rommId: Long, gameId: Long): List<AchievementUi> {
+        // First, try to get RA ID from the game
+        val game = gameDao.getById(gameId)
+        val raId = game?.raId
+
+        // If we have an RA ID and RA credentials, fetch directly from RA
+        if (raId != null) {
+            val raAchievements = fetchAchievementsFromRA(raId, gameId)
+            if (raAchievements.isNotEmpty()) {
+                return raAchievements
+            }
+        }
+
+        // Fall back to RomM
+        return fetchAchievementsFromRomM(rommId, gameId)
+    }
+
+    private suspend fun fetchAchievementsFromRA(raId: Long, gameId: Long): List<AchievementUi> {
+        val raData = raRepository.getGameAchievementsWithProgress(raId) ?: return emptyList()
+
+        val entities = raData.achievements.map { achievement ->
+            val isUnlocked = achievement.id in raData.unlockedIds
+            val badgeUrl = achievement.badgeName?.let { "https://media.retroachievements.org/Badge/$it.png" }
+            val badgeUrlLock = achievement.badgeName?.let { "https://media.retroachievements.org/Badge/${it}_lock.png" }
+
+            com.nendo.argosy.data.local.entity.AchievementEntity(
+                gameId = gameId,
+                raId = achievement.id,
+                title = achievement.title,
+                description = achievement.description ?: "",
+                points = achievement.points,
+                type = achievement.type,
+                badgeUrl = badgeUrl,
+                badgeUrlLock = badgeUrlLock,
+                unlockedAt = if (isUnlocked) System.currentTimeMillis() else null,
+                unlockedHardcoreAt = null
+            )
+        }
+        achievementDao.replaceForGame(gameId, entities)
+
+        gameDao.updateAchievementCount(gameId, raData.totalCount, raData.earnedCount)
+        achievementUpdateBus.emit(
+            AchievementUpdateBus.AchievementUpdate(gameId, raData.totalCount, raData.earnedCount)
+        )
+
+        val savedAchievements = achievementDao.getByGameId(gameId)
+        savedAchievements.forEach { achievement ->
+            if (achievement.cachedBadgeUrl == null && achievement.badgeUrl != null) {
+                imageCacheManager.queueBadgeCache(achievement.id, achievement.badgeUrl, achievement.badgeUrlLock)
+            }
+        }
+
+        return raData.achievements.map { achievement ->
+            val isUnlocked = achievement.id in raData.unlockedIds
+            val badgeUrl = achievement.badgeName?.let { "https://media.retroachievements.org/Badge/$it.png" }
+            val badgeUrlLock = achievement.badgeName?.let { "https://media.retroachievements.org/Badge/${it}_lock.png" }
+
+            AchievementUi(
+                raId = achievement.id,
+                title = achievement.title,
+                description = achievement.description ?: "",
+                points = achievement.points,
+                type = achievement.type,
+                badgeUrl = if (isUnlocked) badgeUrl else (badgeUrlLock ?: badgeUrl),
+                isUnlocked = isUnlocked,
+                isUnlockedHardcore = false
+            )
+        }
+    }
+
+    private suspend fun fetchAchievementsFromRomM(rommId: Long, gameId: Long): List<AchievementUi> {
         return when (val result = romMRepository.getRom(rommId)) {
             is RomMResult.Success -> {
                 val rom = result.data
@@ -521,7 +593,6 @@ class GameDetailViewModel @Inject constructor(
                     val earned = earnedByBadgeId[achievement.badgeId]
                     val unlockedAt = earned?.date?.let { parseTimestamp(it) }
                     val unlockedHardcoreAt = earned?.dateHardcore?.let { parseTimestamp(it) }
-                    val isUnlocked = earned != null
 
                     com.nendo.argosy.data.local.entity.AchievementEntity(
                         gameId = gameId,
@@ -532,7 +603,6 @@ class GameDetailViewModel @Inject constructor(
                         type = achievement.type,
                         badgeUrl = achievement.badgeUrl,
                         badgeUrlLock = achievement.badgeUrlLock,
-                        isUnlocked = isUnlocked,
                         unlockedAt = unlockedAt,
                         unlockedHardcoreAt = unlockedHardcoreAt
                     )
@@ -842,9 +912,32 @@ class GameDetailViewModel @Inject constructor(
         if (_uiState.value.isSyncing) return
 
         viewModelScope.launch {
+            val currentGame = _uiState.value.game ?: return@launch
+
+            // For fresh games with RA support, show mode selection
+            if (currentGame.isBuiltInEmulator && currentGame.achievements.isNotEmpty()) {
+                val hasSaves = saveCacheManager.getCachesForGameOnce(currentGameId).isNotEmpty()
+                val isRALoggedIn = raRepository.isLoggedIn()
+
+                if (!hasSaves && isRALoggedIn) {
+                    val isOnline = com.nendo.argosy.util.NetworkUtils.isOnline(context)
+                    _uiState.update {
+                        it.copy(
+                            showPlayOptions = true,
+                            playOptionsFocusIndex = 0,
+                            hasCasualSaves = false,
+                            hasHardcoreSave = false,
+                            isRALoggedIn = true,
+                            isOnline = isOnline
+                        )
+                    }
+                    soundManager.play(SoundType.OPEN_MODAL)
+                    return@launch
+                }
+            }
+
             val canResume = playSessionTracker.canResumeSession(currentGameId)
             if (canResume) {
-                val game = _uiState.value.game ?: return@launch
                 when (val result = launchGameUseCase(currentGameId, discId, forResume = true)) {
                     is LaunchResult.Success -> {
                         soundManager.play(SoundType.LAUNCH_GAME)
@@ -859,7 +952,7 @@ class GameDetailViewModel @Inject constructor(
                         }
                     }
                     is LaunchResult.NoEmulator -> {
-                        notificationManager.showError("No emulator installed for ${game.platformName}")
+                        notificationManager.showError("No emulator installed for ${currentGame.platformName}")
                     }
                     is LaunchResult.NoRomFile -> {
                         notificationManager.showError("ROM file not found. Download required.")
@@ -894,9 +987,7 @@ class GameDetailViewModel @Inject constructor(
                 return@launch
             }
 
-            val game = _uiState.value.game ?: return@launch
-
-            val emulatorId = emulatorResolver.getEmulatorIdForGame(currentGameId, game.platformId, game.platformSlug)
+            val emulatorId = emulatorResolver.getEmulatorIdForGame(currentGameId, currentGame.platformId, currentGame.platformSlug)
             val prefs = preferencesRepository.preferences.first()
             val canSync = emulatorId != null && SavePathRegistry.canSyncWithSettings(
                 emulatorId,
@@ -944,7 +1035,7 @@ class GameDetailViewModel @Inject constructor(
                     }
                 }
                 is LaunchResult.NoEmulator -> {
-                    notificationManager.showError("No emulator installed for ${game.platformName}")
+                    notificationManager.showError("No emulator installed for ${currentGame.platformName}")
                 }
                 is LaunchResult.NoRomFile -> {
                     notificationManager.showError("ROM file not found. Download required.")
@@ -2349,7 +2440,8 @@ class GameDetailViewModel @Inject constructor(
                 return InputResult.HANDLED
             }
             if (state.downloadStatus == GameDownloadStatus.DOWNLOADED &&
-                state.game?.isRetroArchEmulator == true) {
+                state.game?.isBuiltInEmulator == true &&
+                state.game.achievements.isNotEmpty()) {
                 showPlayOptions()
                 return InputResult.HANDLED
             }

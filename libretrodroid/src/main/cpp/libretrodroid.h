@@ -37,6 +37,7 @@
 #include "fpssync.h"
 #include "input.h"
 #include "rumble.h"
+#include "achievements.h"
 #include "shadermanager.h"
 #include "utils/javautils.h"
 #include "environment.h"
@@ -130,6 +131,11 @@ public:
     bool isRumbleEnabled() const;
     void handleRumbleUpdates(const std::function<void(int, float, float)> &handler);
 
+    void initAchievements(const std::vector<AchievementDef>& achievements, uint32_t consoleId);
+    void clearAchievements();
+    void handleAchievementUnlocks(const std::function<void(uint32_t)>& handler);
+    Achievements& getAchievements() { return achievements; }
+
     void setFrameSpeed(unsigned int speed);
 
     void setAudioEnabled(bool enabled);
@@ -190,6 +196,7 @@ private:
     std::unique_ptr<FPSSync> fpsSync;
     std::unique_ptr<Input> input;
     std::unique_ptr<Rumble> rumble;
+    Achievements achievements;
 };
 
 } //namespace libretrodroid

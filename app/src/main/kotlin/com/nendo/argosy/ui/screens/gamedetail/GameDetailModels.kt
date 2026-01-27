@@ -77,6 +77,7 @@ data class GameDetailUi(
     val isMultiDisc: Boolean = false,
     val lastPlayedDiscId: Long? = null,
     val isRetroArchEmulator: Boolean = false,
+    val isBuiltInEmulator: Boolean = false,
     val selectedCoreName: String? = null,
     val canManageSaves: Boolean = false,
     val isSteamGame: Boolean = false,
