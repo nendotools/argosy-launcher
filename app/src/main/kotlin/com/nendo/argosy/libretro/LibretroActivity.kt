@@ -88,6 +88,7 @@ class LibretroActivity : ComponentActivity() {
     @Inject lateinit var cheatsRepository: CheatsRepository
     @Inject lateinit var raRepository: RetroAchievementsRepository
     @Inject lateinit var achievementUpdateBus: AchievementUpdateBus
+    @Inject lateinit var saveCacheManager: com.nendo.argosy.data.repository.SaveCacheManager
 
     private lateinit var retroView: GLRetroView
     private val portResolver = ControllerPortResolver()
@@ -175,7 +176,10 @@ class LibretroActivity : ComponentActivity() {
 
         hasQuickSave = getQuickSaveFile().exists()
 
-        val existingSram = getSramFile().takeIf { it.exists() }?.readBytes()
+        // Restore appropriate save based on launch mode
+        val existingSram = kotlinx.coroutines.runBlocking {
+            restoreSaveForLaunchMode()
+        }
         lastSramHash = existingSram?.let { hashBytes(it) }
 
         val settings = kotlinx.coroutines.runBlocking {
@@ -629,6 +633,72 @@ class LibretroActivity : ComponentActivity() {
     private fun getSramFile(): File {
         val romName = File(romPath).nameWithoutExtension
         return File(savesDir, "$romName.srm")
+    }
+
+    private suspend fun restoreSaveForLaunchMode(): ByteArray? {
+        if (gameId < 0) {
+            Log.w("LibretroActivity", "No valid gameId, using existing save")
+            return getSramFile().takeIf { it.exists() }?.readBytes()
+        }
+
+        return when (launchMode) {
+            LaunchMode.NEW_HARDCORE, LaunchMode.NEW_CASUAL -> {
+                Log.d("LibretroActivity", "New game mode - starting fresh (no save)")
+                null
+            }
+            LaunchMode.RESUME_HARDCORE -> {
+                Log.d("LibretroActivity", "Resuming hardcore - restoring hardcore save")
+                val hardcoreSave = saveCacheManager.getHardcoreSlot(gameId)
+                if (hardcoreSave != null) {
+                    val bytes = saveCacheManager.getSaveBytesFromEntity(hardcoreSave)
+                    if (bytes != null) {
+                        getSramFile().writeBytes(bytes)
+                        Log.d("LibretroActivity", "Restored hardcore save (${bytes.size} bytes)")
+                    }
+                    bytes
+                } else {
+                    Log.w("LibretroActivity", "No hardcore save found, starting fresh")
+                    null
+                }
+            }
+            LaunchMode.RESUME -> {
+                // Smart resume: determine mode based on which save is most recent
+                val hardcoreSave = saveCacheManager.getHardcoreSlot(gameId)
+                val game = gameDao.getById(gameId)
+                val channelName = game?.activeSaveChannel
+                val casualSave = saveCacheManager.getLatestCasualSave(gameId, channelName)
+
+                val useHardcore = when {
+                    hardcoreSave != null && casualSave == null -> true
+                    casualSave != null && hardcoreSave == null -> false
+                    hardcoreSave != null && casualSave != null ->
+                        hardcoreSave.cachedAt.isAfter(casualSave.cachedAt)
+                    else -> false
+                }
+
+                if (useHardcore && hardcoreSave != null) {
+                    hardcoreMode = true
+                    Log.d("LibretroActivity", "RESUME: Hardcore save is most recent, switching to hardcore mode")
+                    val bytes = saveCacheManager.getSaveBytesFromEntity(hardcoreSave)
+                    if (bytes != null) {
+                        getSramFile().writeBytes(bytes)
+                        Log.d("LibretroActivity", "Restored hardcore save (${bytes.size} bytes)")
+                    }
+                    bytes
+                } else if (casualSave != null) {
+                    Log.d("LibretroActivity", "RESUME: Restoring casual save from ${channelName ?: "latest"}")
+                    val bytes = saveCacheManager.getSaveBytesFromEntity(casualSave)
+                    if (bytes != null) {
+                        getSramFile().writeBytes(bytes)
+                        Log.d("LibretroActivity", "Restored casual save (${bytes.size} bytes)")
+                    }
+                    bytes
+                } else {
+                    Log.d("LibretroActivity", "RESUME: No cached saves, using existing .srm if present")
+                    getSramFile().takeIf { it.exists() }?.readBytes()
+                }
+            }
+        }
     }
 
     private fun saveSram() {

@@ -31,6 +31,22 @@ interface SaveCacheDao {
     @Query("SELECT * FROM save_cache WHERE gameId = :gameId AND isHardcore = 1 LIMIT 1")
     suspend fun getHardcoreSlot(gameId: Long): SaveCacheEntity?
 
+    @Query("""
+        SELECT * FROM save_cache
+        WHERE gameId = :gameId AND isHardcore = 0
+        ORDER BY cachedAt DESC
+        LIMIT 1
+    """)
+    suspend fun getLatestCasualSave(gameId: Long): SaveCacheEntity?
+
+    @Query("""
+        SELECT * FROM save_cache
+        WHERE gameId = :gameId AND isHardcore = 0 AND slotName = :channelName
+        ORDER BY cachedAt DESC
+        LIMIT 1
+    """)
+    suspend fun getLatestCasualSaveInChannel(gameId: Long, channelName: String): SaveCacheEntity?
+
     @Update
     suspend fun update(entity: SaveCacheEntity)
 

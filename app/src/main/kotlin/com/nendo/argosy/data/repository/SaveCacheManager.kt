@@ -308,6 +308,49 @@ class SaveCacheManager @Inject constructor(
     suspend fun hasHardcoreSlot(gameId: Long): Boolean =
         saveCacheDao.getHardcoreSlot(gameId) != null
 
+    suspend fun getLatestCasualSave(gameId: Long, channelName: String?): SaveCacheEntity? {
+        return if (channelName != null) {
+            saveCacheDao.getLatestCasualSaveInChannel(gameId, channelName)
+        } else {
+            saveCacheDao.getLatestCasualSave(gameId)
+        }
+    }
+
+    suspend fun getSaveBytes(cacheId: Long): ByteArray? = withContext(Dispatchers.IO) {
+        val entity = saveCacheDao.getById(cacheId) ?: return@withContext null
+        getSaveBytesFromEntity(entity)
+    }
+
+    suspend fun getSaveBytesFromEntity(entity: SaveCacheEntity): ByteArray? = withContext(Dispatchers.IO) {
+        val cacheFile = File(cacheBaseDir, entity.cachePath)
+        if (!cacheFile.exists()) {
+            Log.e(TAG, "Cache file not found: ${entity.cachePath}")
+            return@withContext null
+        }
+
+        try {
+            if (cacheFile.name.endsWith(".zip")) {
+                // Extract save from zip archive to a temp dir, find .srm file
+                val tempDir = File(context.cacheDir, "save_extract_${System.currentTimeMillis()}")
+                tempDir.mkdirs()
+                if (saveArchiver.unzipToFolder(cacheFile, tempDir)) {
+                    val srmFile = tempDir.walkTopDown().firstOrNull { it.extension == "srm" }
+                    val bytes = srmFile?.readBytes()
+                    tempDir.deleteRecursively()
+                    bytes
+                } else {
+                    tempDir.deleteRecursively()
+                    null
+                }
+            } else {
+                cacheFile.readBytes()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to read cache file: ${entity.cachePath}", e)
+            null
+        }
+    }
+
     suspend fun deleteAllCachesForGame(gameId: Long) = withContext(Dispatchers.IO) {
         val caches = saveCacheDao.getByGame(gameId)
         for (cache in caches) {

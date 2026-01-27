@@ -53,7 +53,7 @@ class RetroAchievementsRepository @Inject constructor(
             .readTimeout(30, TimeUnit.SECONDS)
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
-                    .header("User-Agent", "Argosy/${BuildConfig.VERSION_NAME} (Android) rcheevos/12.2.1")
+                    .header("User-Agent", "Argosy/${BuildConfig.VERSION_NAME} (Android ${android.os.Build.VERSION.RELEASE}) rcheevos/12.2.1")
                     .build()
                 chain.proceed(request)
             }
