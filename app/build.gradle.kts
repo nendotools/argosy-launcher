@@ -48,6 +48,7 @@ android {
         buildConfigField("String", "TITLEDB_API_SECRET", "\"${envString("TITLEDB_API_SECRET")}\"")
         buildConfigField("String", "TITLEDB_API_URL", "\"${envString("TITLEDB_API_URL", "https://api.argosy.dev")}\"")
         buildConfigField("String", "CHEATSDB_API_SECRET", "\"${envString("CHEATSDB_API_SECRET")}\"")
+        buildConfigField("String", "RA_API_KEY", "\"${envString("RA_API_KEY")}\"")
     }
 
     signingConfigs {

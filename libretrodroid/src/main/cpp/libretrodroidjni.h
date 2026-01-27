@@ -52,6 +52,7 @@ JNIEXPORT void JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_setFrameSp
 JNIEXPORT void JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_setAudioEnabled(JNIEnv* env, jclass obj, jboolean enabled);
 JNIEXPORT jbyteArray JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_getMemoryData(JNIEnv* env, jclass obj, jint memoryType);
 JNIEXPORT jint JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_getMemorySize(JNIEnv* env, jclass obj, jint memoryType);
+JNIEXPORT jstring JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_computeRomHash(JNIEnv* env, jclass obj, jstring romPath, jint consoleId);
 
 }
 

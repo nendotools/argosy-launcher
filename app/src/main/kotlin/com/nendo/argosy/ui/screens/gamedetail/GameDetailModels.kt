@@ -15,6 +15,15 @@ data class ScreenshotPair(
     val cachedPath: String?
 )
 
+data class TestAchievementUi(
+    val id: Long,
+    val title: String,
+    val description: String?,
+    val points: Int,
+    val badgeUrl: String?,
+    val isHardcore: Boolean
+)
+
 data class UpdateFileUi(
     val fileName: String,
     val filePath: String,
@@ -187,7 +196,8 @@ data class GameDetailUiState(
     val showAddToCollectionModal: Boolean = false,
     val collections: List<CollectionItemUi> = emptyList(),
     val collectionModalFocusIndex: Int = 0,
-    val showCreateCollectionDialog: Boolean = false
+    val showCreateCollectionDialog: Boolean = false,
+    val testAchievement: TestAchievementUi? = null
 ) {
     val hasPreviousGame: Boolean get() = currentGameIndex > 0
     val hasNextGame: Boolean get() = currentGameIndex >= 0 && currentGameIndex < siblingGameIds.size - 1

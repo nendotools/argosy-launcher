@@ -171,4 +171,12 @@ public class LibretroDroid {
      * @return Number of tests that passed
      */
     public static native int runAchievementTests();
+
+    /**
+     * Compute the RetroAchievements hash for a ROM file.
+     * @param romPath The path to the ROM file
+     * @param consoleId The RA console ID (from rc_consoles.h)
+     * @return The 32-character MD5 hash, or null if hashing failed
+     */
+    public static native String computeRomHash(String romPath, int consoleId);
 }

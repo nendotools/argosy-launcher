@@ -405,6 +405,18 @@ interface GameDao {
     @Query("UPDATE games SET achievementCount = :count, earnedAchievementCount = :earnedCount WHERE id = :gameId")
     suspend fun updateAchievementCount(gameId: Long, count: Int, earnedCount: Int = 0)
 
+    @Query("UPDATE games SET achievementsFetchedAt = :timestamp WHERE id = :gameId")
+    suspend fun updateAchievementsFetchedAt(gameId: Long, timestamp: Long)
+
+    @Query("SELECT achievementsFetchedAt FROM games WHERE id = :gameId")
+    suspend fun getAchievementsFetchedAt(gameId: Long): Long?
+
+    @Query("UPDATE games SET romHash = :hash WHERE id = :gameId")
+    suspend fun updateRomHash(gameId: Long, hash: String)
+
+    @Query("SELECT romHash FROM games WHERE id = :gameId")
+    suspend fun getRomHash(gameId: Long): String?
+
     @Query("UPDATE games SET earnedAchievementCount = earnedAchievementCount + 1 WHERE id = :gameId")
     suspend fun incrementEarnedAchievementCount(gameId: Long)
 

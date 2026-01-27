@@ -8,18 +8,28 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.outlined.Article
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import com.nendo.argosy.ui.components.ActionPreference
 import com.nendo.argosy.ui.components.CyclePreference
 import com.nendo.argosy.ui.components.SectionFocusedScroll
@@ -27,6 +37,7 @@ import com.nendo.argosy.ui.components.SwitchPreference
 import com.nendo.argosy.ui.screens.settings.SettingsUiState
 import com.nendo.argosy.ui.screens.settings.SettingsViewModel
 import com.nendo.argosy.ui.screens.settings.components.SectionHeader
+import com.nendo.argosy.ui.screens.settings.dialogs.LicensesDialog
 import com.nendo.argosy.ui.screens.settings.menu.SettingsLayout
 import com.nendo.argosy.ui.theme.Dimens
 
@@ -83,6 +94,7 @@ fun AboutSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
     val isOnBetaVersion = com.nendo.argosy.BuildConfig.VERSION_NAME.contains("-")
     val context = LocalContext.current
     val hasLogPath = uiState.fileLoggingPath != null
+    var showLicensesDialog by remember { mutableStateOf(false) }
 
     val layoutState = remember(hasLogPath) { AboutLayoutState(hasLogPath) }
     val visibleItems = remember(hasLogPath) { aboutLayout.visibleItems(layoutState) }
@@ -90,6 +102,10 @@ fun AboutSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
 
     fun isFocused(item: AboutItem): Boolean =
         uiState.focusedIndex == aboutLayout.focusIndexOf(item, layoutState)
+
+    if (showLicensesDialog) {
+        LicensesDialog(onDismiss = { showLicensesDialog = false })
+    }
 
     SectionFocusedScroll(
         listState = listState,
@@ -109,7 +125,8 @@ fun AboutSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
 
                 AboutItem.VersionInfo -> VersionInfoRow(
                     argosyVersion = uiState.appVersion,
-                    rommVersion = uiState.server.rommVersion
+                    rommVersion = uiState.server.rommVersion,
+                    onLicensesClick = { showLicensesDialog = true }
                 )
 
                 AboutItem.CheckUpdates -> {
@@ -189,39 +206,64 @@ fun AboutSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
 @Composable
 private fun VersionInfoRow(
     argosyVersion: String,
-    rommVersion: String?
+    rommVersion: String?,
+    onLicensesClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = Dimens.spacingXs),
-        horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXl)
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
-            Text(
-                text = "Argosy",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = argosyVersion,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-        if (rommVersion != null) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXl)
+        ) {
             Column {
                 Text(
-                    text = "RomM API",
+                    text = "Argosy",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "v$rommVersion",
+                    text = argosyVersion,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
+            if (rommVersion != null) {
+                Column {
+                    Text(
+                        text = "RomM API",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "v$rommVersion",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier
+                .clickable(onClick = onLicensesClick)
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        ) {
+            Text(
+                text = "Licenses",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Icon(
+                imageVector = Icons.Outlined.Article,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }

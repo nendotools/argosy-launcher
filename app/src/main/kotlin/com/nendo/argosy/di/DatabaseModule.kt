@@ -102,7 +102,9 @@ object DatabaseModule {
                 ALauncherDatabase.MIGRATION_53_54,
                 ALauncherDatabase.MIGRATION_54_55,
                 ALauncherDatabase.MIGRATION_55_56,
-                ALauncherDatabase.MIGRATION_56_57
+                ALauncherDatabase.MIGRATION_56_57,
+                ALauncherDatabase.MIGRATION_57_58,
+                ALauncherDatabase.MIGRATION_58_59
             )
             .build()
     }

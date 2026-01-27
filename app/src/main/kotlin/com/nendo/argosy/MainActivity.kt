@@ -111,6 +111,9 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // Schedule pending RA achievement submission if any are queued
+        com.nendo.argosy.data.sync.AchievementSubmissionWorker.schedule(this)
+
         activityScope.launch {
             preferencesRepository.preferences.collect { prefs ->
                 Logger.configure(

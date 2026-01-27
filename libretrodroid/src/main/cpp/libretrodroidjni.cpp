@@ -45,6 +45,7 @@
 #include "utils/jnistring.h"
 #include "rewindbuffer.h"
 #include "achievements_test.h"
+#include <rc_hash.h>
 
 namespace libretrodroid {
 
@@ -847,6 +848,32 @@ JNIEXPORT jint JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_runAchieve
     }
 
     return static_cast<jint>(passed);
+}
+
+JNIEXPORT jstring JNICALL Java_com_swordfish_libretrodroid_LibretroDroid_computeRomHash(
+    JNIEnv* env,
+    jclass obj,
+    jstring romPath,
+    jint consoleId
+) {
+    if (romPath == nullptr) {
+        LOGE("computeRomHash: null romPath");
+        return nullptr;
+    }
+
+    JniString pathStr(env, romPath);
+    const char* path = pathStr.stdString().c_str();
+
+    char hash[33] = {0};
+    int result = rc_hash_generate_from_file(hash, static_cast<uint32_t>(consoleId), path);
+
+    if (result == 0) {
+        LOGW("Failed to compute hash for %s (console %d)", path, consoleId);
+        return nullptr;
+    }
+
+    LOGI("Computed hash for %s: %s", path, hash);
+    return env->NewStringUTF(hash);
 }
 
 }

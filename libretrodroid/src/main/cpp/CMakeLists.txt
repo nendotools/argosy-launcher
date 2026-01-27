@@ -34,6 +34,13 @@ set(RCHEEVOS_SOURCES
     ${RCHEEVOS_DIR}/src/rcheevos/trigger.c
     ${RCHEEVOS_DIR}/src/rcheevos/value.c
     ${RCHEEVOS_DIR}/src/rhash/md5.c
+    ${RCHEEVOS_DIR}/src/rhash/hash.c
+    ${RCHEEVOS_DIR}/src/rhash/hash_rom.c
+    ${RCHEEVOS_DIR}/src/rhash/hash_disc.c
+    ${RCHEEVOS_DIR}/src/rhash/hash_zip.c
+    ${RCHEEVOS_DIR}/src/rhash/hash_encrypted.c
+    ${RCHEEVOS_DIR}/src/rhash/cdreader.c
+    ${RCHEEVOS_DIR}/src/rhash/aes.c
     ${RCHEEVOS_DIR}/src/rc_compat.c
     ${RCHEEVOS_DIR}/src/rc_util.c
     ${RCHEEVOS_DIR}/src/rc_version.c

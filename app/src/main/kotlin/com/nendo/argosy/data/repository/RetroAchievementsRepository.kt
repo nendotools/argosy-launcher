@@ -1,6 +1,7 @@
 package com.nendo.argosy.data.repository
 
 import android.content.Context
+import com.nendo.argosy.BuildConfig
 import com.nendo.argosy.data.local.dao.PendingAchievementDao
 import com.nendo.argosy.data.local.entity.PendingAchievementEntity
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
@@ -52,7 +53,7 @@ class RetroAchievementsRepository @Inject constructor(
             .readTimeout(30, TimeUnit.SECONDS)
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
-                    .header("User-Agent", "Argosy/1.0")
+                    .header("User-Agent", "Argosy/${BuildConfig.VERSION_NAME} (Android) rcheevos/12.2.1")
                     .build()
                 chain.proceed(request)
             }
@@ -273,8 +274,14 @@ class RetroAchievementsRepository @Inject constructor(
                     Logger.warn(TAG, "RA session warning: ${body.warning}")
                 }
                 val unlocked = mutableSetOf<Long>()
-                body.hardcoreUnlocks?.mapTo(unlocked) { it.id }
-                body.unlocks?.mapTo(unlocked) { it.id }
+                if (hardcore) {
+                    // Hardcore mode: only count hardcore unlocks
+                    body.hardcoreUnlocks?.mapTo(unlocked) { it.id }
+                } else {
+                    // Casual mode: count all unlocks (hardcore unlocks count too)
+                    body.hardcoreUnlocks?.mapTo(unlocked) { it.id }
+                    body.unlocks?.mapTo(unlocked) { it.id }
+                }
                 Logger.debug(TAG, "Pre-unlocked achievements: ${unlocked.size}")
                 RASessionResult(true, unlocked)
             } else {
@@ -340,12 +347,18 @@ class RetroAchievementsRepository @Inject constructor(
     suspend fun getGameAchievementsWithProgress(gameRaId: Long): RAGameAchievements? {
         val credentials = getCredentials() ?: return null
 
-        // Try Web API first (uses token as API key)
+        // Try Web API first (uses build-time API key)
+        val apiKey = BuildConfig.RA_API_KEY
+        if (apiKey.isBlank()) {
+            Logger.debug(TAG, "No RA API key configured, using Connect API")
+            return fallbackToConnectApi(gameRaId, credentials)
+        }
+
         return try {
             val response = api.getGameInfoAndUserProgress(
                 gameId = gameRaId,
                 username = credentials.username,
-                apiKey = credentials.token  // Try using login token as API key
+                apiKey = apiKey
             )
 
             if (response.isSuccessful) {

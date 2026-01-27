@@ -71,6 +71,8 @@ import com.nendo.argosy.ui.screens.collections.dialogs.CreateCollectionDialog
 import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.LocalLauncherTheme
 import com.nendo.argosy.ui.theme.Motion
+import com.nendo.argosy.libretro.ui.AchievementPopup
+import com.nendo.argosy.libretro.ui.AchievementUnlock
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -129,6 +131,21 @@ fun GameDetailScreen(
             if (hasDescription) add(SnapState.DESCRIPTION)
             if (hasScreenshots) add(SnapState.SCREENSHOTS)
             if (hasAchievements) add(SnapState.ACHIEVEMENTS)
+        }
+    }
+
+    // TEST MODE: Show fake achievement every 30 seconds when game has achievements
+    LaunchedEffect(hasAchievements) {
+        if (hasAchievements) {
+            viewModel.startTestAchievementMode()
+        } else {
+            viewModel.stopTestAchievementMode()
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.stopTestAchievementMode()
         }
     }
 
@@ -664,5 +681,25 @@ private fun GameDetailModals(
                 viewModel.hideCreateCollectionDialog()
             }
         )
+    }
+
+    // Test achievement popup
+    uiState.testAchievement?.let { testAch ->
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            AchievementPopup(
+                achievement = AchievementUnlock(
+                    id = testAch.id,
+                    title = testAch.title,
+                    description = testAch.description,
+                    points = testAch.points,
+                    badgeUrl = testAch.badgeUrl,
+                    isHardcore = testAch.isHardcore
+                ),
+                onDismiss = viewModel::dismissTestAchievement
+            )
+        }
     }
 }

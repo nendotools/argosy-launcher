@@ -128,10 +128,51 @@ class GameDetailViewModel @Inject constructor(
 
     private var backgroundRepairPending = false
     private var gameFilesObserverJob: kotlinx.coroutines.Job? = null
+    private var testAchievementJob: kotlinx.coroutines.Job? = null
 
     override fun onCleared() {
         super.onCleared()
         imageCacheManager.resumeBackgroundCaching()
+        testAchievementJob?.cancel()
+    }
+
+    fun startTestAchievementMode() {
+        testAchievementJob?.cancel()
+        testAchievementJob = viewModelScope.launch {
+            while (true) {
+                delay(30_000L)
+                triggerTestAchievement()
+            }
+        }
+    }
+
+    fun stopTestAchievementMode() {
+        testAchievementJob?.cancel()
+        testAchievementJob = null
+    }
+
+    private fun triggerTestAchievement() {
+        val achievements = _uiState.value.game?.achievements ?: return
+        if (achievements.isEmpty()) return
+
+        val randomAch = achievements.random()
+
+        _uiState.update {
+            it.copy(
+                testAchievement = TestAchievementUi(
+                    id = randomAch.raId,
+                    title = randomAch.title,
+                    description = randomAch.description,
+                    points = randomAch.points,
+                    badgeUrl = randomAch.badgeUrl,
+                    isHardcore = listOf(true, false).random()
+                )
+            )
+        }
+    }
+
+    fun dismissTestAchievement() {
+        _uiState.update { it.copy(testAchievement = null) }
     }
 
     fun repairBackgroundImage(gameId: Long, failedPath: String) {
@@ -548,6 +589,7 @@ class GameDetailViewModel @Inject constructor(
             )
         }
         achievementDao.replaceForGame(gameId, entities)
+        gameDao.updateAchievementsFetchedAt(gameId, System.currentTimeMillis())
 
         gameDao.updateAchievementCount(gameId, raData.totalCount, raData.earnedCount)
         achievementUpdateBus.emit(
@@ -608,6 +650,7 @@ class GameDetailViewModel @Inject constructor(
                     )
                 }
                 achievementDao.replaceForGame(gameId, entities)
+                gameDao.updateAchievementsFetchedAt(gameId, System.currentTimeMillis())
 
                 val earnedCount = entities.count { it.isUnlocked }
                 gameDao.updateAchievementCount(gameId, entities.size, earnedCount)
@@ -660,6 +703,8 @@ class GameDetailViewModel @Inject constructor(
     }
 
     private suspend fun refreshAchievementsInBackground(rommId: Long, gameId: Long) {
+        // Always fetch fresh data when viewing game details to get current unlock status
+        // The API call is lightweight and ensures multi-device sync
         val fresh = fetchAndCacheAchievements(rommId, gameId)
         if (fresh.isNotEmpty()) {
             _uiState.update { state ->

@@ -7,18 +7,22 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,7 +33,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
@@ -37,19 +40,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 
-data class AchievementUnlock(
-    val id: Long,
-    val title: String,
-    val description: String?,
-    val points: Int,
-    val badgeUrl: String?,
-    val isHardcore: Boolean
+data class RAConnectionInfo(
+    val isHardcore: Boolean,
+    val earnedCount: Int,
+    val totalCount: Int
 )
 
 private val goldPrimary = Color(0xFFFFD700)
@@ -57,26 +55,26 @@ private val goldDark = Color(0xFF8B6914)
 private val goldDeep = Color(0xFF5C4A0F)
 private val goldShine = Color(0xFFFFF8DC)
 
-private val bronzePrimary = Color(0xFFCD7F32)
-private val bronzeDark = Color(0xFF6B4423)
-private val bronzeDeep = Color(0xFF4A2F18)
-private val bronzeShine = Color(0xFFDEB887)
+private val greenPrimary = Color(0xFF4CAF50)
+private val greenDark = Color(0xFF2E5D30)
+private val greenDeep = Color(0xFF1B3D1D)
+private val greenShine = Color(0xFFB8E6BA)
 
 @Composable
-fun AchievementPopup(
-    achievement: AchievementUnlock?,
+fun RAConnectionNotification(
+    connectionInfo: RAConnectionInfo?,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var visible by remember(achievement) { mutableStateOf(false) }
-    var showContent by remember(achievement) { mutableStateOf(false) }
+    var visible by remember(connectionInfo) { mutableStateOf(false) }
+    var showContent by remember(connectionInfo) { mutableStateOf(false) }
 
-    LaunchedEffect(achievement) {
-        if (achievement != null) {
+    LaunchedEffect(connectionInfo) {
+        if (connectionInfo != null) {
             visible = true
             delay(50L)
             showContent = true
-            delay(4000L)
+            delay(3000L)
             visible = false
             delay(300L)
             onDismiss()
@@ -96,33 +94,36 @@ fun AchievementPopup(
     )
 
     AnimatedVisibility(
-        visible = visible && achievement != null,
-        enter = fadeIn(animationSpec = tween(150)),
+        visible = visible && connectionInfo != null,
+        enter = slideInVertically(
+            initialOffsetY = { -it },
+            animationSpec = tween(200)
+        ) + fadeIn(animationSpec = tween(150)),
         exit = slideOutVertically(
             targetOffsetY = { -it },
             animationSpec = tween(250)
         ) + fadeOut(animationSpec = tween(200)),
         modifier = modifier.fillMaxWidth()
     ) {
-        achievement?.let { unlock ->
+        connectionInfo?.let { info ->
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .scale(scale),
                 contentAlignment = Alignment.TopCenter
             ) {
-                AchievementPopupContent(unlock)
+                RAConnectionContent(info)
             }
         }
     }
 }
 
 @Composable
-private fun AchievementPopupContent(achievement: AchievementUnlock) {
-    val primary = if (achievement.isHardcore) goldPrimary else bronzePrimary
-    val dark = if (achievement.isHardcore) goldDark else bronzeDark
-    val deep = if (achievement.isHardcore) goldDeep else bronzeDeep
-    val shine = if (achievement.isHardcore) goldShine else bronzeShine
+private fun RAConnectionContent(info: RAConnectionInfo) {
+    val primary = if (info.isHardcore) goldPrimary else greenPrimary
+    val dark = if (info.isHardcore) goldDark else greenDark
+    val deep = if (info.isHardcore) goldDeep else greenDeep
+    val shine = if (info.isHardcore) goldShine else greenShine
 
     val textShadow = Shadow(
         color = Color.Black.copy(alpha = 0.6f),
@@ -131,8 +132,7 @@ private fun AchievementPopupContent(achievement: AchievementUnlock) {
     )
 
     Box(
-        modifier = Modifier
-            .padding(16.dp),
+        modifier = Modifier.padding(16.dp),
         contentAlignment = Alignment.TopCenter
     ) {
         Row(
@@ -140,17 +140,11 @@ private fun AchievementPopupContent(achievement: AchievementUnlock) {
                 .shadow(8.dp, RoundedCornerShape(12.dp))
                 .background(
                     brush = Brush.verticalGradient(
-                        colors = listOf(
-                            deep,
-                            dark,
-                            dark,
-                            deep
-                        )
+                        colors = listOf(deep, dark, dark, deep)
                     ),
                     shape = RoundedCornerShape(12.dp)
                 )
                 .drawBehind {
-                    // Subtle shine overlay at top
                     drawRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
@@ -161,7 +155,6 @@ private fun AchievementPopupContent(achievement: AchievementUnlock) {
                             endY = size.height * 0.4f
                         )
                     )
-                    // Edge highlight
                     drawRect(
                         brush = Brush.horizontalGradient(
                             colors = listOf(
@@ -174,47 +167,43 @@ private fun AchievementPopupContent(achievement: AchievementUnlock) {
                     )
                 }
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            if (achievement.badgeUrl != null) {
-                AsyncImage(
-                    model = achievement.badgeUrl,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(52.dp)
-                        .shadow(4.dp, RoundedCornerShape(8.dp))
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color.Black.copy(alpha = 0.2f)),
-                    contentScale = ContentScale.Crop
-                )
-                Spacer(Modifier.width(14.dp))
-            }
-
+            Icon(
+                imageVector = Icons.Filled.CheckCircle,
+                contentDescription = null,
+                tint = primary,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(Modifier.width(12.dp))
             Column {
                 Text(
-                    text = if (achievement.isHardcore) "HARDCORE UNLOCKED" else "ACHIEVEMENT UNLOCKED",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        shadow = textShadow
-                    ),
-                    color = shine,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = achievement.title,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        shadow = textShadow
-                    ),
+                    text = "RetroAchievements Connected",
+                    style = MaterialTheme.typography.bodyMedium.copy(shadow = textShadow),
                     color = Color.White,
                     fontWeight = FontWeight.Bold
                 )
-                Text(
-                    text = "+${achievement.points} points",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        shadow = textShadow
-                    ),
-                    color = primary
-                )
+                Spacer(Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = if (info.isHardcore) "Hardcore Mode" else "Casual Mode",
+                        style = MaterialTheme.typography.labelSmall.copy(shadow = textShadow),
+                        color = primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (info.totalCount > 0) {
+                        Text(
+                            text = " \u2022 ",
+                            style = MaterialTheme.typography.labelSmall.copy(shadow = textShadow),
+                            color = shine.copy(alpha = 0.7f)
+                        )
+                        Text(
+                            text = "${info.earnedCount}/${info.totalCount} earned",
+                            style = MaterialTheme.typography.labelSmall.copy(shadow = textShadow),
+                            color = shine
+                        )
+                    }
+                }
             }
         }
     }

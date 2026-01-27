@@ -26,7 +26,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.unit.dp
-import com.nendo.argosy.libretro.ui.RADiagnosticOverlay
+import com.nendo.argosy.libretro.ui.RAConnectionInfo
+import com.nendo.argosy.libretro.ui.RAConnectionNotification
 import com.nendo.argosy.ui.input.ControllerDetector
 import com.nendo.argosy.ui.input.DetectedLayout
 import com.nendo.argosy.ui.input.LocalABIconsSwapped
@@ -143,6 +144,7 @@ class LibretroActivity : ComponentActivity() {
     private var earnedAchievements by mutableStateOf(0)
     private var currentAchievementUnlock by mutableStateOf<AchievementUnlock?>(null)
     private val achievementUnlockQueue = mutableListOf<AchievementUnlock>()
+    private var raConnectionInfo by mutableStateOf<RAConnectionInfo?>(null)
 
     private data class AchievementPatchInfo(
         val title: String,
@@ -301,18 +303,18 @@ class LibretroActivity : ComponentActivity() {
                                 Box(modifier = Modifier.fillMaxSize()) {
                                     AchievementPopup(
                                         achievement = currentAchievementUnlock,
-                                        onDismiss = ::showNextAchievementUnlock
+                                        onDismiss = ::showNextAchievementUnlock,
+                                        modifier = Modifier
+                                            .align(Alignment.TopCenter)
+                                            .statusBarsPadding()
                                     )
 
-                                    RADiagnosticOverlay(
-                                        isConnected = raSessionActive,
-                                        isHardcore = hardcoreMode,
-                                        earnedCount = earnedAchievements,
-                                        totalCount = totalAchievements,
+                                    RAConnectionNotification(
+                                        connectionInfo = raConnectionInfo,
+                                        onDismiss = { raConnectionInfo = null },
                                         modifier = Modifier
-                                            .align(Alignment.TopStart)
+                                            .align(Alignment.TopCenter)
                                             .statusBarsPadding()
-                                            .padding(8.dp)
                                     )
                                 }
                             }
@@ -373,6 +375,24 @@ class LibretroActivity : ComponentActivity() {
 
                 val patchData = raRepository.getGamePatchData(gameRaId!!)
                 if (patchData != null) {
+                    // Compute and store ROM hash if not already cached
+                    val raConsoleId = patchData.consoleId ?: 0
+                    if (game.romHash == null && raConsoleId > 0) {
+                        try {
+                            val hash = com.swordfish.libretrodroid.LibretroDroid.computeRomHash(romPath, raConsoleId)
+                            if (hash != null) {
+                                Log.d("LibretroActivity", "Computed ROM hash: $hash")
+                                gameDao.updateRomHash(gameId, hash)
+                            } else {
+                                Log.w("LibretroActivity", "Failed to compute ROM hash for $romPath (console $raConsoleId)")
+                            }
+                        } catch (e: Exception) {
+                            Log.e("LibretroActivity", "Error computing ROM hash", e)
+                        }
+                    } else if (game.romHash != null) {
+                        Log.d("LibretroActivity", "Using cached ROM hash: ${game.romHash}")
+                    }
+
                     // Filter out warning pseudo-achievements (e.g., "Unknown Emulator" warnings)
                     val validAchievements = patchData.achievements?.filter { ach ->
                         !ach.title.contains("Unknown Emulator", ignoreCase = true) &&
@@ -394,6 +414,13 @@ class LibretroActivity : ComponentActivity() {
                     totalAchievements = validAchievements.size
                     earnedAchievements = preUnlocked.count { it in validAchievements.map { a -> a.id }.toSet() }
 
+                    // Show connection notification
+                    raConnectionInfo = RAConnectionInfo(
+                        isHardcore = hardcoreMode,
+                        earnedCount = earnedAchievements,
+                        totalCount = totalAchievements
+                    )
+
                     // Filter to only unearned achievements and send to native
                     val toWatch = validAchievements
                         .filter { it.id !in preUnlocked }
@@ -403,7 +430,6 @@ class LibretroActivity : ComponentActivity() {
                             com.swordfish.libretrodroid.AchievementDef(patch.id, patch.memAddr)
                         }.toTypedArray()
 
-                        val raConsoleId = patchData.consoleId ?: 0
                         Log.d("LibretroActivity", "Sending ${achievementDefs.size} achievements to native for console $raConsoleId")
                         com.swordfish.libretrodroid.LibretroDroid.initAchievements(achievementDefs, raConsoleId)
 
@@ -425,7 +451,7 @@ class LibretroActivity : ComponentActivity() {
     private fun startHeartbeatLoop() {
         heartbeatJob = lifecycleScope.launch {
             while (isActive && raSessionActive) {
-                delay(120_000L) // 2 minutes
+                delay(240_000L) // 4 minutes
                 val raId = gameRaId ?: break
                 raRepository.sendHeartbeat(raId, null)
                 Log.d("LibretroActivity", "RA heartbeat sent for game $raId")
@@ -462,6 +488,7 @@ class LibretroActivity : ComponentActivity() {
                 }
                 is RAAwardResult.Queued -> {
                     Log.d("LibretroActivity", "Achievement $achievementId queued for later submission")
+                    com.nendo.argosy.data.sync.AchievementSubmissionWorker.schedule(this@LibretroActivity)
                 }
                 is RAAwardResult.Error -> {
                     Log.e("LibretroActivity", "Failed to award achievement to RA: ${result.message}")

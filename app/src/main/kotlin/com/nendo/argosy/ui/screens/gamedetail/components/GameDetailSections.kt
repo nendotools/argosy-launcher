@@ -498,7 +498,7 @@ fun AchievementsSection(
                 color = MaterialTheme.colorScheme.primary
             )
             Text(
-                text = "(0/${achievements.size})",
+                text = "(${achievements.count { it.isUnlocked }}/${achievements.size})",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
             )
