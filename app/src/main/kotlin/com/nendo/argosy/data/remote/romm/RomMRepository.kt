@@ -619,6 +619,7 @@ class RomMRepository @Inject constructor(
             localPath = localDataSource?.localPath,
             rommId = rom.id,
             igdbId = rom.igdbId,
+            raId = rom.raId,
             source = if (localDataSource?.localPath != null) GameSource.ROMM_SYNCED else GameSource.ROMM_REMOTE,
             coverPath = cachedCover,
             backgroundPath = cachedBackground,

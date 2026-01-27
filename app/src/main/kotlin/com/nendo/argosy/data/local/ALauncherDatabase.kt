@@ -84,7 +84,7 @@ import com.nendo.argosy.data.local.entity.StateCacheEntity
         CheatEntity::class,
         PendingAchievementEntity::class
     ],
-    version = 55,
+    version = 56,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -921,6 +921,12 @@ abstract class ALauncherDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE achievements ADD COLUMN unlockedAt INTEGER")
                 db.execSQL("ALTER TABLE achievements ADD COLUMN unlockedHardcoreAt INTEGER")
+            }
+        }
+
+        val MIGRATION_55_56 = object : Migration(55, 56) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE games ADD COLUMN raId INTEGER")
             }
         }
     }

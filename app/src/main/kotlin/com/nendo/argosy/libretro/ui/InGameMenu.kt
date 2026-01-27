@@ -43,16 +43,21 @@ fun InGameMenu(
     cheatsAvailable: Boolean = false,
     focusedIndex: Int,
     onFocusChange: (Int) -> Unit,
-    onAction: (InGameMenuAction) -> Unit
+    onAction: (InGameMenuAction) -> Unit,
+    isHardcoreMode: Boolean = false
 ): InputHandler {
-    val menuItems = remember(hasQuickSave) {
+    val menuItems = remember(hasQuickSave, cheatsAvailable, isHardcoreMode) {
         buildList {
             add("Resume" to InGameMenuAction.Resume)
-            add("Quick Save" to InGameMenuAction.QuickSave)
-            if (hasQuickSave) {
-                add("Quick Load" to InGameMenuAction.QuickLoad)
+            if (!isHardcoreMode) {
+                add("Quick Save" to InGameMenuAction.QuickSave)
+                if (hasQuickSave) {
+                    add("Quick Load" to InGameMenuAction.QuickLoad)
+                }
             }
-            add("Cheats" to InGameMenuAction.Cheats)
+            if (cheatsAvailable) {
+                add("Cheats" to InGameMenuAction.Cheats)
+            }
             add("Quit Game" to InGameMenuAction.Quit)
         }
     }
@@ -110,6 +115,20 @@ fun InGameMenu(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                if (isHardcoreMode) {
+                    Text(
+                        text = "HARDCORE",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFFFD700),
+                        modifier = Modifier
+                            .background(
+                                Color(0xFFFFD700).copy(alpha = 0.15f),
+                                RoundedCornerShape(4.dp)
+                            )
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    )
+                }
                 Text(
                     text = gameName,
                     style = MaterialTheme.typography.titleMedium,

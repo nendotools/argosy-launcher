@@ -49,6 +49,12 @@ class RetroAchievementsRepository @Inject constructor(
         val client = OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
+            .addInterceptor { chain ->
+                val request = chain.request().newBuilder()
+                    .header("User-Agent", "Argosy/1.0")
+                    .build()
+                chain.proceed(request)
+            }
             .build()
 
         return Retrofit.Builder()
@@ -234,8 +240,13 @@ class RetroAchievementsRepository @Inject constructor(
         return successCount
     }
 
-    suspend fun startSession(gameRaId: Long, hardcore: Boolean = false): Boolean {
-        val credentials = getCredentials() ?: return false
+    data class RASessionResult(
+        val success: Boolean,
+        val unlockedAchievements: Set<Long> = emptySet()
+    )
+
+    suspend fun startSession(gameRaId: Long, hardcore: Boolean = false): RASessionResult {
+        val credentials = getCredentials() ?: return RASessionResult(false)
 
         return try {
             val response = api.startSession(
@@ -245,16 +256,21 @@ class RetroAchievementsRepository @Inject constructor(
                 hardcore = if (hardcore) 1 else 0
             )
 
-            if (response.isSuccessful && response.body()?.success == true) {
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true) {
                 Logger.info(TAG, "Session started for game $gameRaId (hardcore=$hardcore)")
-                true
+                val unlocked = mutableSetOf<Long>()
+                body.hardcoreUnlocks?.let { unlocked.addAll(it) }
+                body.unlocks?.let { unlocked.addAll(it) }
+                Logger.debug(TAG, "Pre-unlocked achievements: ${unlocked.size}")
+                RASessionResult(true, unlocked)
             } else {
-                Logger.error(TAG, "Failed to start session: ${response.body()?.error}")
-                false
+                Logger.error(TAG, "Failed to start session: ${body?.error}")
+                RASessionResult(false)
             }
         } catch (e: Exception) {
             Logger.error(TAG, "Session start exception: ${e.message}")
-            false
+            RASessionResult(false)
         }
     }
 

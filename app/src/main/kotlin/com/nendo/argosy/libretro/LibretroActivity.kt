@@ -38,7 +38,11 @@ import com.nendo.argosy.data.local.entity.HotkeyAction
 import com.nendo.argosy.data.preferences.BuiltinEmulatorSettings
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.repository.InputConfigRepository
+import com.nendo.argosy.data.repository.RAAwardResult
 import com.nendo.argosy.data.repository.RetroAchievementsRepository
+import com.nendo.argosy.libretro.ra.AchievementDefinition
+import com.nendo.argosy.libretro.ra.RAConditionEvaluator
+import com.nendo.argosy.libretro.ra.RAConditionParser
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -46,6 +50,8 @@ import com.nendo.argosy.libretro.scanner.MemoryScanner
 import com.nendo.argosy.libretro.ui.cheats.CheatDisplayItem
 import com.nendo.argosy.libretro.ui.cheats.CheatsScreen
 import com.nendo.argosy.libretro.ui.cheats.CheatsTab
+import com.nendo.argosy.libretro.ui.AchievementPopup
+import com.nendo.argosy.libretro.ui.AchievementUnlock
 import com.nendo.argosy.libretro.ui.InGameMenu
 import com.nendo.argosy.libretro.ui.InGameMenuAction
 import com.nendo.argosy.libretro.ui.LibretroMenuInputHandler
@@ -122,6 +128,21 @@ class LibretroActivity : ComponentActivity() {
     private var gameRaId: Long? = null
     private var heartbeatJob: Job? = null
     private var launchMode = LaunchMode.RESUME
+
+    private val achievementEvaluator = RAConditionEvaluator()
+    private val achievementConditions = mutableMapOf<Long, AchievementDefinition>()
+    private val achievementInfo = mutableMapOf<Long, AchievementPatchInfo>()
+    private val unlockedAchievements = mutableSetOf<Long>()
+    private var evaluationJob: Job? = null
+    private var currentAchievementUnlock by mutableStateOf<AchievementUnlock?>(null)
+    private val achievementUnlockQueue = mutableListOf<AchievementUnlock>()
+
+    private data class AchievementPatchInfo(
+        val title: String,
+        val description: String?,
+        val points: Int,
+        val badgeName: String?
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -219,7 +240,7 @@ class LibretroActivity : ComponentActivity() {
             setupRumble()
         }
 
-        if (rewindEnabled) {
+        if (rewindEnabled && !hardcoreMode) {
             setupRewind()
         }
 
@@ -238,11 +259,12 @@ class LibretroActivity : ComponentActivity() {
                                 if (menuVisible) {
                                     activeMenuHandler = InGameMenu(
                                         gameName = gameName,
-                                        hasQuickSave = hasQuickSave,
-                                        cheatsAvailable = cheats.isNotEmpty(),
+                                        hasQuickSave = hasQuickSave && !hardcoreMode,
+                                        cheatsAvailable = cheats.isNotEmpty() && !hardcoreMode,
                                         focusedIndex = menuFocusIndex,
                                         onFocusChange = { menuFocusIndex = it },
-                                        onAction = ::handleMenuAction
+                                        onAction = ::handleMenuAction,
+                                        isHardcoreMode = hardcoreMode
                                     )
                                 }
                                 if (cheatsMenuVisible) {
@@ -267,6 +289,11 @@ class LibretroActivity : ComponentActivity() {
                                 if (!menuVisible && !cheatsMenuVisible) {
                                     activeMenuHandler = null
                                 }
+
+                                AchievementPopup(
+                                    achievement = currentAchievementUnlock,
+                                    onDismiss = ::showNextAchievementUnlock
+                                )
                             }
                         }
                     }
@@ -292,7 +319,7 @@ class LibretroActivity : ComponentActivity() {
         }
 
         if (gameId != -1L) {
-            playSessionTracker.startSession(gameId, EmulatorRegistry.BUILTIN_PACKAGE, coreName)
+            playSessionTracker.startSession(gameId, EmulatorRegistry.BUILTIN_PACKAGE, coreName, hardcoreMode)
             loadCheats()
             initializeRASession()
         }
@@ -306,22 +333,38 @@ class LibretroActivity : ComponentActivity() {
             }
 
             val game = gameDao.getById(gameId) ?: return@launch
-
-            // TODO: Add raId field to GameEntity and populate from RomM sync
-            // For now, we can't start RA sessions until this is implemented
-            // The ra_id is available in RomMRom but not persisted to GameEntity yet
-            gameRaId = null
+            gameRaId = game.raId
 
             if (gameRaId == null) {
-                Log.d("LibretroActivity", "Game has no RA ID (not yet implemented), skipping RA session")
+                Log.d("LibretroActivity", "Game has no RA ID, skipping RA session")
                 return@launch
             }
 
-            val started = raRepository.startSession(gameRaId!!, hardcoreMode)
-            if (started) {
+            val sessionResult = raRepository.startSession(gameRaId!!, hardcoreMode)
+            if (sessionResult.success) {
                 raSessionActive = true
-                Log.d("LibretroActivity", "RA session started for game $gameRaId (hardcore=$hardcoreMode)")
+                unlockedAchievements.addAll(sessionResult.unlockedAchievements)
+                Log.d("LibretroActivity", "RA session started for game $gameRaId (hardcore=$hardcoreMode), pre-unlocked=${sessionResult.unlockedAchievements.size}")
+
+                val patchData = raRepository.getGamePatchData(gameRaId!!)
+                if (patchData != null) {
+                    patchData.achievements?.forEach { patch ->
+                        val definition = RAConditionParser.parse(patch.memAddr)
+                        if (definition != null) {
+                            achievementConditions[patch.id] = definition
+                            achievementInfo[patch.id] = AchievementPatchInfo(
+                                title = patch.title,
+                                description = patch.description,
+                                points = patch.points,
+                                badgeName = patch.badgeName
+                            )
+                        }
+                    }
+                    Log.d("LibretroActivity", "Loaded ${achievementConditions.size} achievement conditions")
+                }
+
                 startHeartbeatLoop()
+                startAchievementEvaluationLoop()
             } else {
                 Log.w("LibretroActivity", "Failed to start RA session")
             }
@@ -336,6 +379,94 @@ class LibretroActivity : ComponentActivity() {
                 raRepository.sendHeartbeat(raId, null)
                 Log.d("LibretroActivity", "RA heartbeat sent for game $raId")
             }
+        }
+    }
+
+    private fun startAchievementEvaluationLoop() {
+        if (achievementConditions.isEmpty()) {
+            Log.d("LibretroActivity", "No achievement conditions to evaluate")
+            return
+        }
+
+        evaluationJob = lifecycleScope.launch {
+            Log.d("LibretroActivity", "Starting achievement evaluation loop")
+            while (isActive && raSessionActive) {
+                delay(100L) // 10 checks per second
+
+                if (menuVisible || cheatsMenuVisible) continue
+
+                val memory = try {
+                    retroView.getSystemRam()
+                } catch (e: Exception) {
+                    continue
+                }
+
+                if (memory == null || memory.isEmpty()) continue
+
+                for ((achievementId, definition) in achievementConditions) {
+                    if (achievementId in unlockedAchievements) continue
+
+                    if (achievementEvaluator.evaluate(definition, memory)) {
+                        onAchievementUnlocked(achievementId)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun onAchievementUnlocked(achievementId: Long) {
+        unlockedAchievements.add(achievementId)
+        val info = achievementInfo[achievementId]
+
+        Log.i("LibretroActivity", "Achievement unlocked: $achievementId - ${info?.title}")
+
+        lifecycleScope.launch {
+            val result = raRepository.awardAchievement(
+                gameId = gameId,
+                achievementRaId = achievementId,
+                forHardcoreMode = hardcoreMode
+            )
+
+            when (result) {
+                is RAAwardResult.Success -> {
+                    Log.d("LibretroActivity", "Achievement $achievementId awarded successfully")
+                }
+                is RAAwardResult.AlreadyAwarded -> {
+                    Log.d("LibretroActivity", "Achievement $achievementId already awarded")
+                }
+                is RAAwardResult.Queued -> {
+                    Log.d("LibretroActivity", "Achievement $achievementId queued for later")
+                }
+                is RAAwardResult.Error -> {
+                    Log.e("LibretroActivity", "Failed to award achievement: ${result.message}")
+                }
+            }
+        }
+
+        val badgeUrl = info?.badgeName?.let {
+            "https://media.retroachievements.org/Badge/$it.png"
+        }
+
+        val unlock = AchievementUnlock(
+            id = achievementId,
+            title = info?.title ?: "Achievement",
+            description = info?.description,
+            points = info?.points ?: 0,
+            badgeUrl = badgeUrl,
+            isHardcore = hardcoreMode
+        )
+
+        achievementUnlockQueue.add(unlock)
+        if (currentAchievementUnlock == null) {
+            showNextAchievementUnlock()
+        }
+    }
+
+    private fun showNextAchievementUnlock() {
+        currentAchievementUnlock = if (achievementUnlockQueue.isNotEmpty()) {
+            achievementUnlockQueue.removeAt(0)
+        } else {
+            null
         }
     }
 
@@ -703,12 +834,20 @@ class LibretroActivity : ComponentActivity() {
                     return true
                 }
                 HotkeyAction.QUICK_SAVE -> {
-                    performQuickSave()
+                    if (hardcoreMode) {
+                        Toast.makeText(this, "Save states disabled in Hardcore mode", Toast.LENGTH_SHORT).show()
+                    } else {
+                        performQuickSave()
+                    }
                     hotkeyManager.clearState()
                     return true
                 }
                 HotkeyAction.QUICK_LOAD -> {
-                    performQuickLoad()
+                    if (hardcoreMode) {
+                        Toast.makeText(this, "Save states disabled in Hardcore mode", Toast.LENGTH_SHORT).show()
+                    } else {
+                        performQuickLoad()
+                    }
                     hotkeyManager.clearState()
                     return true
                 }
@@ -720,6 +859,10 @@ class LibretroActivity : ComponentActivity() {
                     return true
                 }
                 HotkeyAction.REWIND -> {
+                    if (hardcoreMode) {
+                        Toast.makeText(this, "Rewind disabled in Hardcore mode", Toast.LENGTH_SHORT).show()
+                        return true
+                    }
                     if (rewindEnabled && !isRewinding) {
                         isRewinding = true
                         lastRewindTime = 0L
@@ -800,8 +943,10 @@ class LibretroActivity : ComponentActivity() {
 
     override fun onDestroy() {
         heartbeatJob?.cancel()
+        evaluationJob?.cancel()
         raSessionActive = false
-        if (rewindEnabled) {
+        achievementEvaluator.reset()
+        if (rewindEnabled && !hardcoreMode) {
             retroView.destroyRewindBuffer()
         }
         if (isFinishing && gameId != -1L) {
