@@ -458,7 +458,7 @@ object PlatformDefinitions {
         // =====================================================================
         PlatformDef("amstradcpc", "Amstrad CPC", "CPC", setOf("dsk", "sna", "cdt", "zip", "7z"), 700),
         PlatformDef("bbcmicro", "BBC Micro", "BBC", setOf("ssd", "dsd", "uef", "zip", "7z"), 705),
-        PlatformDef("dos", "DOS", "DOS", setOf("exe", "com", "bat", "zip", "7z"), 710),
+        PlatformDef("dos", "DOS", "DOS", setOf("exe", "com", "bat", "iso", "cue", "img", "ima", "vhd", "dosz", "m3u", "m3u8", "conf", "zip", "7z"), 710),
         PlatformDef("fmtowns", "FM Towns", "FM Towns", setOf("chd", "cue", "iso", "zip", "7z"), 715),
         PlatformDef("msx", "MSX", "MSX", setOf("rom", "mx1", "mx2", "dsk", "zip", "7z"), 720),
         PlatformDef("msx2", "MSX2", "MSX2", setOf("rom", "mx2", "dsk", "zip", "7z"), 721),
