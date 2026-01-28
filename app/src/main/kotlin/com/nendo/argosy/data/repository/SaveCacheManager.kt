@@ -75,15 +75,8 @@ class SaveCacheManager @Inject constructor(
                 saveArchiver.calculateFileHash(saveFile) to saveFile
             }
 
-            // For hardcore, only check duplicate against the hardcore slot
-            // For casual, check against all saves
-            val effectiveSlotName = if (isHardcore) SaveCacheEntity.SLOT_HARDCORE else slotName
-            val existingWithHash = if (isHardcore) {
-                saveCacheDao.getByGameAndSlot(gameId, SaveCacheEntity.SLOT_HARDCORE)
-                    ?.takeIf { it.contentHash == contentHash }
-            } else {
-                saveCacheDao.getByGameAndHash(gameId, contentHash)
-            }
+            // Check for duplicate save by hash
+            val existingWithHash = saveCacheDao.getByGameAndHash(gameId, contentHash)
             if (existingWithHash != null) {
                 Log.d(TAG, "Duplicate save detected for game $gameId (hash=$contentHash, hardcore=$isHardcore), skipping cache")
                 tempFile?.delete()
@@ -117,15 +110,15 @@ class SaveCacheManager @Inject constructor(
 
             val saveSize = cachedFile.length()
 
-            // For hardcore slots, replace existing instead of creating new entries
-            if (effectiveSlotName != null) {
-                val existing = saveCacheDao.getByGameAndSlot(gameId, effectiveSlotName)
+            // For named slots, replace existing instead of creating new entries
+            if (slotName != null) {
+                val existing = saveCacheDao.getByGameAndSlot(gameId, slotName)
                 if (existing != null) {
                     val oldFile = File(cacheBaseDir, existing.cachePath)
                     oldFile.delete()
                     oldFile.parentFile?.takeIf { it.listFiles()?.isEmpty() == true }?.delete()
                     saveCacheDao.deleteById(existing.id)
-                    Log.d(TAG, "Replaced existing slot '$effectiveSlotName' for game $gameId")
+                    Log.d(TAG, "Replaced existing slot '$slotName' for game $gameId")
                 }
             }
 
@@ -136,11 +129,11 @@ class SaveCacheManager @Inject constructor(
                 saveSize = saveSize,
                 cachePath = cachePath,
                 note = channelName,
-                isLocked = isLocked || isHardcore,
+                isLocked = isLocked,
                 contentHash = contentHash,
                 cheatsUsed = cheatsUsed,
                 isHardcore = isHardcore,
-                slotName = effectiveSlotName
+                slotName = slotName
             )
             saveCacheDao.insert(entity)
             val slotInfo = when {
@@ -302,23 +295,11 @@ class SaveCacheManager @Inject constructor(
     suspend fun getCacheById(cacheId: Long): SaveCacheEntity? =
         saveCacheDao.getById(cacheId)
 
-    suspend fun getHardcoreSlot(gameId: Long): SaveCacheEntity? =
-        saveCacheDao.getHardcoreSlot(gameId)
+    suspend fun getLatestHardcoreSave(gameId: Long): SaveCacheEntity? =
+        saveCacheDao.getLatestHardcoreSave(gameId)
 
-    suspend fun deleteHardcoreSlot(gameId: Long) = withContext(Dispatchers.IO) {
-        val hardcore = saveCacheDao.getHardcoreSlot(gameId) ?: return@withContext
-        val cacheFile = File(cacheBaseDir, hardcore.cachePath)
-        val parentDir = cacheFile.parentFile
-        cacheFile.delete()
-        if (parentDir?.listFiles()?.isEmpty() == true) {
-            parentDir.delete()
-        }
-        saveCacheDao.deleteById(hardcore.id)
-        Log.d(TAG, "Deleted hardcore slot for game $gameId")
-    }
-
-    suspend fun hasHardcoreSlot(gameId: Long): Boolean =
-        saveCacheDao.getHardcoreSlot(gameId) != null
+    suspend fun hasHardcoreSave(gameId: Long): Boolean =
+        saveCacheDao.hasHardcoreSave(gameId)
 
     suspend fun isValidHardcoreSave(entity: SaveCacheEntity): Boolean = withContext(Dispatchers.IO) {
         if (!entity.isHardcore) return@withContext false
@@ -334,6 +315,15 @@ class SaveCacheManager @Inject constructor(
             saveCacheDao.getLatestCasualSave(gameId)
         }
     }
+
+    suspend fun getMostRecentSave(gameId: Long): SaveCacheEntity? =
+        saveCacheDao.getMostRecent(gameId)
+
+    suspend fun getByTimestamp(gameId: Long, timestampMillis: Long): SaveCacheEntity? =
+        saveCacheDao.getByTimestamp(gameId, timestampMillis)
+
+    suspend fun getMostRecentInChannel(gameId: Long, channelName: String): SaveCacheEntity? =
+        saveCacheDao.getMostRecentInChannel(gameId, channelName)
 
     suspend fun getSaveBytes(cacheId: Long): ByteArray? = withContext(Dispatchers.IO) {
         val entity = saveCacheDao.getById(cacheId) ?: return@withContext null

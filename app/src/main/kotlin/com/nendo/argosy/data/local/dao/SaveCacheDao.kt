@@ -28,8 +28,11 @@ interface SaveCacheDao {
     @Query("SELECT * FROM save_cache WHERE gameId = :gameId AND slotName = :slotName LIMIT 1")
     suspend fun getByGameAndSlot(gameId: Long, slotName: String): SaveCacheEntity?
 
-    @Query("SELECT * FROM save_cache WHERE gameId = :gameId AND isHardcore = 1 LIMIT 1")
-    suspend fun getHardcoreSlot(gameId: Long): SaveCacheEntity?
+    @Query("SELECT * FROM save_cache WHERE gameId = :gameId AND isHardcore = 1 ORDER BY cachedAt DESC LIMIT 1")
+    suspend fun getLatestHardcoreSave(gameId: Long): SaveCacheEntity?
+
+    @Query("SELECT EXISTS(SELECT 1 FROM save_cache WHERE gameId = :gameId AND isHardcore = 1)")
+    suspend fun hasHardcoreSave(gameId: Long): Boolean
 
     @Query("""
         SELECT * FROM save_cache
@@ -82,4 +85,13 @@ interface SaveCacheDao {
         ORDER BY cachedAt ASC
     """)
     suspend fun getOldestUnlocked(gameId: Long): List<SaveCacheEntity>
+
+    @Query("SELECT * FROM save_cache WHERE gameId = :gameId ORDER BY cachedAt DESC LIMIT 1")
+    suspend fun getMostRecent(gameId: Long): SaveCacheEntity?
+
+    @Query("SELECT * FROM save_cache WHERE gameId = :gameId AND cachedAt = :timestamp LIMIT 1")
+    suspend fun getByTimestamp(gameId: Long, timestamp: Long): SaveCacheEntity?
+
+    @Query("SELECT * FROM save_cache WHERE gameId = :gameId AND note = :channelName ORDER BY cachedAt DESC LIMIT 1")
+    suspend fun getMostRecentInChannel(gameId: Long, channelName: String): SaveCacheEntity?
 }

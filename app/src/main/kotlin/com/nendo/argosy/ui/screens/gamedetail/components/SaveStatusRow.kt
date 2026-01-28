@@ -89,28 +89,37 @@ fun SaveStatusRow(
             modifier = Modifier.size(Dimens.spacingMd)
         )
 
-        Text(
-            text = buildAnnotatedString {
-                withStyle(SpanStyle(color = LocalLauncherTheme.current.semanticColors.warning)) {
-                    append(status.displayLabel)
-                }
-            },
-            style = MaterialTheme.typography.bodySmall
-        )
+        androidx.compose.foundation.layout.Column {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
+            ) {
+                Text(
+                    text = status.displayLabel,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = LocalLauncherTheme.current.semanticColors.warning
+                )
 
-        Text(
-            text = status.effectiveStatus.displayName,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+                Text(
+                    text = "•",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
 
-        status.displayTime?.let { time ->
-            Spacer(modifier = Modifier.weight(1f))
-            Text(
-                text = time,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-            )
+                Text(
+                    text = status.effectiveStatus.displayName,
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+                    color = status.effectiveStatus.textColor()
+                )
+            }
+
+            status.displayTime?.let { time ->
+                Text(
+                    text = time,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
+            }
         }
     }
 }
@@ -131,6 +140,16 @@ private fun SaveSyncStatus.color() = when (this) {
     SaveSyncStatus.LOCAL_NEWER -> LocalLauncherTheme.current.semanticColors.warning
     SaveSyncStatus.LOCAL_ONLY -> MaterialTheme.colorScheme.onSurfaceVariant
     SaveSyncStatus.PENDING_UPLOAD -> MaterialTheme.colorScheme.secondary
+    SaveSyncStatus.NO_SAVE -> MaterialTheme.colorScheme.onSurfaceVariant
+    SaveSyncStatus.NOT_CONFIGURED -> MaterialTheme.colorScheme.error
+}
+
+@Composable
+private fun SaveSyncStatus.textColor() = when (this) {
+    SaveSyncStatus.SYNCED -> MaterialTheme.colorScheme.onSurfaceVariant
+    SaveSyncStatus.LOCAL_NEWER -> LocalLauncherTheme.current.semanticColors.info
+    SaveSyncStatus.LOCAL_ONLY -> LocalLauncherTheme.current.semanticColors.info
+    SaveSyncStatus.PENDING_UPLOAD -> LocalLauncherTheme.current.semanticColors.info
     SaveSyncStatus.NO_SAVE -> MaterialTheme.colorScheme.onSurfaceVariant
     SaveSyncStatus.NOT_CONFIGURED -> MaterialTheme.colorScheme.error
 }

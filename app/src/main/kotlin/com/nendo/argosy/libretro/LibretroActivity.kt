@@ -653,7 +653,7 @@ class LibretroActivity : ComponentActivity() {
             }
             LaunchMode.RESUME_HARDCORE -> {
                 Log.d("LibretroActivity", "Resuming hardcore - restoring hardcore save")
-                val hardcoreSave = saveCacheManager.getHardcoreSlot(gameId)
+                val hardcoreSave = saveCacheManager.getLatestHardcoreSave(gameId)
                 if (hardcoreSave != null) {
                     val isValid = saveCacheManager.isValidHardcoreSave(hardcoreSave)
                     if (!isValid) {
@@ -671,52 +671,39 @@ class LibretroActivity : ComponentActivity() {
                 }
             }
             LaunchMode.RESUME -> {
-                // Smart resume: determine mode based on which save is most recent
-                val hardcoreSave = saveCacheManager.getHardcoreSlot(gameId)
                 val game = gameDao.getById(gameId)
-                val channelName = game?.activeSaveChannel
-                val casualSave = saveCacheManager.getLatestCasualSave(gameId, channelName)
+                val activeSaveTimestamp = game?.activeSaveTimestamp
+                val activeChannel = game?.activeSaveChannel
 
-                val useHardcore = when {
-                    hardcoreSave != null && casualSave == null -> true
-                    casualSave != null && hardcoreSave == null -> false
-                    hardcoreSave != null && casualSave != null ->
-                        hardcoreSave.cachedAt.isAfter(casualSave.cachedAt)
-                    else -> false
+                val targetSave = when {
+                    activeSaveTimestamp != null -> {
+                        Log.d("LibretroActivity", "RESUME: Looking for activated save at timestamp $activeSaveTimestamp")
+                        saveCacheManager.getByTimestamp(gameId, activeSaveTimestamp)
+                    }
+                    activeChannel != null -> {
+                        Log.d("LibretroActivity", "RESUME: Looking for most recent save in channel '$activeChannel'")
+                        saveCacheManager.getMostRecentInChannel(gameId, activeChannel)
+                    }
+                    else -> {
+                        Log.d("LibretroActivity", "RESUME: Looking for most recent save overall")
+                        saveCacheManager.getMostRecentSave(gameId)
+                    }
                 }
 
-                if (useHardcore && hardcoreSave != null) {
-                    val isValid = saveCacheManager.isValidHardcoreSave(hardcoreSave)
-                    if (!isValid) {
-                        Log.w("LibretroActivity", "RESUME: Hardcore save missing trailer, falling back to casual")
-                    }
-                    if (isValid) {
-                        hardcoreMode = true
-                        Log.d("LibretroActivity", "RESUME: Hardcore save is most recent, switching to hardcore mode")
-                        val bytes = saveCacheManager.getSaveBytesFromEntity(hardcoreSave)
-                        if (bytes != null) {
-                            getSramFile().writeBytes(bytes)
-                            Log.d("LibretroActivity", "Restored hardcore save (${bytes.size} bytes)")
+                if (targetSave != null) {
+                    if (targetSave.isHardcore) {
+                        val isValid = saveCacheManager.isValidHardcoreSave(targetSave)
+                        if (isValid) {
+                            hardcoreMode = true
+                            Log.d("LibretroActivity", "RESUME: Loading hardcore save, switching to hardcore mode")
+                        } else {
+                            Log.w("LibretroActivity", "RESUME: Hardcore save missing trailer, loading as casual")
                         }
-                        bytes
-                    } else if (casualSave != null) {
-                        Log.d("LibretroActivity", "RESUME: Using casual save instead")
-                        val bytes = saveCacheManager.getSaveBytesFromEntity(casualSave)
-                        if (bytes != null) {
-                            getSramFile().writeBytes(bytes)
-                            Log.d("LibretroActivity", "Restored casual save (${bytes.size} bytes)")
-                        }
-                        bytes
-                    } else {
-                        Log.d("LibretroActivity", "RESUME: No valid saves, starting fresh")
-                        null
                     }
-                } else if (casualSave != null) {
-                    Log.d("LibretroActivity", "RESUME: Restoring casual save from ${channelName ?: "latest"}")
-                    val bytes = saveCacheManager.getSaveBytesFromEntity(casualSave)
+                    val bytes = saveCacheManager.getSaveBytesFromEntity(targetSave)
                     if (bytes != null) {
                         getSramFile().writeBytes(bytes)
-                        Log.d("LibretroActivity", "Restored casual save (${bytes.size} bytes)")
+                        Log.d("LibretroActivity", "RESUME: Restored save (${bytes.size} bytes, hardcore=${targetSave.isHardcore})")
                     }
                     bytes
                 } else {

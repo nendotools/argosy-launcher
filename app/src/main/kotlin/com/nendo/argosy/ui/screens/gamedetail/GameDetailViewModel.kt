@@ -484,6 +484,16 @@ class GameDetailViewModel @Inject constructor(
         } else {
             saveSyncDao.getByGameAndEmulator(gameId, emulatorId)
         }
+
+        val timestamp = syncEntity?.lastSyncedAt
+            ?: syncEntity?.localUpdatedAt
+            ?: syncEntity?.serverUpdatedAt
+            ?: if (activeChannel != null) {
+                saveCacheManager.getMostRecentInChannel(gameId, activeChannel)?.cachedAt
+            } else {
+                saveCacheManager.getMostRecentSave(gameId)?.cachedAt
+            }
+
         return if (syncEntity != null) {
             SaveStatusInfo(
                 status = when (syncEntity.syncStatus) {
@@ -496,14 +506,14 @@ class GameDetailViewModel @Inject constructor(
                 },
                 channelName = activeChannel,
                 activeSaveTimestamp = activeSaveTimestamp,
-                lastSyncTime = syncEntity.lastSyncedAt
+                lastSyncTime = timestamp
             )
         } else {
             SaveStatusInfo(
                 status = SaveSyncStatus.NO_SAVE,
                 channelName = activeChannel,
                 activeSaveTimestamp = activeSaveTimestamp,
-                lastSyncTime = null
+                lastSyncTime = timestamp
             )
         }
     }
@@ -1144,7 +1154,7 @@ class GameDetailViewModel @Inject constructor(
         viewModelScope.launch {
             val hasCasualSaves = saveCacheManager.getCachesForGameOnce(currentGameId)
                 .any { !it.isHardcore }
-            val hasHardcoreSave = saveCacheManager.hasHardcoreSlot(currentGameId)
+            val hasHardcoreSave = saveCacheManager.hasHardcoreSave(currentGameId)
             val isRALoggedIn = raRepository.isLoggedIn()
             val isOnline = com.nendo.argosy.util.NetworkUtils.isOnline(context)
 

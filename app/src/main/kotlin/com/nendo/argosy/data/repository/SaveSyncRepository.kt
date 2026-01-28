@@ -1233,16 +1233,17 @@ class SaveSyncRepository @Inject constructor(
                 return@withContext SaveSyncResult.Success
             }
 
+            val romFile = game.localPath?.let { File(it) }
+            val romBaseName = romFile?.nameWithoutExtension
+
             val uploadFileName = if (channelName != null) {
                 val ext = fileToUpload.extension
                 if (ext.isNotEmpty()) "$channelName.$ext" else channelName
             } else {
+                val baseName = romBaseName ?: DEFAULT_SAVE_NAME
                 val ext = fileToUpload.extension
-                if (ext.isNotEmpty()) "$DEFAULT_SAVE_NAME.$ext" else DEFAULT_SAVE_NAME
+                if (ext.isNotEmpty()) "$baseName.$ext" else baseName
             }
-
-            val romFile = game.localPath?.let { File(it) }
-            val romBaseName = romFile?.nameWithoutExtension
 
             val serverSaves = checkSavesForGame(gameId, rommId)
             Logger.debug(TAG, "[SaveSync] UPLOAD gameId=$gameId | Server saves found | count=${serverSaves.size}, files=${serverSaves.map { it.fileName }}")
@@ -1530,7 +1531,7 @@ class SaveSyncRepository @Inject constructor(
                     }
                 }
 
-                val hasLocalHardcore = saveCacheManager.get().hasHardcoreSlot(gameId)
+                val hasLocalHardcore = saveCacheManager.get().hasHardcoreSave(gameId)
                 val downloadedHasTrailer = saveArchiver.hasHardcoreTrailer(tempZipFile)
                 Logger.debug(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | Hardcore check | localHardcore=$hasLocalHardcore, downloadedTrailer=$downloadedHasTrailer")
                 if (hasLocalHardcore && !downloadedHasTrailer) {
@@ -1606,7 +1607,7 @@ class SaveSyncRepository @Inject constructor(
                     }
                     Logger.debug(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | Saved temp file | path=${tempSaveFile!!.absolutePath}, size=${tempSaveFile!!.length()}bytes")
 
-                    val hasLocalHardcore = saveCacheManager.get().hasHardcoreSlot(gameId)
+                    val hasLocalHardcore = saveCacheManager.get().hasHardcoreSave(gameId)
                     val downloadedHasTrailer = saveArchiver.hasHardcoreTrailer(tempSaveFile!!)
                     Logger.debug(TAG, "[SaveSync] DOWNLOAD gameId=$gameId | Hardcore check | localHardcore=$hasLocalHardcore, downloadedTrailer=$downloadedHasTrailer")
                     if (hasLocalHardcore && !downloadedHasTrailer) {
@@ -2388,8 +2389,6 @@ class SaveSyncRepository @Inject constructor(
 
                 HardcoreResolutionChoice.DOWNGRADE_TO_CASUAL -> {
                     Logger.info(TAG, "[SaveSync] RESOLVE gameId=${resolution.gameId} | DOWNGRADE_TO_CASUAL | Applying server save")
-
-                    saveCacheManager.get().deleteHardcoreSlot(resolution.gameId)
 
                     val targetFile = File(resolution.targetPath)
                     if (resolution.isFolderBased) {
