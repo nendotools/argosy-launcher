@@ -52,7 +52,8 @@ class SaveCacheManager @Inject constructor(
         isLocked: Boolean = false,
         cheatsUsed: Boolean = false,
         isHardcore: Boolean = false,
-        slotName: String? = null
+        slotName: String? = null,
+        skipDuplicateCheck: Boolean = false
     ): CacheResult = withContext(Dispatchers.IO) {
         val saveFile = File(savePath)
         if (!saveFile.exists()) {
@@ -75,12 +76,14 @@ class SaveCacheManager @Inject constructor(
                 saveArchiver.calculateFileHash(saveFile) to saveFile
             }
 
-            // Check for duplicate save by hash
-            val existingWithHash = saveCacheDao.getByGameAndHash(gameId, contentHash)
-            if (existingWithHash != null) {
-                Log.d(TAG, "Duplicate save detected for game $gameId (hash=$contentHash, hardcore=$isHardcore), skipping cache")
-                tempFile?.delete()
-                return@withContext CacheResult.Duplicate
+            // Check for duplicate save by hash (skip for new games to allow fresh start saves)
+            if (!skipDuplicateCheck) {
+                val existingWithHash = saveCacheDao.getByGameAndHash(gameId, contentHash)
+                if (existingWithHash != null) {
+                    Log.d(TAG, "Duplicate save detected for game $gameId (hash=$contentHash, hardcore=$isHardcore), skipping cache")
+                    tempFile?.delete()
+                    return@withContext CacheResult.Duplicate
+                }
             }
 
             val now = Instant.now()

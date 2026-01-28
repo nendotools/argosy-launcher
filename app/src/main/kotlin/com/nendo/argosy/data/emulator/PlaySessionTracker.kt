@@ -42,7 +42,8 @@ data class ActiveSession(
     val startTime: Instant,
     val emulatorPackage: String,
     val coreName: String? = null,
-    val isHardcore: Boolean = false
+    val isHardcore: Boolean = false,
+    val isNewGame: Boolean = false
 )
 
 data class SaveConflictEvent(
@@ -127,7 +128,7 @@ class PlaySessionTracker @Inject constructor(
         }
     }
 
-    fun startSession(gameId: Long, emulatorPackage: String, coreName: String? = null, isHardcore: Boolean = false) {
+    fun startSession(gameId: Long, emulatorPackage: String, coreName: String? = null, isHardcore: Boolean = false, isNewGame: Boolean = false) {
         screenOnDuration = Duration.ZERO
         lastScreenOnTime = Instant.now()
         isScreenOn = true
@@ -137,9 +138,10 @@ class PlaySessionTracker @Inject constructor(
             startTime = Instant.now(),
             emulatorPackage = emulatorPackage,
             coreName = coreName,
-            isHardcore = isHardcore
+            isHardcore = isHardcore,
+            isNewGame = isNewGame
         )
-        Logger.debug(TAG, "[SaveSync] SESSION gameId=$gameId | Session started | emulator=$emulatorPackage, core=$coreName, hardcore=$isHardcore")
+        Logger.debug(TAG, "[SaveSync] SESSION gameId=$gameId | Session started | emulator=$emulatorPackage, core=$coreName, hardcore=$isHardcore, newGame=$isNewGame")
     }
 
     fun endSession() {
@@ -361,7 +363,8 @@ class PlaySessionTracker @Inject constructor(
                     savePath = savePath,
                     channelName = activeChannel,
                     isLocked = false,
-                    isHardcore = session.isHardcore
+                    isHardcore = session.isHardcore,
+                    skipDuplicateCheck = session.isNewGame
                 )
                 when (cacheResult) {
                     is SaveCacheManager.CacheResult.Created -> {

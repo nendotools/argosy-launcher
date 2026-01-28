@@ -1235,6 +1235,22 @@ class GameDetailViewModel @Inject constructor(
     }
 
     private suspend fun launchWithMode(launchMode: com.nendo.argosy.libretro.LaunchMode) {
+        // Clear active save selection for NEW games so saves go to timeline, not old channel
+        if (launchMode == com.nendo.argosy.libretro.LaunchMode.NEW_CASUAL ||
+            launchMode == com.nendo.argosy.libretro.LaunchMode.NEW_HARDCORE) {
+            gameDao.updateActiveSaveChannel(currentGameId, null)
+            gameDao.updateActiveSaveTimestamp(currentGameId, null)
+            _uiState.update { state ->
+                state.copy(
+                    saveChannel = state.saveChannel.copy(activeChannel = null),
+                    saveStatusInfo = state.saveStatusInfo?.copy(
+                        channelName = null,
+                        activeSaveTimestamp = null
+                    )
+                )
+            }
+        }
+
         val result = launchGameUseCase(currentGameId)
         when (result) {
             is LaunchResult.Success -> {

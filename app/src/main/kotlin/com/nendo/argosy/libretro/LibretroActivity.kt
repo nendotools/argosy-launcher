@@ -346,7 +346,8 @@ class LibretroActivity : ComponentActivity() {
         }
 
         if (gameId != -1L) {
-            playSessionTracker.startSession(gameId, EmulatorRegistry.BUILTIN_PACKAGE, coreName, hardcoreMode)
+            val isNewGame = launchMode == LaunchMode.NEW_CASUAL || launchMode == LaunchMode.NEW_HARDCORE
+            playSessionTracker.startSession(gameId, EmulatorRegistry.BUILTIN_PACKAGE, coreName, hardcoreMode, isNewGame)
             loadCheats()
             initializeRASession()
         }
