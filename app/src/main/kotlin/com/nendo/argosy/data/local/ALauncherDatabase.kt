@@ -24,6 +24,7 @@ import com.nendo.argosy.data.local.dao.GameFileDao
 import com.nendo.argosy.data.local.dao.OrphanedFileDao
 import com.nendo.argosy.data.local.dao.PendingAchievementDao
 import com.nendo.argosy.data.local.dao.PendingSaveSyncDao
+import com.nendo.argosy.data.local.dao.PendingStateSyncDao
 import com.nendo.argosy.data.local.dao.PendingSyncDao
 import com.nendo.argosy.data.local.dao.PinnedCollectionDao
 import com.nendo.argosy.data.local.dao.PlatformDao
@@ -49,6 +50,7 @@ import com.nendo.argosy.data.local.entity.GameFileEntity
 import com.nendo.argosy.data.local.entity.OrphanedFileEntity
 import com.nendo.argosy.data.local.entity.PendingAchievementEntity
 import com.nendo.argosy.data.local.entity.PendingSaveSyncEntity
+import com.nendo.argosy.data.local.entity.PendingStateSyncEntity
 import com.nendo.argosy.data.local.entity.PendingSyncEntity
 import com.nendo.argosy.data.local.entity.PinnedCollectionEntity
 import com.nendo.argosy.data.local.entity.PlatformEntity
@@ -82,9 +84,10 @@ import com.nendo.argosy.data.local.entity.StateCacheEntity
         ControllerMappingEntity::class,
         HotkeyEntity::class,
         CheatEntity::class,
-        PendingAchievementEntity::class
+        PendingAchievementEntity::class,
+        PendingStateSyncEntity::class
     ],
-    version = 59,
+    version = 62,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -113,6 +116,7 @@ abstract class ALauncherDatabase : RoomDatabase() {
     abstract fun hotkeyDao(): HotkeyDao
     abstract fun cheatDao(): CheatDao
     abstract fun pendingAchievementDao(): PendingAchievementDao
+    abstract fun pendingStateSyncDao(): PendingStateSyncDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -972,6 +976,44 @@ abstract class ALauncherDatabase : RoomDatabase() {
         val MIGRATION_58_59 = object : Migration(58, 59) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE games ADD COLUMN romHash TEXT")
+            }
+        }
+
+        val MIGRATION_59_60 = object : Migration(59, 60) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE state_cache ADD COLUMN rommSaveId INTEGER")
+                db.execSQL("ALTER TABLE state_cache ADD COLUMN syncStatus TEXT")
+                db.execSQL("ALTER TABLE state_cache ADD COLUMN serverUpdatedAt INTEGER")
+                db.execSQL("ALTER TABLE state_cache ADD COLUMN lastUploadedHash TEXT")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_state_cache_rommSaveId ON state_cache(rommSaveId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_state_cache_syncStatus ON state_cache(syncStatus)")
+            }
+        }
+
+        val MIGRATION_60_61 = object : Migration(60, 61) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS pending_state_sync (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        stateCacheId INTEGER NOT NULL,
+                        gameId INTEGER NOT NULL,
+                        rommId INTEGER NOT NULL,
+                        emulatorId TEXT NOT NULL,
+                        action TEXT NOT NULL,
+                        retryCount INTEGER NOT NULL DEFAULT 0,
+                        lastError TEXT,
+                        createdAt INTEGER NOT NULL
+                    )
+                """)
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_pending_state_sync_stateCacheId ON pending_state_sync(stateCacheId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_pending_state_sync_gameId ON pending_state_sync(gameId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_pending_state_sync_createdAt ON pending_state_sync(createdAt)")
+            }
+        }
+
+        val MIGRATION_61_62 = object : Migration(61, 62) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_state_cache_gameId_emulatorId ON state_cache(gameId, emulatorId)")
             }
         }
     }

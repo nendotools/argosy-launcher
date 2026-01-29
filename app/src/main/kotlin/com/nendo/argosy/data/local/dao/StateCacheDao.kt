@@ -107,4 +107,54 @@ interface StateCacheDao {
         )
     """)
     suspend fun deleteOldestUnlocked(gameId: Long, count: Int)
+
+    @Query("SELECT * FROM state_cache WHERE rommSaveId = :rommSaveId")
+    suspend fun getByRommSaveId(rommSaveId: Long): StateCacheEntity?
+
+    @Query("""
+        SELECT * FROM state_cache
+        WHERE gameId = :gameId AND emulatorId = :emulatorId
+        ORDER BY slotNumber ASC
+    """)
+    suspend fun getByGameAndEmulator(gameId: Long, emulatorId: String): List<StateCacheEntity>
+
+    @Query("""
+        SELECT * FROM state_cache
+        WHERE syncStatus IN ('PENDING_UPLOAD', 'LOCAL_NEWER')
+        ORDER BY cachedAt ASC
+    """)
+    suspend fun getPendingUploads(): List<StateCacheEntity>
+
+    @Query("""
+        SELECT * FROM state_cache
+        WHERE gameId = :gameId AND syncStatus IN ('PENDING_UPLOAD', 'LOCAL_NEWER')
+        ORDER BY slotNumber ASC
+    """)
+    suspend fun getPendingUploadsByGame(gameId: Long): List<StateCacheEntity>
+
+    @Query("""
+        UPDATE state_cache
+        SET rommSaveId = :rommSaveId,
+            syncStatus = :syncStatus,
+            serverUpdatedAt = :serverUpdatedAt,
+            lastUploadedHash = :lastUploadedHash
+        WHERE id = :id
+    """)
+    suspend fun updateSyncState(
+        id: Long,
+        rommSaveId: Long?,
+        syncStatus: String?,
+        serverUpdatedAt: Long?,
+        lastUploadedHash: String?
+    )
+
+    @Query("UPDATE state_cache SET syncStatus = :syncStatus WHERE id = :id")
+    suspend fun updateSyncStatus(id: Long, syncStatus: String?)
+
+    @Query("""
+        SELECT * FROM state_cache
+        WHERE rommSaveId IS NOT NULL
+        ORDER BY cachedAt DESC
+    """)
+    suspend fun getSyncedStates(): List<StateCacheEntity>
 }

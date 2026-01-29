@@ -23,6 +23,7 @@ import com.nendo.argosy.domain.usecase.game.LaunchGameUseCase
 import com.nendo.argosy.domain.usecase.game.LaunchWithSyncUseCase
 import com.nendo.argosy.ui.input.SoundFeedbackManager
 import com.nendo.argosy.ui.input.SoundType
+import com.nendo.argosy.libretro.LaunchMode
 import com.nendo.argosy.ui.notification.NotificationManager
 import com.nendo.argosy.ui.notification.showError
 import kotlinx.coroutines.CoroutineScope
@@ -56,6 +57,7 @@ data class DiscPickerState(
     val gameId: Long,
     val discs: List<DiscOption>,
     val channelName: String? = null,
+    val launchMode: LaunchMode? = null,
     val onLaunch: (Intent) -> Unit
 )
 
@@ -226,16 +228,29 @@ class GameLaunchDelegate @Inject constructor(
 
                 _syncOverlayState.value = null
 
+                val launchMode = when (hardcoreConflictChoice) {
+                    HardcoreConflictChoice.KEEP_HARDCORE -> LaunchMode.RESUME_HARDCORE
+                    else -> null
+                }
+
                 when (val result = launchGameUseCase(gameId, discId)) {
                     is LaunchResult.Success -> {
                         soundManager.play(SoundType.LAUNCH_GAME)
-                        onLaunch(result.intent)
+                        val intent = if (launchMode != null) {
+                            result.intent.apply {
+                                putExtra(LaunchMode.EXTRA_LAUNCH_MODE, launchMode.name)
+                            }
+                        } else {
+                            result.intent
+                        }
+                        onLaunch(intent)
                     }
                     is LaunchResult.SelectDisc -> {
                         _discPickerState.value = DiscPickerState(
                             gameId = result.gameId,
                             discs = result.discs,
                             channelName = channelName,
+                            launchMode = launchMode,
                             onLaunch = onLaunch
                         )
                     }
@@ -439,7 +454,14 @@ class GameLaunchDelegate @Inject constructor(
             when (result) {
                 is LaunchResult.Success -> {
                     soundManager.play(SoundType.LAUNCH_GAME)
-                    state.onLaunch(result.intent)
+                    val intent = if (state.launchMode != null) {
+                        result.intent.apply {
+                            putExtra(LaunchMode.EXTRA_LAUNCH_MODE, state.launchMode.name)
+                        }
+                    } else {
+                        result.intent
+                    }
+                    state.onLaunch(intent)
                 }
                 is LaunchResult.Error -> {
                     notificationManager.showError(result.message)

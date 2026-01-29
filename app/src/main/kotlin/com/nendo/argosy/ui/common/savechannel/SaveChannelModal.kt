@@ -775,19 +775,16 @@ private fun StateSlotRow(
         }
 
         if (!isEmpty) {
-            val sourceText = when (entry.source) {
-                UnifiedStateEntry.Source.LOCAL -> "Local"
-                UnifiedStateEntry.Source.SERVER -> "Server"
-                UnifiedStateEntry.Source.BOTH -> "Synced"
+            val (syncText, syncColor) = when (entry.syncStatus) {
+                UnifiedStateEntry.SyncStatus.SYNCED -> "Synced" to MaterialTheme.colorScheme.primary
+                UnifiedStateEntry.SyncStatus.PENDING_UPLOAD -> "Pending" to LocalLauncherTheme.current.semanticColors.info
+                UnifiedStateEntry.SyncStatus.SERVER_ONLY -> "Server" to MaterialTheme.colorScheme.secondary
+                UnifiedStateEntry.SyncStatus.LOCAL_ONLY -> "Local" to LocalLauncherTheme.current.semanticColors.warning
             }
             Text(
-                text = "[$sourceText]",
+                text = "[$syncText]",
                 style = MaterialTheme.typography.bodySmall,
-                color = when (entry.source) {
-                    UnifiedStateEntry.Source.LOCAL -> LocalLauncherTheme.current.semanticColors.warning
-                    UnifiedStateEntry.Source.SERVER -> MaterialTheme.colorScheme.secondary
-                    UnifiedStateEntry.Source.BOTH -> MaterialTheme.colorScheme.primary
-                }
+                color = syncColor
             )
         }
     }

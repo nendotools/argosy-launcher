@@ -14,7 +14,7 @@ import javax.inject.Inject
 private const val TAG = "SyncStatesOnSessionEnd"
 
 sealed class StateSyncResult {
-    data class Cached(val count: Int) : StateSyncResult()
+    data class Cached(val count: Int, val queued: Int = 0) : StateSyncResult()
     data object NoStatesFound : StateSyncResult()
     data object NotConfigured : StateSyncResult()
     data class Error(val message: String) : StateSyncResult()
@@ -119,11 +119,53 @@ class SyncStatesOnSessionEndUseCase @Inject constructor(
                 if (cacheId != null) {
                     cachedCount++
                     Log.d(TAG, "Cached state slot ${state.slotNumber} for game $gameId")
+                    stateCacheManager.markForUpload(cacheId)
                 }
             }
         }
 
         Log.d(TAG, "Cached $cachedCount states for game $gameId")
-        return StateSyncResult.Cached(cachedCount)
+
+        val queuedCount = if (prefs.saveSyncEnabled && game.rommId != null) {
+            queueStatesForUpload(gameId, game.rommId, emulatorId)
+        } else {
+            Log.d(TAG, "State cloud sync skipped: saveSyncEnabled=${prefs.saveSyncEnabled}, rommId=${game.rommId}")
+            0
+        }
+
+        return StateSyncResult.Cached(cachedCount, queuedCount)
+    }
+
+    private suspend fun queueStatesForUpload(gameId: Long, rommId: Long, emulatorId: String): Int {
+        val pendingStates = stateCacheManager.getByGameAndEmulator(gameId, emulatorId)
+            .filter { it.syncStatus == null || it.rommSaveId == null }
+
+        if (pendingStates.isEmpty()) {
+            Log.d(TAG, "[StateSync] QUEUE gameId=$gameId | No states to queue")
+            return 0
+        }
+
+        Log.d(TAG, "[StateSync] QUEUE gameId=$gameId | Queueing ${pendingStates.size} states for upload")
+
+        var queuedCount = 0
+        for (state in pendingStates) {
+            val queued = stateCacheManager.queueStateForUpload(
+                stateCacheId = state.id,
+                gameId = gameId,
+                rommId = rommId,
+                emulatorId = emulatorId
+            )
+            if (queued) {
+                queuedCount++
+            }
+        }
+
+        Log.d(TAG, "[StateSync] QUEUE gameId=$gameId | Queued $queuedCount states")
+
+        if (queuedCount > 0) {
+            stateCacheManager.processPendingStateUploads()
+        }
+
+        return queuedCount
     }
 }

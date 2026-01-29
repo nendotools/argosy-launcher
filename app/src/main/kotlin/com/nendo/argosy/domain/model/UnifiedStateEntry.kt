@@ -17,10 +17,12 @@ data class UnifiedStateEntry(
     val source: Source,
     val isActive: Boolean = false,
     val isLocked: Boolean = false,
-    val versionStatus: VersionStatus = VersionStatus.UNKNOWN
+    val versionStatus: VersionStatus = VersionStatus.UNKNOWN,
+    val syncStatus: SyncStatus = SyncStatus.LOCAL_ONLY
 ) {
     enum class Source { LOCAL, SERVER, BOTH }
     enum class VersionStatus { COMPATIBLE, MISMATCH, UNKNOWN }
+    enum class SyncStatus { LOCAL_ONLY, SYNCED, PENDING_UPLOAD, SERVER_ONLY }
 
     val isAutoSlot: Boolean get() = slotNumber == -1
     val canRestore: Boolean get() = localCacheId != null

@@ -135,6 +135,8 @@ class SaveSyncRepository @Inject constructor(
         this.api = api
     }
 
+    fun getApi(): RomMApi? = api
+
     private fun updateSyncQueue(transform: (SyncQueueState) -> SyncQueueState) {
         _syncQueueState.update(transform)
     }

@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
+import com.nendo.argosy.data.download.ZipExtractor
 import com.nendo.argosy.data.launcher.SteamLaunchers
 import com.nendo.argosy.data.local.dao.EmulatorConfigDao
 import com.nendo.argosy.data.repository.BiosRepository
@@ -96,6 +97,9 @@ class GameLauncher @Inject constructor(
                 Logger.warn(TAG, "launch() failed: ROM file missing: ${romFile.name}, fullPath=$romPath")
             }
         }
+
+        // Extract ZIP/7z archives for platforms that don't use ZIP as ROM format
+        romFile = extractArchiveIfNeeded(romFile, game)
 
         // For m3u files on platforms that don't support m3u launching, prompt for disc selection
         if (romFile.extension.lowercase() == "m3u" && !M3uManager.supportsM3u(game.platformSlug)) {
@@ -898,5 +902,122 @@ class GameLauncher @Inject constructor(
 
         Logger.warn(TAG, "Failed to rename ${romFile.name} to ${newFile.name}")
         return romFile
+    }
+
+    private fun getRomCacheDir(platformSlug: String, gameId: Long): File {
+        return File(context.filesDir, "rom_cache/$platformSlug/$gameId")
+    }
+
+    private fun findCachedRom(cacheDir: File): File? {
+        if (!cacheDir.exists() || !cacheDir.isDirectory) return null
+        return cacheDir.listFiles()
+            ?.filter { it.isFile && !it.name.startsWith(".") }
+            ?.maxByOrNull { it.lastModified() }
+    }
+
+    private suspend fun extractArchiveIfNeeded(romFile: File, game: GameEntity): File {
+        if (!ZipExtractor.isArchiveFile(romFile)) {
+            return romFile
+        }
+
+        if (ZipExtractor.usesZipAsRomFormat(game.platformSlug)) {
+            Logger.debug(TAG, "Platform ${game.platformSlug} uses ZIP as ROM format, skipping extraction")
+            return romFile
+        }
+
+        val cacheDir = getRomCacheDir(game.platformSlug, game.id)
+        val cachedRom = findCachedRom(cacheDir)
+
+        if (cachedRom != null && cachedRom.exists()) {
+            Logger.info(TAG, "Using cached extraction: ${cachedRom.name}")
+            return cachedRom
+        }
+
+        Logger.info(TAG, "Extracting archive to cache: ${romFile.name}")
+
+        return try {
+            cacheDir.mkdirs()
+
+            val extractedFile = if (ZipExtractor.shouldExtractArchive(romFile, game.platformSlug)) {
+                val gameTitle = game.title.ifEmpty { romFile.nameWithoutExtension }
+                val extracted = ZipExtractor.extractFolderRom(
+                    archiveFilePath = romFile,
+                    gameTitle = gameTitle,
+                    platformDir = cacheDir
+                )
+                File(extracted.launchPath)
+            } else {
+                extractSingleFileArchive(romFile, cacheDir)
+            }
+
+            if (extractedFile.exists()) {
+                Logger.info(TAG, "Extracted to cache: ${extractedFile.name}")
+                extractedFile
+            } else {
+                Logger.error(TAG, "Extraction failed: extracted file doesn't exist: ${extractedFile.absolutePath}")
+                cacheDir.deleteRecursively()
+                romFile
+            }
+        } catch (e: Exception) {
+            Logger.error(TAG, "Failed to extract archive: ${e.message}", e)
+            cacheDir.deleteRecursively()
+            romFile
+        }
+    }
+
+    private fun extractSingleFileArchive(archiveFile: File, targetDir: File): File {
+        if (ZipExtractor.isSevenZFile(archiveFile)) {
+            return extractSingleFile7z(archiveFile, targetDir)
+        }
+
+        java.util.zip.ZipFile(archiveFile).use { zip ->
+            val entries = zip.entries().toList().filter { !it.isDirectory && !it.name.startsWith("._") }
+            if (entries.isEmpty()) {
+                throw IllegalStateException("Archive is empty")
+            }
+
+            val entry = entries.first()
+            val fileName = File(entry.name).name
+            val targetFile = File(targetDir, fileName)
+
+            zip.getInputStream(entry).use { input ->
+                targetFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+
+            Logger.debug(TAG, "Extracted single file: ${entry.name} -> ${targetFile.name}")
+            return targetFile
+        }
+    }
+
+    private fun extractSingleFile7z(archiveFile: File, targetDir: File): File {
+        org.apache.commons.compress.archivers.sevenz.SevenZFile.builder()
+            .setFile(archiveFile)
+            .get()
+            .use { sevenZ ->
+                var entry = sevenZ.nextEntry
+                while (entry != null) {
+                    if (!entry.isDirectory && !entry.name.startsWith("._")) {
+                        val fileName = File(entry.name).name
+                        val targetFile = File(targetDir, fileName)
+
+                        targetFile.outputStream().use { output ->
+                            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                            val inputStream = sevenZ.getInputStream(entry)
+                            var bytes = inputStream.read(buffer)
+                            while (bytes >= 0) {
+                                output.write(buffer, 0, bytes)
+                                bytes = inputStream.read(buffer)
+                            }
+                        }
+
+                        Logger.debug(TAG, "Extracted single file from 7z: ${entry.name} -> ${targetFile.name}")
+                        return targetFile
+                    }
+                    entry = sevenZ.nextEntry
+                }
+            }
+        throw IllegalStateException("No valid files found in 7z archive")
     }
 }

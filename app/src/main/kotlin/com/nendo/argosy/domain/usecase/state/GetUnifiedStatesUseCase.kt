@@ -107,8 +107,19 @@ class GetUnifiedStatesUseCase @Inject constructor(
             currentCoreVersion
         )
 
+        val syncStatus = when {
+            cache.rommSaveId != null && cache.syncStatus == StateCacheEntity.STATUS_SYNCED ->
+                UnifiedStateEntry.SyncStatus.SYNCED
+            cache.syncStatus == StateCacheEntity.STATUS_PENDING_UPLOAD ||
+            cache.syncStatus == StateCacheEntity.STATUS_LOCAL_NEWER ->
+                UnifiedStateEntry.SyncStatus.PENDING_UPLOAD
+            else ->
+                UnifiedStateEntry.SyncStatus.LOCAL_ONLY
+        }
+
         return UnifiedStateEntry(
             localCacheId = cache.id,
+            serverStateId = cache.rommSaveId,
             slotNumber = cache.slotNumber,
             timestamp = cache.cachedAt,
             size = cache.stateSize,
@@ -116,10 +127,11 @@ class GetUnifiedStatesUseCase @Inject constructor(
             coreId = cache.coreId,
             coreVersion = cache.coreVersion,
             screenshotPath = stateCacheManager.getScreenshotPath(cache),
-            source = UnifiedStateEntry.Source.LOCAL,
+            source = if (cache.rommSaveId != null) UnifiedStateEntry.Source.BOTH else UnifiedStateEntry.Source.LOCAL,
             isActive = false,
             isLocked = cache.isLocked,
-            versionStatus = versionStatus
+            versionStatus = versionStatus,
+            syncStatus = syncStatus
         )
     }
 

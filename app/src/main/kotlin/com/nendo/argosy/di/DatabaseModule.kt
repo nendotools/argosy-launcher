@@ -21,6 +21,7 @@ import com.nendo.argosy.data.local.dao.GameFileDao
 import com.nendo.argosy.data.local.dao.OrphanedFileDao
 import com.nendo.argosy.data.local.dao.PendingAchievementDao
 import com.nendo.argosy.data.local.dao.PendingSaveSyncDao
+import com.nendo.argosy.data.local.dao.PendingStateSyncDao
 import com.nendo.argosy.data.local.dao.PendingSyncDao
 import com.nendo.argosy.data.local.dao.PinnedCollectionDao
 import com.nendo.argosy.data.local.dao.PlatformDao
@@ -104,7 +105,10 @@ object DatabaseModule {
                 ALauncherDatabase.MIGRATION_55_56,
                 ALauncherDatabase.MIGRATION_56_57,
                 ALauncherDatabase.MIGRATION_57_58,
-                ALauncherDatabase.MIGRATION_58_59
+                ALauncherDatabase.MIGRATION_58_59,
+                ALauncherDatabase.MIGRATION_59_60,
+                ALauncherDatabase.MIGRATION_60_61,
+                ALauncherDatabase.MIGRATION_61_62
             )
             .build()
     }
@@ -201,4 +205,8 @@ object DatabaseModule {
     @Provides
     fun providePendingAchievementDao(database: ALauncherDatabase): PendingAchievementDao =
         database.pendingAchievementDao()
+
+    @Provides
+    fun providePendingStateSyncDao(database: ALauncherDatabase): PendingStateSyncDao =
+        database.pendingStateSyncDao()
 }

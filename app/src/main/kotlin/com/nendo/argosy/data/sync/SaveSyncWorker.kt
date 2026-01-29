@@ -13,6 +13,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.nendo.argosy.data.remote.romm.RomMRepository
 import com.nendo.argosy.data.repository.SaveSyncRepository
+import com.nendo.argosy.data.repository.StateCacheManager
 import com.nendo.argosy.domain.usecase.save.CheckNewSavesUseCase
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -24,6 +25,7 @@ class SaveSyncWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val checkNewSavesUseCase: CheckNewSavesUseCase,
     private val saveSyncRepository: SaveSyncRepository,
+    private val stateCacheManager: StateCacheManager,
     private val romMRepository: RomMRepository
 ) : CoroutineWorker(context, params) {
 
@@ -83,8 +85,11 @@ class SaveSyncWorker @AssistedInject constructor(
             val checkResult = checkNewSavesUseCase()
             Logger.info(TAG, "[SaveSync] WORKER | Check complete | newSaves=${checkResult.newSavesCount}, platformsChecked=${checkResult.platformsChecked}")
 
-            val uploaded = saveSyncRepository.processPendingUploads()
-            Logger.info(TAG, "[SaveSync] WORKER | Uploads processed | count=$uploaded")
+            val savesUploaded = saveSyncRepository.processPendingUploads()
+            Logger.info(TAG, "[SaveSync] WORKER | Save uploads processed | count=$savesUploaded")
+
+            val statesUploaded = stateCacheManager.processPendingStateUploads()
+            Logger.info(TAG, "[StateSync] WORKER | State uploads processed | count=$statesUploaded")
 
             Logger.info(TAG, "[SaveSync] WORKER | Sync complete")
             Result.success()
